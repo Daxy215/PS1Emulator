@@ -165,6 +165,13 @@ void CPU::opor(Instruction& instruction) {
 }
 
 void CPU::opsw(Instruction& instruction) {
+    // Can't write if we aren in cache isolation mode!
+    if(sr & 0x10000 != 0) {
+        std::cout << "Ignoring store while cache is isolated!";
+        
+        return;
+    }
+    
     uint32_t i = instruction.imm_se();
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
