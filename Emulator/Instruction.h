@@ -23,9 +23,9 @@ class Instruction {
 public:
     Instruction(uint32_t op) : op(op) {}
     
-    // Returns bits [5:0] of the instruction
+    // Returns bits [15:11] of the instruction
     RegisterIndex d() {
-        return {(op >> 1) & 0x1f};
+        return {(op >> 11) & 0x1f};
     }
     
     // Returns register index in bits [20:16]

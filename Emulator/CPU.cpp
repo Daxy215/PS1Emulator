@@ -205,8 +205,21 @@ void CPU::opcop0(Instruction& instruction) {
 void CPU::opmtc0(Instruction& instruction) {
     // This basically makes it so that all the data,
     // goes to the cache instead of the main memory.
-    uint32_t cpu_r = instruction.t();
-    uint32_t cop_r = instruction.d();
+    RegisterIndex cpur = instruction.t();
+    uint32_t copr = instruction.d().reg;
+    
+    RegisterIndex v = reg(cpur);
+    
+    switch (copr) {
+    case 12:
+        sr = v;
+        break;
+    default:
+        std::cout << "Unhandled cop0 register " << copr << "\n";
+        throw std::runtime_error("Unhandled cop0 register " + copr);
+        
+        break;
+    }
 }
 
 void CPU::op_j(Instruction& instruction) {
