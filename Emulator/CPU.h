@@ -35,6 +35,9 @@ public:
     
     // Store Word
     void opsw(Instruction& instruction);
+
+    // Load word
+    void oplw(Instruction instruction);
     
     // Jump
     void opj(Instruction& instruction);

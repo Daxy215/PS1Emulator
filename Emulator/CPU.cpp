@@ -77,6 +77,9 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b101011:
         opsw(instruction);
         break;
+    case 0b100011:
+        oplw(instruction);
+        break;
     case 0b000010:
         opj(instruction);
         break;
@@ -158,6 +161,7 @@ void CPU::opor(Instruction& instruction) {
     set_reg(d, v);
 }
 
+// Store word
 void CPU::opsw(Instruction& instruction) {
     // Can't write if we aren in cache isolation mode!
     if(sr & 0x10000 != 0) {
@@ -174,6 +178,24 @@ void CPU::opsw(Instruction& instruction) {
     uint32_t v    = reg(t).reg;
     
     store32(addr, v);
+}
+
+// Load word
+void CPU::oplw(Instruction instruction) {
+    if(sr & 0x10000 != 0) {
+        std::cout << "Ignoring store while cache is isolated!";
+        
+        return;
+    }
+    
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+    
+    RegisterIndex addr = wrappingAdd(reg(s), i);
+    uint32_t v = load32(addr);
+    
+    set_reg(t, v);
 }
 
 // addiu $8, $zero, 0xb88
