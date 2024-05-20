@@ -1,46 +1,63 @@
 ﻿#pragma once
 #include <cstdint>
 
+//#include "CPU.h"
+
+struct RegisterIndex {
+    RegisterIndex() : reg(0) {}
+    RegisterIndex(uint32_t reg) : reg(reg) {}
+    
+    RegisterIndex operator|(const RegisterIndex& other) const {
+        return {reg | other.reg};
+    }
+    
+    operator uint32_t() const {
+        return reg;
+    }
+    
+    uint32_t reg;
+};
+
 // https://github.com/deadcore/playstation-emulator/blob/master/src/instruction/mod.rs#L40
 class Instruction {
 public:
     Instruction(uint32_t op) : op(op) {}
     
     // Returns bits [5:0] of the instruction
-    uint32_t d() {
-        return (op >> 1) & 0x1f;
+    RegisterIndex d() {
+        return {(op >> 1) & 0x1f};
     }
     
     // Returns register index in bits [20:16]
-    uint32_t t() {
-        return (op >> 16) & 0x1F;
+    RegisterIndex t() {
+        return {(op >> 16) & 0x1F};
     }
     
     // Returns register index in bits [25:21]
-    uint32_t s() {
-        return (op >> 21) & 0x1F;
+    RegisterIndex s() {
+        return {(op >> 21) & 0x1F};
     }
     
     // Returns immediate value in bits [16:0]
-    uint32_t imm() {
-        return op & 0xFFFF;
+    RegisterIndex imm() {
+        return {op & 0xFFFF};
     }
     
     // Returns the immediate value in bts [16:0] as sign-extended 32 bits.
-    uint32_t imm_se() {
+    RegisterIndex imm_se() {
         int16_t v = static_cast<int16_t>(op) & 0xffff;
         
-        return static_cast<uint32_t>(v);
+        return RegisterIndex(static_cast<uint32_t>(v));
     }
     
     // Jumps to target stored in bits [25:0]
-    uint32_t imm_jump() {
-        return (op & 0x3ffffff);
+    RegisterIndex imm_jump() {
+        return {(op & 0x3ffffff)};
     }
     
     // Returns bits [31:26] of the instruction
-    uint32_t func() {
-        return op >> 26;
+    RegisterIndex func() {
+        return {op >> 26};
     }
     
     // Same as the 's' function
@@ -50,12 +67,12 @@ public:
     }
     
     // Returns the immediate values that are stored in bits [10:6]
-    uint32_t subfunction() {
+    RegisterIndex subfunction() {
         return op & 0x3f;
     }
     
     // Shift immediate values that are stored in bits [10:6]
-    uint32_t shift() {
+    RegisterIndex shift() {
         return (op >> 6) & 0x1f;
     }
     

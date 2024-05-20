@@ -6,17 +6,6 @@
 
 class Instruction;
 
-struct RegisterIndex {
-    RegisterIndex() : reg(0) {}
-    RegisterIndex(uint32_t reg) : reg(reg) {}
-    
-    RegisterIndex operator|(const RegisterIndex& other) const {
-        return {reg | other.reg};
-    }
-    
-    uint32_t reg;
-};
-
 class CPU {
 public:
     CPU(Interconnect* interconnect) : regs{}, interconnect(interconnect) {
