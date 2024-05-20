@@ -25,7 +25,7 @@ public:
     
     // Returns bits [15:11] of the instruction
     RegisterIndex d() {
-        return {(op >> 11) & 0x1f};
+        return {(op >> 11) & 0x1F};
     }
     
     // Returns register index in bits [20:16]
@@ -44,10 +44,8 @@ public:
     }
     
     // Returns the immediate value in bts [16:0] as sign-extended 32 bits.
-    RegisterIndex imm_se() {
-        int16_t v = static_cast<int16_t>(op) & 0xffff;
-        
-        return RegisterIndex(static_cast<uint32_t>(v));
+    uint32_t imm_se() const {
+        return static_cast<uint32_t>(static_cast<int16_t>(op & 0xffff));
     }
     
     // Jumps to target stored in bits [25:0]
@@ -66,7 +64,7 @@ public:
         return (op >> 21) & 0x1F;
     }
     
-    // Returns the immediate values that are stored in bits [10:6]
+    // Returns the immediate values that are stored in bits [5:0]
     RegisterIndex subfunction() {
         return op & 0x3f;
     }

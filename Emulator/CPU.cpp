@@ -86,8 +86,11 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b010000:
         opmtc0(instruction);
         break;
+    case 0b000101:
+        opbne(instruction);
+        break;
     default:
-        std::cout << "Unhandled instruction: " << uint32ToHex(instruction.func()) << '\n';
+        std::cout << "Unhandled instruction: " << uint32ToHex(instruction.func()) << " = " << instruction.func() << '\n';
         throw std::runtime_error("Unhandled instruction: " + uint32ToHex(instruction.op));
     }
 }
@@ -97,9 +100,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b000000:
         opsll(instruction);
         break;
-    case 0b100001:
+    //case 0b100001:
         //addu(instruction);
-        break;
+        //break;
     case 0b100101:
         opor(instruction);
         break;
@@ -223,7 +226,7 @@ void CPU::op_j(Instruction& instruction) {
     pc = (pc & 0xf0000000) | (i << 2);
 }
 
-void CPU::op_bne(Instruction& instruction) {
+void CPU::opbne(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex s = instruction.s();
     RegisterIndex t = instruction.t();
@@ -238,10 +241,10 @@ void CPU::op_bne(Instruction& instruction) {
 void CPU::branch(uint32_t offset) {
     // Offset immediate are always shifted to two places,
     // to the right as 'PC' addresses have to be aligned with 32 bits.
-    uint32_t bOffset = offset << 2;
+    offset = offset << 2;
     
     pc = wrappingAdd(pc, offset);
-
+    
     // We need to compensate for the hardcoded
     // 'pc.wrapping_add(4)' in 'executeNextInstruction'
     pc = wrappingSub(pc, 4);

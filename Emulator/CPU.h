@@ -39,7 +39,7 @@ public:
     void op_j(Instruction& instruction);
     
     // Branch if not equal
-    void op_bne(Instruction& instruction);
+    void opbne(Instruction& instruction);
     
     // Branch to immediate value 'offset'
     void branch(uint32_t offset);
