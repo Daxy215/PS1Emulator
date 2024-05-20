@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <cstdint>
+#include <optional>
 
 #include "Instruction.h"
 #include "interconnect.h"
@@ -36,7 +37,7 @@ public:
     void opsw(Instruction& instruction);
     
     // Jump
-    void op_j(Instruction& instruction);
+    void opj(Instruction& instruction);
     
     // Branch if not equal
     void opbne(Instruction& instruction);
@@ -46,6 +47,9 @@ public:
     
     // Add Immediate Unsigned
     void addiu(Instruction& instruction);
+
+    // Same as addiu but generates an exception if it overflows
+    void addi(Instruction instruction);
     
     // Coprocessors handling
     void opcop0(Instruction& instruction);
@@ -72,6 +76,9 @@ public:
     // Helper functions
     uint32_t wrappingAdd(uint32_t a, uint32_t b);
     uint32_t wrappingSub(uint32_t a, uint32_t b);
+
+    template<typename T>
+    std::optional<T> check_add(T a, T b);
     
 public:
     // PC initial value should be at the beginning of the BIOS.

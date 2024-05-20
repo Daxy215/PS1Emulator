@@ -78,10 +78,13 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opsw(instruction);
         break;
     case 0b000010:
-        op_j(instruction);
+        opj(instruction);
         break;
     case 0b001001:
         addiu(instruction);
+        break;
+    case 0b001000:
+        addi(instruction);
         break;
     case 0b010000:
         opmtc0(instruction);
@@ -158,7 +161,7 @@ void CPU::opor(Instruction& instruction) {
 void CPU::opsw(Instruction& instruction) {
     // Can't write if we aren in cache isolation mode!
     if(sr & 0x10000 != 0) {
-        std::cout << "Ignoring store while cache is isolated!";
+        std::cout << "Ignoring store-word while cache is isolated!";
         
         return;
     }
@@ -179,10 +182,28 @@ void CPU::addiu(Instruction& instruction) {
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
     
-    uint32_t v = wrappingAdd(reg(s).reg, i);
+    uint32_t v = wrappingAdd(reg(s), i);
     
     set_reg(t, v);
 }
+
+void CPU::addi(Instruction instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    uint32_t s = instruction.s();
+    
+    s = reg(s);
+
+    // Check if an overflow occours
+    auto results = check_add<uint32_t>(s, i);
+    if(!results.has_value()) {
+        // Overflow!
+        std::cout << "ADDi overflow\n";
+        throw std::runtime_error("ADDi overflow\n");
+    }
+    
+    uint32_t v = wrappingAdd(s, i);
+    set_reg(t, v);}
 
 void CPU::opcop0(Instruction& instruction) {
     // Formation goes as:
@@ -220,7 +241,7 @@ void CPU::opmtc0(Instruction& instruction) {
     }
 }
 
-void CPU::op_j(Instruction& instruction) {
+void CPU::opj(Instruction& instruction) {
     uint32_t i = instruction.imm_jump();
     
     pc = (pc & 0xf0000000) | (i << 2);
@@ -241,13 +262,15 @@ void CPU::opbne(Instruction& instruction) {
 void CPU::branch(uint32_t offset) {
     // Offset immediate are always shifted to two places,
     // to the right as 'PC' addresses have to be aligned with 32 bits.
-    offset = offset << 2;
     
-    pc = wrappingAdd(pc, offset);
+    //TODO; BRANCH!!
+    //offset = offset << 2;
+    
+    //pc = wrappingAdd(pc, offset);
     
     // We need to compensate for the hardcoded
     // 'pc.wrapping_add(4)' in 'executeNextInstruction'
-    pc = wrappingSub(pc, 4);
+    //pc = wrappingSub(pc, 4);
 }
 
 uint32_t CPU::load32(uint32_t addr) {
@@ -266,4 +289,15 @@ uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
 uint32_t CPU::wrappingSub(uint32_t a, uint32_t b) {
     // Perform wrapping subtraction (wrap around upon underflow)
     return a - b > a ? 0 : a - b;
+}
+
+template <typename T>
+std::optional<T> CPU::check_add(T a, T b) {
+    if (b > std::numeric_limits<T>::max() - a) {
+        // Overflow occurred
+        return std::nullopt;
+    }
+    
+    // No overflow, perform addition
+    return a + b;
 }
