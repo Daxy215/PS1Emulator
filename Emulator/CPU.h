@@ -34,9 +34,15 @@ public:
     
     // Store Word
     void opsw(Instruction& instruction);
-
+    
     // Jump
     void op_j(Instruction& instruction);
+    
+    // Branch if not equal
+    void op_bne(Instruction& instruction);
+    
+    // Branch to immediate value 'offset'
+    void branch(uint32_t offset);
     
     // Add Immediate Unsigned
     void addiu(Instruction& instruction);
@@ -44,6 +50,7 @@ public:
     // Coprocessors handling
     void opcop0(Instruction& instruction);
 
+    // Also Coprocessor handling but only for COP0
     void opmtc0(Instruction& instruction);
     
     // Register related functions
@@ -64,7 +71,8 @@ public:
     
     // Helper functions
     uint32_t wrappingAdd(uint32_t a, uint32_t b);
-
+    uint32_t wrappingSub(uint32_t a, uint32_t b);
+    
 public:
     // PC initial value should be at the beginning of the BIOS.
     uint32_t pc =  0xbfc00000;

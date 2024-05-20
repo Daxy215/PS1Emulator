@@ -39,7 +39,7 @@ void CPU::executeNextInstruction() {
     decodeAndExecute(*(instruction));
 }
 
-
+// TODO; Remove me.
 std::string uint32ToHex(uint32_t value) {
     std::string binary = std::bitset<32>(value).to_string();
     
@@ -48,21 +48,9 @@ std::string uint32ToHex(uint32_t value) {
     std::string results = std::bitset<6>(std::stoi(shiftedBin, nullptr, 2) & 0x3F).to_string();
     
     std::stringstream ss;
+    // wrong hex values but who cares about those
     ss << "0x" << std::setfill('0') << std::setw(8) << std::hex << value << " Binary; 0b" << results;
     
-    /*
-    std::string hex = ss.str();
-    uint32_t hexVal;
-    ss >> std::hex >> hexVal;
-    
-    uint32_t binary = (hexVal >> 21) & 0x3f;
-    
-    ss.str("");
-    ss.clear();
-    
-    ss << "Original Value: " << hex << ", Modified Value: 0b" << std::setw(8) << std::setfill('0') << binary;
-    */
-
     return ss.str();
 }
 
@@ -235,6 +223,30 @@ void CPU::op_j(Instruction& instruction) {
     pc = (pc & 0xf0000000) | (i << 2);
 }
 
+void CPU::op_bne(Instruction& instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+
+    // Check if not equal
+    if(reg(s) != reg(t)) {
+        // Jump to the offset of i
+        branch(i);
+    }
+}
+
+void CPU::branch(uint32_t offset) {
+    // Offset immediate are always shifted to two places,
+    // to the right as 'PC' addresses have to be aligned with 32 bits.
+    uint32_t bOffset = offset << 2;
+    
+    pc = wrappingAdd(pc, offset);
+
+    // We need to compensate for the hardcoded
+    // 'pc.wrapping_add(4)' in 'executeNextInstruction'
+    pc = wrappingSub(pc, 4);
+}
+
 uint32_t CPU::load32(uint32_t addr) {
     return interconnect->load32(addr);
 }
@@ -246,4 +258,9 @@ void CPU::store32(uint32_t addr, uint32_t val) {
 uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
     // Perform wrapping addition (wrap around upon overflow)
     return a + b < a ? UINT32_MAX : a + b;
+}
+
+uint32_t CPU::wrappingSub(uint32_t a, uint32_t b) {
+    // Perform wrapping subtraction (wrap around upon underflow)
+    return a - b > a ? 0 : a - b;
 }
