@@ -46,7 +46,7 @@ public:
     
     // Set on less than unsigned
     void opsltu(Instruction& instruction);
-
+    
     // Set on less than immediate
     void opslti(Instruction& instruction);
     
@@ -55,24 +55,34 @@ public:
     
     // Store Halfword
     void opsh(Instruction& instruction);
-
+    
     // Store byte
     void opsb(Instruction& instruction);
     
     // Load word
     void oplw(Instruction& instruction);
-
+    
     // Load byte
     void oplb(Instruction& instruction);
+    
+    // Load Byte Unsigned
+    void oplbu(Instruction& instruction);
     
     // Jump
     void opj(Instruction& instruction);
     
-    // Jump Register
+    // Jump register
     void opjr(Instruction& instruction);
-
+    
     // Jump and link
     void opjal(Instruction& instruction);
+    
+    // Jump and link register
+    void opjalr(Instruction& instruction);
+    
+    // Various branch instructions; BEGZ, BLTZ, BGEZAL, BLTZAL
+    // Bits 16 and 20 are used to figure out which one to use.
+    void opbxx(Instruction& instruction);
     
     // Branch if not equal
     void opbne(Instruction& instruction);

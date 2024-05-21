@@ -23,7 +23,13 @@
 // The most savour of ALL https://problemkaputt.de/psx-spx.htm#cpuspecifications
 // https://en.wikipedia.org/wiki/NOP // For null functions etc..
 // https://en.wikipedia.org/wiki/R3000
-//
+// https://www.dsi.unive.it/~gasparetto/materials/MIPS_Instruction_Set.pdf
+
+// Used this A LOT to figure out which instruction I need to convert
+// https://inst.eecs.berkeley.edu/~cs61c/resources/MIPS_help.html
+// R-TYPE INSTRUCTIONS -> subfunction
+// J-TYPE INSTRUCTIONS -> ??? Jump instructions?
+// I-TYPE INSTRUCTIONS -> functions
 
 /**
  * Where I got the BIOS from:

@@ -82,12 +82,14 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
     
-    std::cout << "Processingd; " + getDetails(instruction.op) << '\n';
+    std::cout << "Processingd; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.func()) << '\n';
     
     switch (instruction.func()) {
     case 0b000000:
         decodeAndExecuteSubFunctions(instruction);
-        
+        break;
+    case 0b000001:
+        opbxx(instruction);
         break;
     case 0b001111:
         oplui(instruction);
@@ -110,6 +112,9 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b100000:
         oplb(instruction);
         break;
+    case 0b100100:
+        oplbu(instruction);
+        break;
     case 0b000010:
         opj(instruction);
         break;
@@ -117,6 +122,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opjal(instruction);
         break;
     case 0b001010:
+        printf("WHY ISN'T THIS BEING CALLED!!!!!!!\n"); 
         opslti(instruction);
         break;
     case 0b001001:
@@ -146,7 +152,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     default:
         printf("Unhandled CPU instruction at 0x%08x\n", instruction.op);
         std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
-        throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op));
+        throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
     }
 }
 
@@ -166,6 +172,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     case 0b001000:
         opjr(instruction);
+        break;
+    case 0b001001:
+        opjalr(instruction);
         break;
     case 0b100000:
         add(instruction);
@@ -244,20 +253,20 @@ void CPU::opsltu(Instruction& instruction) {
 }
 
 void CPU::opslti(Instruction& instruction) {
-    int32_t immediate = static_cast<int32_t>(instruction.imm_se());
+    int32_t i = static_cast<int32_t>(instruction.imm_se());
     RegisterIndex s = instruction.s(); 
     RegisterIndex t = instruction.t();
     
-    int32_t result = static_cast<int32_t>(reg(s)) < immediate ? 1 : 0;
+    int32_t result = static_cast<int32_t>(reg(s)) < i;
     
     set_reg(t, static_cast<uint32_t>(result));
 }
 
 // Store word
 void CPU::opsw(Instruction& instruction) {
-    // Can't write if we aren in cache isolation mode!
-    if(sr & 0x10000 != 0) {
-        std::cout << "Ignoring store-word while cache is isolated!";
+    // Can't write if we are in cache isolation mode!
+    if((sr & 0x10000) != 0) {
+        std::cout << "Ignoring store-word while cache is isolated!\n";
         
         return;
     }
@@ -274,8 +283,8 @@ void CPU::opsw(Instruction& instruction) {
 
 // Store halfword
 void CPU::opsh(Instruction& instruction) {
-    if(sr & 0x10000 != 0) {
-        std::cout << "Ignoring store while cache is isolated!";
+    if((sr & 0x10000) != 0) {
+        std::cout << "Ignoring store while cache is isolated!\n";
         
         return;
     }
@@ -294,8 +303,8 @@ void CPU::opsh(Instruction& instruction) {
 }
 
 void CPU::opsb(Instruction& instruction) {
-    if(sr & 0x10000 != 0) {
-        std::cout << "Ignoring store while cache is isolated!";
+    if((sr & 0x10000) != 0) {
+        std::cout << "Ignoring store while cache is isolated!\n";
         
         return;
     }
@@ -342,6 +351,18 @@ void CPU::oplb(Instruction& instruction) {
     int8_t v = static_cast<int8_t>(load8(addr));
     
     // Put the load in the delay slot
+    load = {t, static_cast<uint32_t>(v)};
+}
+
+void CPU::oplbu(Instruction& instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+    
+    uint32_t addr = wrappingAdd(reg(s), i);
+    
+    uint8_t v = load8(addr);
+    
     load = {t, static_cast<uint32_t>(v)};
 }
 
@@ -434,13 +455,13 @@ void CPU::opmtc0(Instruction& instruction) {
     case 13:
         // case register
         if(v != 0) {
-            throw std::runtime_error("Unhandled write to cop0 register " + copr);
+            throw std::runtime_error("Unhandled write to cop0 register " + std::to_string(copr));
         }
         
         break;
     default:
         std::cout << "Unhandled cop0 register " << copr << "\n";
-        throw std::runtime_error("Unhandled cop0 register " + copr);
+        throw std::runtime_error("Unhandled cop0 register " + std::to_string(copr));
         
         break;
     }
@@ -465,6 +486,41 @@ void CPU::opjal(Instruction& instruction) {
     set_reg(31, pc);
     
     opj(instruction);
+}
+
+void CPU::opjalr(Instruction& instruction) {
+    RegisterIndex d = instruction.d();
+    RegisterIndex s = instruction.s();
+
+    set_reg(d, pc);
+    pc = reg(s);
+}
+
+void CPU::opbxx(Instruction& instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex s = instruction.s();
+    
+    bool isbgez = (instruction.op >> 16) & 1;
+    bool islink = ((instruction.op >> 20) & 1) != 0;
+    
+    int32_t v = static_cast<int32_t>(reg(s));
+
+    // Test "less than zero"
+    uint32_t test (v < 0);
+
+    // If the test is "greater than or equal to zero" we need
+    // to negate the comparison above since
+    // ("a >= 0" <=> "!(a < 0)"). The xor takes care of that.
+    test = test ^ isbgez;
+
+    if(test != 0) {
+        if(islink) {
+            // Store return address in R31 of RA
+            set_reg(31, pc);
+        }
+        
+        branch(i);
+    }
 }
 
 void CPU::opbne(Instruction& instruction) {
@@ -502,9 +558,9 @@ void CPU::opbgtz(Instruction& instruction) {
 void CPU::opblez(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex s = instruction.s();
-
+    
     int32_t v = static_cast<int32_t>(reg(s));
-
+    
     if(v <= 0) {
         branch(i);
     }
