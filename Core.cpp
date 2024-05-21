@@ -160,7 +160,7 @@
     *
     * Which is equivalent to MIPS assembly:
         * lui $8, 0x13
-        
+    
     * Dont get ANY of this. Page 16
  */
 
@@ -172,7 +172,13 @@ int main(int argc, char* argv[]) {
     CPU* cpu = new CPU(inter);
     
     while(true) {
-        cpu->executeNextInstruction();
+        // TODO; Remove
+        try {
+            cpu->executeNextInstruction();
+        } catch(std::runtime_error& e) {
+            std::cerr << e.what() << '\n';
+            throw; // Rethrow the error
+        }
     }
     
     return 0;

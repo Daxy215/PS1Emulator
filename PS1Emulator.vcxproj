@@ -160,12 +160,14 @@
     <ClCompile Include="Emulator\CPU.cpp" />
     <ClCompile Include="Emulator\Instruction.cpp" />
     <ClCompile Include="Emulator\interconnect.cpp" />
+    <ClCompile Include="Emulator\Ram.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Emulator\Bios.h" />
     <ClInclude Include="Emulator\CPU.h" />
     <ClInclude Include="Emulator\Instruction.h" />
     <ClInclude Include="Emulator\interconnect.h" />
+    <ClInclude Include="Emulator\Ram.h" />
     <ClInclude Include="Emulator\Range.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

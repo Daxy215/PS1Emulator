@@ -28,8 +28,12 @@ void CPU::executeNextInstruction() {
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
     
-    Instruction* instruction = nextInstruction;
+    RegisterIndex reg = load.regIndex;
+    set_reg(reg, reg.reg);
     
+    load = {{0}, 0};
+    
+    Instruction* instruction = nextInstruction;
     nextInstruction = new Instruction(load32(pc));
     
     // increment the PC
@@ -37,6 +41,10 @@ void CPU::executeNextInstruction() {
     
     // Executes the instruction
     decodeAndExecute(*(instruction));
+    
+    // TODO; Make this as a function
+    // regs = outRegs;
+    std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
 }
 
 // TODO; Remove me.
@@ -106,9 +114,6 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b000000:
         opsll(instruction);
         break;
-    //case 0b100001:
-        //addu(instruction);
-        //break;
     case 0b100101:
         opor(instruction);
         break;
@@ -194,8 +199,9 @@ void CPU::oplw(Instruction instruction) {
     
     RegisterIndex addr = wrappingAdd(reg(s), i);
     uint32_t v = load32(addr);
-    
-    set_reg(t, v);
+
+    load = {t, v};
+    //set_reg(t, v);
 }
 
 // addiu $8, $zero, 0xb88
@@ -230,7 +236,7 @@ void CPU::addi(Instruction instruction) {
 void CPU::opcop0(Instruction& instruction) {
     // Formation goes as:
     // 0b0100nn where nn is the coprocessor number.
-
+    
     switch (instruction.copOpcode()) {
     case 0b00100: // COP0
         opmtc0(instruction);
@@ -252,8 +258,23 @@ void CPU::opmtc0(Instruction& instruction) {
     RegisterIndex v = reg(cpur);
     
     switch (copr) {
+    //Breakpoints registers for the future
+    case 3: case 5: case 6: case 7: case 9: case 11:
+        if(v != 0) {
+            std::cout << "Unhandled write to cop0r{} " << copr << " val: " << v << "\n";
+            throw std::runtime_error("Unhandled write to cop0r{} " + std::to_string(copr) + " val: " + std::to_string(v) + "\n");
+        }
+        
+        break;
     case 12:
         sr = v;
+        break;
+    case 13:
+        // case register
+        if(v != 0) {
+            throw std::runtime_error("Unhandled write to cop0 register " + copr);
+        }
+        
         break;
     default:
         std::cout << "Unhandled cop0 register " << copr << "\n";
@@ -273,7 +294,7 @@ void CPU::opbne(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex s = instruction.s();
     RegisterIndex t = instruction.t();
-
+    
     // Check if not equal
     if(reg(s) != reg(t)) {
         // Jump to the offset of i
@@ -286,13 +307,13 @@ void CPU::branch(uint32_t offset) {
     // to the right as 'PC' addresses have to be aligned with 32 bits.
     
     //TODO; BRANCH!!
-    //offset = offset << 2;
+    offset = offset << 2;
     
-    //pc = wrappingAdd(pc, offset);
+    pc = wrappingAdd(pc, offset);
     
     // We need to compensate for the hardcoded
     // 'pc.wrapping_add(4)' in 'executeNextInstruction'
-    //pc = wrappingSub(pc, 4);
+    pc = wrappingSub(pc, 4);
 }
 
 uint32_t CPU::load32(uint32_t addr) {

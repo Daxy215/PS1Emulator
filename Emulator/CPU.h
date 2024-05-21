@@ -7,9 +7,17 @@
 
 class Instruction;
 
+// Used for the load register
+struct Load {
+    RegisterIndex regIndex;
+    uint32_t value;
+    
+    Load(RegisterIndex reg, uint32_t val) : regIndex(reg), value(val) {}
+};
+
 class CPU {
 public:
-    CPU(Interconnect* interconnect) : regs{}, interconnect(interconnect) {
+    CPU(Interconnect* interconnect) : outRegs{}, regs{}, interconnect(interconnect) {
         
     }
 
@@ -66,10 +74,10 @@ public:
     }
     
     void set_reg(uint32_t index, RegisterIndex val) {
-        regs[index] = val;
+        outRegs[index] = val;
         
         // We need to always rest R0 to 0
-        regs[0] = {0};
+        outRegs[0] = {0};
     }
     
     // Memory related functions
@@ -89,6 +97,13 @@ public:
     
     // Cop0; register 12; Status Register
     uint32_t sr = 0;
+    
+    // Load delay slot emulation.
+    // Contains output of the current instruction
+    RegisterIndex outRegs[32];
+    
+    // Load initiated by the current instruction
+    Load load = {{0}, 0};
     
     // General purpose registers
     // First entry must always contain a 0.
