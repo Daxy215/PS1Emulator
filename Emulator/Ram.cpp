@@ -20,6 +20,10 @@ uint32_t Ram::load32(uint32_t offset) {
     return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
 }
 
+uint8_t Ram::load8(uint8_t offset) {
+    return data[offset];
+}
+
 void Ram::store32(uint32_t offset, uint32_t val) {
     if (offset + 3 >= data.size()) {
         throw std::out_of_range("Offset out of range");
@@ -29,4 +33,8 @@ void Ram::store32(uint32_t offset, uint32_t val) {
     data[offset + 1] = static_cast<uint8_t>(val >> 8);
     data[offset + 2] = static_cast<uint8_t>(val >> 16);
     data[offset + 3] = static_cast<uint8_t>(val >> 24);
+}
+
+void Ram::store8(uint32_t offset, uint8_t val) {
+    data[offset] = val;
 }

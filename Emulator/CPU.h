@@ -80,8 +80,17 @@ public:
     // Branch if Equal
     void opbeq(Instruction& instruction);
     
+    // Branch if greater than zero
+    void opbgtz(Instruction& instruction);
+
+    // Branch if less than or equal to zero
+    void opblez(Instruction& instruction);
+    
     // Branch to immediate value 'offset'
     void branch(uint32_t offset);
+
+    // Add with expection on overflow
+    void add(Instruction& instruction);
     
     // Add unsigned
     void addu(Instruction& instruction);
@@ -91,6 +100,9 @@ public:
     
     // Same as addiu but generates an exception if it overflows
     void addi(Instruction& instruction);
+    
+    // Bitwise And
+    void opand(Instruction& instruction);
     
     // Bitwise And Immediate
     void opandi(Instruction& instruction);

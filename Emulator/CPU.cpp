@@ -137,6 +137,12 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b000100:
         opbeq(instruction);
         break;
+    case 0b000111:
+        opbgtz(instruction);
+        break;
+    case 0b000110:
+        opblez(instruction);
+        break;
     default:
         printf("Unhandled CPU instruction at 0x%08x\n", instruction.op);
         std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
@@ -161,8 +167,14 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b001000:
         opjr(instruction);
         break;
+    case 0b100000:
+        add(instruction);
+        break;
     case 0b100001:
         addu(instruction);
+        break;
+    case 0b100100:
+        opand(instruction);
         break;
     default:
         throw std::runtime_error("Unhandled sub instruction: " + getDetails(instruction.op));
@@ -363,10 +375,20 @@ void CPU::addi(Instruction& instruction) {
     set_reg(t, v);
 }
 
+void CPU::opand(Instruction& instruction) {
+    RegisterIndex d = instruction.d();
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+    
+    RegisterIndex v = reg(s) & reg(t);
+    
+    set_reg(d, v);
+}
+
 void CPU::opandi(Instruction& instruction){
     RegisterIndex i = instruction.imm();
-    RegisterIndex t = instruction.t();
     RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
     
     RegisterIndex v = reg(s) & i;
     
@@ -422,6 +444,8 @@ void CPU::opmtc0(Instruction& instruction) {
         
         break;
     }
+    
+    load = {cpur, v};
 }
 
 void CPU::opj(Instruction& instruction) {
@@ -464,18 +488,52 @@ void CPU::opbeq(Instruction& instruction) {
         branch(i);
 }
 
+void CPU::opbgtz(Instruction& instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex s = instruction.s();
+    
+    int32_t v = static_cast<int32_t>(reg(s));
+    
+    if(v > 0) {
+        branch(i);
+    }
+}
+
+void CPU::opblez(Instruction& instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex s = instruction.s();
+
+    int32_t v = static_cast<int32_t>(reg(s));
+
+    if(v <= 0) {
+        branch(i);
+    }
+}
+
 void CPU::branch(uint32_t offset) {
     // Offset immediate are always shifted to two places,
     // to the right as 'PC' addresses have to be aligned with 32 bits.
-    
-    //TODO; BRANCHH!!
     offset = offset << 2;
     
     pc = wrappingAdd(pc, offset);
     
     // We need to compensate for the hardcoded
     // 'pc.wrapping_add(4)' in 'executeNextInstruction'
+    
+    // This was causing an error,
+    // apparently swapping the values fixed it?
     pc = wrappingSub(4, pc);
+}
+
+void CPU::add(Instruction& instruction) {
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+    RegisterIndex d = instruction.d();
+
+    if(auto v = check_add(s, t)) {
+        set_reg(d, v.value());
+    } else
+        throw std::runtime_error("Add overflow");
 }
 
 void CPU::addu(Instruction& instruction) {
@@ -493,7 +551,7 @@ uint32_t CPU::load32(uint32_t addr) {
 }
 
 uint8_t CPU::load8(uint32_t addr) {
-    interconnect->load8(addr);
+    return interconnect->load8(addr);
 }
 
 void CPU::store32(uint32_t addr, uint32_t val) {
