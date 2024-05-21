@@ -1,5 +1,7 @@
 ﻿#include "CPU.h"
+#include "Instruction.h"
 
+#include <array>
 #include <bitset>
 #include <iomanip>
 #include <iostream>
@@ -7,8 +9,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-
-#include "Instruction.h"
 
 //TODO Remove those
 std::string getHex(uint32_t value) {
@@ -348,14 +348,14 @@ void CPU::branch(uint32_t offset) {
     // Offset immediate are always shifted to two places,
     // to the right as 'PC' addresses have to be aligned with 32 bits.
     
-    //TODO; BRANCH!!
-    //offset = offset << 2;
+    //TODO; BRANCHH!!
+    offset = offset << 2;
     
-    //pc = wrappingAdd(pc, offset);
+    pc = wrappingAdd(pc, offset);
     
     // We need to compensate for the hardcoded
     // 'pc.wrapping_add(4)' in 'executeNextInstruction'
-    //pc = wrappingSub(pc, 4);
+    pc = wrappingSub(4, pc);
 }
 
 void CPU::addu(Instruction& instruction) {

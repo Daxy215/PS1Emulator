@@ -37,7 +37,7 @@ public:
     // ori $8, $8, 0x243f
     // Puts the result of the "bitwise" or of $8 and 0x243f back into $8
     void opori(Instruction& instruction);
-
+    
     // Bitwise or
     void opor(Instruction& instruction);
 
@@ -96,7 +96,7 @@ public:
     // Helper functions
     uint32_t wrappingAdd(uint32_t a, uint32_t b);
     uint32_t wrappingSub(uint32_t a, uint32_t b);
-
+    
     template<typename T>
     std::optional<T> check_add(T a, T b);
     
@@ -117,7 +117,6 @@ public:
     // General purpose registers
     // First entry must always contain a 0.
     RegisterIndex regs[32];
-    
 private:
     Instruction* nextInstruction = new Instruction(0x0); //NOP
     
