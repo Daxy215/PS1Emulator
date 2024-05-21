@@ -158,9 +158,14 @@ void CPU::decodeAndExecute(Instruction& instruction) {
 }
 
 void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
+    std::cerr << "Sub Processing; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.subfunction()) << " PC; " << pc << '\n';
+    
     switch (instruction.subfunction()) {
     case 0b000000:
         opsll(instruction);
+        break;
+    case 0b000011:
+        opsra(instruction);
         break;
     case 0b100101:
         opor(instruction);
@@ -183,6 +188,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b100001:
         addu(instruction);
         break;
+    case 0b100011:
+        opsubu(instruction);
+        break;
     case 0b100100:
         opand(instruction);
         break;
@@ -193,7 +201,7 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     }
 }
 
-void CPU::opsll(Instruction instruction) {
+void CPU::opsll(Instruction& instruction) {
     uint32_t i = instruction.shift();
     uint32_t t = instruction.t();
     uint32_t d = instruction.d();
@@ -201,6 +209,16 @@ void CPU::opsll(Instruction instruction) {
     uint32_t v = reg(t).reg << i;
     
     set_reg(d, v);
+}
+
+void CPU::opsra(Instruction& instruction) {
+    RegisterIndex i = instruction.shift();
+    RegisterIndex t = instruction.t();
+    RegisterIndex d = instruction.d();
+    
+    uint32_t v = static_cast<uint32_t>(reg(t)) >> i;
+    
+    set_reg(d, static_cast<uint32_t>(v));
 }
 
 // Load Upper Immediate(LUI)
@@ -277,7 +295,7 @@ void CPU::opsw(Instruction& instruction) {
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
     
-    uint32_t addr = wrappingAdd(reg(s).reg, i);
+    uint32_t addr = wrappingAdd(reg(s), i);
     uint32_t v    = reg(t).reg;
     
     store32(addr, v);
@@ -290,11 +308,11 @@ void CPU::opsh(Instruction& instruction) {
         
         return;
     }
-
+    
     RegisterIndex i = instruction.imm_se();
     RegisterIndex t = instruction.t();
     RegisterIndex s = instruction.s();
-
+    
     uint32_t addr = wrappingAdd(reg(s), i);
     
     // Don't really need static cast here, but it's easier to read
@@ -393,6 +411,16 @@ void CPU::addi(Instruction& instruction) {
     }
     
     set_reg(t, static_cast<uint32_t>(v.value()));
+}
+
+void CPU::opsubu(Instruction& instruction) {
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+    RegisterIndex d = instruction.d();
+    
+    uint32_t v = wrappingAdd(reg(s), reg(t));
+    
+    set_reg(d, v);
 }
 
 void CPU::opand(Instruction& instruction) {

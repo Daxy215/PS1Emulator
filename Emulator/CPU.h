@@ -29,7 +29,10 @@ public:
     // TODO; Please move those in a different class future me!
 
     // Shift Left Logical
-    void opsll(Instruction instruction);
+    void opsll(Instruction& instruction);
+
+    // Shift Right Arithmetic
+    void opsra(Instruction& instruction);
     
     // Load Upper Immediate(LUI)
     void oplui(Instruction& instruction);
@@ -110,6 +113,9 @@ public:
     
     // Same as addiu but generates an exception if it overflows
     void addi(Instruction& instruction);
+
+    // Substract Unsigned
+    void opsubu(Instruction& instruction);
     
     // Bitwise And
     void opand(Instruction& instruction);

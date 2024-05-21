@@ -22,8 +22,8 @@ namespace map {
     
     static const Range BIOS = { 0x1fc00000, 512 * 1024}; // 0xbfc00000
     
-    //static const Range MEMCONTROL = { 0x1f801000, 36}; // 0x1f801000
-    static const Range SYSCONTROL = {0x1f801000, 36};
+    static const Range MEMCONTROL = { 0x1f801000, 36}; // 0x1f801000
+    //static const Range MEMCONTROL = {0x1f801000, 36};
     static const Range CACHECONTROL = {0xfffe0130, 4}; // 0xfffe0130
     
     // SPU Registers

@@ -97,13 +97,17 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
     if(addr % 4 != 0) {
         throw std::runtime_error("Unaligned fetch32 at address " + getDetail(addr));
     }
+
+    if(auto offset = map::RAM.contains(addr)) {
+        ram->store32(offset.value(), val);
+    }
     
     if(auto offset = map::IRQ_CONTROL.contains(addr)) {
         printf("IRAQ control %x 0x%08x\n", offset.value(), val);
         return;
     }
     
-    auto offset = map::SYSCONTROL.contains(addr);
+    auto offset = map::MEMCONTROL.contains(addr);
     
     if(!offset) {
         std::cout << "Unhandled store32 at address " + getDetail(addr) << '\n';
@@ -128,7 +132,7 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
         
         break;
     default:
-        std::cout << "Unhandled store to SYSCONTROL register " << getDetail(addr) << '\n';
+        std::cerr << "Unhandled store to MEMCONROL register " << getDetail(addr) << " - " << offset.value() << '\n';
         break;
     }
     
