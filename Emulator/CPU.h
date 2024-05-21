@@ -52,15 +52,27 @@ public:
     
     // Store Word
     void opsw(Instruction& instruction);
-
-    // Load word
-    void oplw(Instruction instruction);
-
+    
     // Store Halfword
     void opsh(Instruction& instruction);
+
+    // Store byte
+    void opsb(Instruction& instruction);
+    
+    // Load word
+    void oplw(Instruction& instruction);
+
+    // Load byte
+    void oplb(Instruction& instruction);
     
     // Jump
     void opj(Instruction& instruction);
+    
+    // Jump Register
+    void opjr(Instruction& instruction);
+
+    // Jump and link
+    void opjal(Instruction& instruction);
     
     // Branch if not equal
     void opbne(Instruction& instruction);
@@ -76,6 +88,9 @@ public:
     
     // Same as addiu but generates an exception if it overflows
     void addi(Instruction& instruction);
+    
+    // Bitwise And Immediate
+    void opandi(Instruction& instruction);
     
     // Coprocessors handling
     void opcop0(Instruction& instruction);
@@ -97,8 +112,10 @@ public:
     
     // Memory related functions
     uint32_t load32(uint32_t addr);
+    uint8_t  load8(uint32_t addr);
     void store32(uint32_t addr, uint32_t val);
     void store16(uint32_t addr, uint16_t val);
+    void store8(uint32_t addr, uint8_t val);
     
     // Helper functions
     uint32_t wrappingAdd(uint32_t a, uint32_t b);

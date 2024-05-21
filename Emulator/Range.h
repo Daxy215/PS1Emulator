@@ -30,6 +30,9 @@ namespace map {
     
     // SPU Registers
     static const Range SPU = {0x1f801c00, 640};
+
+    // Expansion region 2
+    static const Range EXPANSION2 = {0x1f802000, 66};
     
     // Region mask
     static const std::array<uint32_t, 8> REGION_MASK = {

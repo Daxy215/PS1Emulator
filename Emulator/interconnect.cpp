@@ -64,8 +64,18 @@ uint16_t Interconnect::load16(uint32_t addr) {
 }
 
 uint8_t Interconnect::load8(uint32_t addr) {
-    return 0;
-}
+    addr = map::maskRegion(addr);
+    
+    // To avoid "bus errors"
+    if(addr % 4 != 0) {
+        throw std::runtime_error("Unaligned fetch8 at address " + getDetail(addr));
+    }
+    
+    if(auto offset = map::BIOS.contains(addr)) {
+        return bios->load8(offset.value());
+    }
+    
+    throw std::runtime_error("Unhandled fetch8 at address " + getDetail(addr))}
 
 // Stores 32bit word 'val' into 'addr'
 void Interconnect::store32(uint32_t addr, uint32_t val) {
@@ -112,18 +122,29 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
 void Interconnect::store16(uint32_t addr, uint16_t val) {
     // To avoid "bus errors"
     if(addr % 2 != 0) {
-        throw std::runtime_error("Unaligned fetch16 at address " + getDetail(addr));
+        throw std::runtime_error("Unaligned store16 at address " + getDetail(addr));
     }
 
     addr = map::maskRegion(addr);
 
     if(auto offset = map::SPU.contains(addr)) {
-        throw std::runtime_error("Unaligned write to SPU register " + getDetail(addr));
+        throw std::runtime_error("Unaligned store16 write to SPU register " + getDetail(addr));
     }
     
-    throw std::runtime_error("Unhandled fetch16 at address " + getDetail(addr));
+    throw std::runtime_error("Unhandled store16 at address " + getDetail(addr));
 }
 
 void Interconnect::store8(uint32_t addr, uint8_t val) {
+    // To avoid "bus errors"
+    if(addr % 2 != 0) {
+        throw std::runtime_error("Unaligned store8 at address " + getDetail(addr));
+    }
     
+    addr = map::maskRegion(addr);
+    
+    if(auto offset = map::EXPANSION2.contains(addr)) {
+        throw std::runtime_error("Unaligned store8 write to SPU register " + getDetail(addr));
+    }
+    
+    throw std::runtime_error("Unhandled store8 at address " + getDetail(addr));
 }

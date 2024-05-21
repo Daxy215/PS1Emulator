@@ -98,23 +98,35 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b101011:
         opsw(instruction);
         break;
+    case 0b101001:
+        opsh(instruction);
+        break;
+    case 0b101000:
+        opsb(instruction);
+        break;
     case 0b100011:
         oplw(instruction);
+        break;
+    case 0b100000:
+        oplb(instruction);
         break;
     case 0b000010:
         opj(instruction);
         break;
+    case 0b000011:
+        opjal(instruction);
+        break;
     case 0b001010:
         opslti(instruction);
-        break;
-    case 0b101001:
-        opsh(instruction);
         break;
     case 0b001001:
         addiu(instruction);
         break;
     case 0b001000:
         addi(instruction);
+        break;
+    case 0b001100:
+        opandi(instruction);
         break;
     case 0b010000:
         opmtc0(instruction);
@@ -142,6 +154,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     case 0b101011:
         opsltu(instruction);
+        break;
+    case 0b001000:
+        opjr(instruction);
         break;
     case 0b100001:
         addu(instruction);
@@ -242,26 +257,6 @@ void CPU::opsw(Instruction& instruction) {
     store32(addr, v);
 }
 
-// Load word
-void CPU::oplw(Instruction instruction) {
-    if(sr & 0x10000 != 0) {
-        std::cout << "Ignoring store while cache is isolated!";
-        
-        return;
-    }
-    
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex t = instruction.t();
-    RegisterIndex s = instruction.s();
-    
-    RegisterIndex addr = wrappingAdd(reg(s), i);
-    uint32_t v = load32(addr);
-    
-    // Put the load in the delay slot
-    load = {t, v};
-    //set_reg(t, v);
-}
-
 // Store halfword
 void CPU::opsh(Instruction& instruction) {
     if(sr & 0x10000 != 0) {
@@ -275,9 +270,64 @@ void CPU::opsh(Instruction& instruction) {
     RegisterIndex s = instruction.s();
 
     uint32_t addr = wrappingAdd(reg(s), i);
+    
+    // Don't really need static cast here, but it's easier to read
+    // or at least.. Understand what is happening
     uint16_t v    = static_cast<uint16_t>(reg(t));
-
+    
     store16(addr, v);
+}
+
+void CPU::opsb(Instruction& instruction) {
+    if(sr & 0x10000 != 0) {
+        std::cout << "Ignoring store while cache is isolated!";
+        
+        return;
+    }
+    
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+    
+    uint32_t addr = wrappingAdd(reg(s), i);
+    uint8_t v    = static_cast<uint8_t>(reg(t));
+    
+    store8(addr, v);
+}
+
+// Load word
+void CPU::oplw(Instruction& instruction) {
+    /*Idk why I had this here??
+    if(sr & 0x10000 != 0) {
+        std::cout << "Ignoring store while cache is isolated!";
+        
+        return;
+    }
+    */
+    
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+    
+    RegisterIndex addr = wrappingAdd(reg(s), i);
+    uint32_t v = load32(addr);
+    
+    // Put the load in the delay slot
+    load = {t, v};
+    //set_reg(t, v);
+}
+
+// Load byte
+void CPU::oplb(Instruction& instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+    
+    RegisterIndex addr = wrappingAdd(reg(s), i);
+    int8_t v = static_cast<int8_t>(load8(addr));
+    
+    // Put the load in the delay slot
+    load = {t, static_cast<uint32_t>(v)};
 }
 
 // addiu $8, $zero, 0xb88
@@ -307,6 +357,16 @@ void CPU::addi(Instruction& instruction) {
     }
     
     uint32_t v = wrappingAdd(s, i);
+    set_reg(t, v);
+}
+
+void CPU::opandi(Instruction& instruction){
+    RegisterIndex i = instruction.imm();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+    
+    RegisterIndex v = reg(s) & i;
+    
     set_reg(t, v);
 }
 
@@ -367,6 +427,19 @@ void CPU::opj(Instruction& instruction) {
     pc = (pc & 0xf0000000) | (i << 2);
 }
 
+void CPU::opjr(Instruction& instruction) {
+    RegisterIndex s = instruction.s();
+    
+    pc = reg(s);
+}
+
+void CPU::opjal(Instruction& instruction) {
+    // Store return address in £31($ra)
+    set_reg(31, pc);
+    
+    opj(instruction);
+}
+
 void CPU::opbne(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex s = instruction.s();
@@ -407,12 +480,20 @@ uint32_t CPU::load32(uint32_t addr) {
     return interconnect->load32(addr);
 }
 
+uint8_t CPU::load8(uint32_t addr) {
+    interconnect->load8(addr);
+}
+
 void CPU::store32(uint32_t addr, uint32_t val) {
     interconnect->store32(addr, val);
 }
 
 void CPU::store16(uint32_t addr, uint16_t val) {
     interconnect->store16(addr, val);
+}
+
+void CPU::store8(uint32_t addr, uint8_t val) {
+    interconnect->store8(addr, val);
 }
 
 uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {

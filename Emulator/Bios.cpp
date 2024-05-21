@@ -25,7 +25,7 @@ Bios::Bios(const std::string& path)  {
  * Offset here isn't a CPU address but rather,
  * an offset within the BIOS memory range.
  */
-uint32_t Bios::load32(size_t offset) const {
+uint32_t Bios::load32(size_t offset) {
     /*uint32_t b0 = data[offset + 0];
     uint32_t b1 = data[offset + 1];
     uint32_t b2 = data[offset + 2];
@@ -43,4 +43,8 @@ uint32_t Bios::load32(size_t offset) const {
     }
     
     return result;
+}
+
+uint8_t Bios::load8(size_t offset) {
+    return data[offset];
 }
