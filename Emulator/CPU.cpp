@@ -69,6 +69,10 @@ void CPU::executeNextInstruction() {
     
     // Rest load register
     load = {{0}, 0};
+
+    // If the last instruction was a branch then we're in the delay slot
+    delaySlot = branchSlot;
+    branchSlot = false;
     
     // Executes the instruction
     decodeAndExecute(*(instruction));
@@ -468,7 +472,7 @@ void CPU::addi(Instruction& instruction) {
     if(!v.has_value()) {
         // Overflow!
         std::cout << "ADDi overflow\n";
-        throw std::runtime_error("ADDi overflow\n");
+        exception(Overflow);
     }
     
     set_reg(t, static_cast<uint32_t>(v.value()));
@@ -675,6 +679,15 @@ void CPU::exception(Exception cause) {
     // Save current instruction address in 'EPC'
     epc = currentpc;
 
+    if(delaySlot) {
+        // When an exception occurs in a delay slot 'EPC' points
+        // to the branch instruction and bit 31 of 'CAUSE' is set.
+        epc -= 4; // WrappingSub(4) ;-}
+        //this->cause |= (1 << 31);
+        // C++ is too epic :D
+        this->cause = (static_cast<uint32_t>(cause) << 2) | (this->cause & 0x3FC00000);
+    }
+
     // Exceptions don’t have a branch delay, we jump directly into the handler
     pc = handler;
     nextpc = pc + 4;//wrappingAdd(pc, 4);
@@ -825,7 +838,7 @@ void CPU::add(Instruction& instruction) {
     if(std::optional<int32_t> v = check_add<int32_t>(s, t)) {
         set_reg(d, static_cast<uint32_t>(v.value()));
     } else
-        throw std::runtime_error("Add overflow");
+        exception(Overflow);
 
     /*
     RegisterIndex s = instruction.s();
