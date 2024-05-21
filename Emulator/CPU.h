@@ -77,6 +77,9 @@ public:
     // Branch if not equal
     void opbne(Instruction& instruction);
     
+    // Branch if Equal
+    void opbeq(Instruction& instruction);
+    
     // Branch to immediate value 'offset'
     void branch(uint32_t offset);
     

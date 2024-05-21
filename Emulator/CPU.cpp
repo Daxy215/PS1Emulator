@@ -134,6 +134,9 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b000101:
         opbne(instruction);
         break;
+    case 0b000100:
+        opbeq(instruction);
+        break;
     default:
         printf("Unhandled CPU instruction at 0x%08x\n", instruction.op);
         std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
@@ -450,6 +453,15 @@ void CPU::opbne(Instruction& instruction) {
         // Jump to the offset of i
         branch(i);
     }
+}
+
+void CPU::opbeq(Instruction& instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+    
+    if(reg(s) == reg(t))
+        branch(i);
 }
 
 void CPU::branch(uint32_t offset) {
