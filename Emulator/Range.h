@@ -28,6 +28,10 @@ namespace map {
     
     // SPU Registers
     static const Range SPU = {0x1f801c00, 640};
+
+    // Direct Memory Access registers
+    // Basically sounds and the SPU
+    static const Range DMA = {0x1f801080, 0x80};
     
     // Expansion regions
     static const Range EXPANSION1 = {0x1f000000, 512 * 1024};

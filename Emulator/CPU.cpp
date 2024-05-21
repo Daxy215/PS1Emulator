@@ -56,6 +56,13 @@ void CPU::executeNextInstruction() {
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
     
+    currentpc = pc;
+    
+    if(currentpc % 4 != 0) {
+        exception(LoadAddressError);
+        return;
+    }
+    
     Instruction* instruction = nextInstruction;
     nextInstruction = new Instruction(load32(pc));
     
@@ -362,8 +369,12 @@ void CPU::opsw(Instruction& instruction) {
     
     uint32_t addr = wrappingAdd(reg(s), i);
     uint32_t v    = reg(t).reg;
-    
-    store32(addr, v);
+
+    if(addr % 4 == 0) {
+        store32(addr, v);
+    } else {
+        exception(StoreAddressError);
+    }
 }
 
 // Store halfword
@@ -384,7 +395,11 @@ void CPU::opsh(Instruction& instruction) {
     // or at least.. Understand what is happening
     uint16_t v    = static_cast<uint16_t>(reg(t));
     
-    store16(addr, v);
+    if(addr % 2 == 0) {
+        store16(addr, v);
+    } else {
+       exception(StoreAddressError); 
+    }
 }
 
 void CPU::opsb(Instruction& instruction) {
@@ -417,11 +432,15 @@ void CPU::oplw(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     
     RegisterIndex addr = wrappingAdd(reg(s), i);
-    uint32_t v = load32(addr);
+
+    if(addr % 4 == 0) {
+        uint32_t v = load32(addr);
     
-    // Put the load in the delay slot
-    load = {t, v};
-    //set_reg(t, v);
+        // Put the load in the delay slot
+        load = {t, v};
+        //set_reg(t, v);
+    } else
+        exception(LoadAddressError);
 }
 
 // Load byte
@@ -687,14 +706,16 @@ void CPU::exception(Exception cause) {
         // C++ is too epic :D
         this->cause = (static_cast<uint32_t>(cause) << 2) | (this->cause & 0x3FC00000);
     }
-
+    
     // Exceptions don’t have a branch delay, we jump directly into the handler
     pc = handler;
     nextpc = pc + 4;//wrappingAdd(pc, 4);
+    
+    std::cerr << "EXECPTION OCCOURED!!\n";
 }
 
 void CPU::opSyscall(Instruction& instruction) {
-    exception(Exception::Syscall);
+    exception(SysCall);
 }
 
 void CPU::opj(Instruction& instruction) {

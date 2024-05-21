@@ -35,6 +35,20 @@ void Ram::store32(uint32_t offset, uint32_t val) {
     data[offset + 3] = static_cast<uint8_t>(val >> 24);
 }
 
+/**
+ * TODO;
+ * It might be more efficient to add the test in the branch and jump instructions capable of
+ * setting an invalid PC but I don’t really care about performance at that point and that would
+ * make the code more complicated
+ */
+void Ram::store16(uint32_t offset, uint16_t val) {
+    uint8_t b0 = static_cast<uint8_t>(val);
+    uint8_t b1 = static_cast<uint8_t>((val >> 8));
+    
+    data[offset + 0] = b0;
+    data[offset + 1] = b1;
+}
+
 void Ram::store8(uint32_t offset, uint8_t val) {
     data[offset] = val;
 }

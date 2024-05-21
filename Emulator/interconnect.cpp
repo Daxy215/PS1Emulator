@@ -52,6 +52,10 @@ uint32_t Interconnect::load32(uint32_t addr) {
         return ram->load32(offset.value());
     }
     
+    if(map::DMA.contains(addr)) {
+        throw std::runtime_error("Unhandled DMA read32 at address " + getDetail(addr));
+    }
+    
     if(auto offset = map::IRQ_CONTROL.contains(addr)) {
         printf("IRAQ control read %x\n", offset.value());
         return 0;
@@ -152,12 +156,16 @@ void Interconnect::store16(uint32_t addr, uint16_t val) {
     }
     
     addr = map::maskRegion(addr);
+
+    if(auto offset = map::RAM.contains(addr)) {
+        return ram->store16(offset.value(), val);
+    }
     
     if(auto offset = map::TIMERS.contains(addr)) {
         printf("Unhandled write to timer register %x 0x%08x\n", offset.value(), val);
         return;
     }
-
+    
     if(auto offset = map::SPU.contains(addr)) {
         throw std::runtime_error("Unaligned store16 write to SPU register " + getDetail(addr));
     }
