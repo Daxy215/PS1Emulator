@@ -83,7 +83,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
     
-    std::cout << "Processingd; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.func()) << " PC; " << pc << '\n';
+    std::cerr << "Processing; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.func()) << " PC; " << pc << '\n';
     
     switch (instruction.func()) {
     case 0b000000:
@@ -505,7 +505,7 @@ void CPU::opbxx(Instruction& instruction) {
     int32_t v = static_cast<int32_t>(reg(s));
     
     // Test "less than zero"
-    uint32_t test (v < 0);
+    uint32_t test (static_cast<uint32_t>(v) < 0);
 
     // If the test is "greater than or equal to zero" we need
     // to negate the comparison above since
@@ -528,7 +528,7 @@ void CPU::opbne(Instruction& instruction) {
     RegisterIndex t = instruction.t();
     
     // Check if not equal
-    if(reg(s).reg != reg(t).reg) {
+    if(reg(s) != reg(t)) {
         // Jump to the offset of i
         branch(i);
     }
@@ -577,7 +577,25 @@ void CPU::branch(uint32_t offset) {
     
     // This was causing an error,
     // apparently swapping the values fixed it?
-    pc = wrappingSub(4, pc);
+    // pc = wrappingSub(4, pc);
+    // So.. This was causing another error,
+    // after A LOT of debugging I noticed that,
+    // pc was being rest back to '0' after BNE,
+    // so I double-checked what the output was meant to be,
+    // and it was supposed to be 4294967256.
+
+    /**
+     * So I did some digging on why wrappingSub wouldn't return 0 in this case;
+        * 4294967260 is 0xFFFFFFEC in HEX, and when you perform the subraction,
+        * so it'd be; 0xFFFFFFEC - 0x00000004 = 0xFFFFFFE8..
+        * which isn't an overflow.
+        
+        * Another thing;
+            * It seems that the wrapping subraction function only results in 0,
+            * IF the subraction crosses the boundary of the minimum value(0)..
+     */
+    
+    pc -= 4;
 }
 
 void CPU::add(Instruction& instruction) {
