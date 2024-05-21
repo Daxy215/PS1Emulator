@@ -56,17 +56,19 @@ void CPU::executeNextInstruction() {
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
     
-    RegisterIndex reg = load.regIndex;
-    set_reg(reg, reg.reg);
-
-    // Rest load register
-    load = {{0}, 0};
-    
     Instruction* instruction = nextInstruction;
     nextInstruction = new Instruction(load32(pc));
     
     // increment the PC
-    pc = wrappingAdd(pc, 4);
+    pc = nextpc;
+    nextpc = wrappingAdd(pc, 4);
+    
+    RegisterIndex reg = load.regIndex;
+    auto val   = load.value;
+    set_reg(reg, val);
+    
+    // Rest load register
+    load = {{0}, 0};
     
     // Executes the instruction
     decodeAndExecute(*(instruction));
@@ -126,6 +128,9 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         //printf("WHY ISN'T THIS BEING CALLED!!!!!!! %x\n", pc);
         opslti(instruction);
         break;
+    case 0b001011:
+        opsltiu(instruction);
+        break;
     case 0b001001:
         addiu(instruction);
         break;
@@ -167,6 +172,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b000011:
         opsra(instruction);
         break;
+    case 0b000010:
+        opsrl(instruction);
+        break;
     case 0b100101:
         opor(instruction);
         break;
@@ -175,6 +183,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     case 0b101011:
         opsltu(instruction);
+        break;
+    case 0b101010:
+        opslt(instruction);
         break;
     case 0b001000:
         opjr(instruction);
@@ -187,6 +198,18 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     case 0b100001:
         addu(instruction);
+        break;
+    case 0b011010:
+        opdiv(instruction);
+        break;
+    case 0b011011:
+        opdivu(instruction);
+        break;
+    case 0b010000:
+        opmfhi(instruction);
+        break;
+    case 0b010010:
+        opmflo(instruction);
         break;
     case 0b100011:
         opsubu(instruction);
@@ -219,6 +242,26 @@ void CPU::opsra(Instruction& instruction) {
     uint32_t v = static_cast<uint32_t>(reg(t)) >> i;
     
     set_reg(d, static_cast<uint32_t>(v));
+}
+
+void CPU::opsrl(Instruction& instruction) {
+    auto i = instruction.shift();
+    auto t = instruction.t();
+    auto d = instruction.d();
+    
+    uint32_t v = reg(t) >> i;
+    
+    set_reg(d, v);
+}
+
+void CPU::opsltiu(Instruction& instruction) {
+    auto i = instruction.imm_se();
+    auto s = instruction.s();
+    auto t = instruction.t();
+
+    uint32_t v = reg(s) < i;
+
+    set_reg(t, static_cast<uint32_t>(v));
 }
 
 // Load Upper Immediate(LUI)
@@ -280,6 +323,19 @@ void CPU::opslti(Instruction& instruction) {
     
     printf("Setting %x as %x\n", t.reg, result);
     set_reg(t, static_cast<uint32_t>(result));
+}
+
+void CPU::opslt(Instruction& instruction) {
+    auto d = instruction.d();
+    auto sReg = instruction.s();
+    auto tReg = instruction.t();
+    
+    int32_t s = static_cast<int32_t>(reg(sReg));
+    int32_t t = static_cast<int32_t>(reg(tReg));
+    
+    auto v = s < t;
+    
+    set_reg(d, static_cast<uint32_t>(v));
 }
 
 // Store word
@@ -411,6 +467,60 @@ void CPU::addi(Instruction& instruction) {
     }
     
     set_reg(t, static_cast<uint32_t>(v.value()));
+}
+
+void CPU::opdiv(Instruction& instruction) {
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+
+    int32_t n = static_cast<int32_t>(reg(s));
+    int32_t d = static_cast<int32_t>(reg(t));
+
+    if(d == 0) {
+        // Division by zero.. Please don't
+        hi = static_cast<uint32_t>(n);
+
+        if(n >= 0)
+            lo = 0xffffffff;
+        else
+            lo = 1;
+    } else if(static_cast<uint32_t>(n) == 0x80000000 && d == -1) {
+        // Result is not representable in a 32bit signed integer
+        hi = 0;
+        lo = 0x80000000;
+    } else {
+        hi = static_cast<uint32_t>((n % d));
+        lo = static_cast<uint32_t>(n / d);
+    }
+}
+
+void CPU::opdivu(Instruction& instruction) {
+    auto s = instruction.s();
+    auto t = instruction.t();
+    
+    auto n = reg(s);
+    auto d = reg(t);
+    
+    if(d == 0) {
+        // Division by zero..
+        hi = n;
+        lo = 0xffffffff;
+    } else {
+        hi = n % d;
+        lo = n / d;
+    }
+}
+
+void CPU::opmfhi(Instruction& instruction) {
+    auto d = instruction.d();
+    
+    set_reg(d, hi);
+}
+
+void CPU::opmflo(Instruction& instruction) {
+    RegisterIndex d = instruction.d();
+    
+    set_reg(d, lo);
 }
 
 void CPU::opsubu(Instruction& instruction) {

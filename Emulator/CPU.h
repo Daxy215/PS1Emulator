@@ -17,7 +17,7 @@ struct Load {
 
 class CPU {
 public:
-    CPU(Interconnect* interconnect) : outRegs{}, regs{}, interconnect(interconnect) {
+    CPU(Interconnect* interconnect) : nextpc(pc), outRegs{}, regs{}, interconnect(interconnect) {
         
     }
 
@@ -33,6 +33,12 @@ public:
 
     // Shift Right Arithmetic
     void opsra(Instruction& instruction);
+    
+    // Shift Right Logical
+    void opsrl(Instruction& instruction);
+
+    // Set if Less Than Immediate Unsigned
+    void opsltiu(Instruction& instruction);
     
     // Load Upper Immediate(LUI)
     void oplui(Instruction& instruction);
@@ -52,6 +58,9 @@ public:
     
     // Set on less than immediate
     void opslti(Instruction& instruction);
+
+    // Set on Less Than signed
+    void opslt(Instruction& instruction);
     
     // Store Word
     void opsw(Instruction& instruction);
@@ -114,6 +123,18 @@ public:
     // Same as addiu but generates an exception if it overflows
     void addi(Instruction& instruction);
 
+    // Divide signed
+    void opdiv(Instruction& instruction);
+
+    // Divide Unsigned
+    void opdivu(Instruction& instruction);
+
+    // Move From HI
+    void opmfhi(Instruction& instruction);
+    
+    // Move from LO
+    void opmflo(Instruction& instruction);
+    
     // Substract Unsigned
     void opsubu(Instruction& instruction);
     
@@ -157,11 +178,20 @@ public:
     std::optional<T> check_add(T a, T b);
     
 public:
-    // PC initial value should be at the beginning of the BIOS.
+    // PC initial value should be at the beginning of the BIOS
     uint32_t pc =  0xbfc00000;
+    
+    // Next value of the PC - Used to simulate the branch delay slot
+    uint32_t nextpc;
     
     // Cop0; register 12; Status Register
     uint32_t sr = 0;
+
+    // High register for division remainder and multiplication high
+    uint32_t hi =  0xdeadbeef;
+
+    // Low register for division quotient and multiplication low
+    uint32_t lo =  0xdeadbeef;
     
     // Load delay slot emulation.
     // Contains output of the current instruction

@@ -36,6 +36,8 @@ namespace map {
     // Interrupt Control registers (status and mask)
     static const Range IRQ_CONTROL = {0x1f801070, 8};
     
+    static const Range TIMERS = {0x1f801100, 0x30};
+    
     // Region mask
     static const std::array<uint32_t, 8> REGION_MASK = {
         0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,  // KUSEG: 2048MB
