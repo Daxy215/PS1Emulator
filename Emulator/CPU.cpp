@@ -10,6 +10,17 @@
 #include <stdexcept>
 #include <string>
 
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+((byte) & 0x80 ? '1' : '0'), \
+((byte) & 0x40 ? '1' : '0'), \
+((byte) & 0x20 ? '1' : '0'), \
+((byte) & 0x10 ? '1' : '0'), \
+((byte) & 0x08 ? '1' : '0'), \
+((byte) & 0x04 ? '1' : '0'), \
+((byte) & 0x02 ? '1' : '0'), \
+((byte) & 0x01 ? '1' : '0') 
+
 //TODO Remove those
 std::string getHex(uint32_t value) {
     std::stringstream ss;
@@ -36,6 +47,20 @@ std::string getDetails(uint32_t value) {
     std::string binary = getBinary(value);
 
     return hex + " = " + binary;
+}
+
+void printBits(size_t const size, void const * const ptr) {
+    unsigned char *b = (unsigned char*) ptr;
+    unsigned char byte;
+    int i, j;
+    
+    for (i = size-1; i >= 0; i--) {
+        for (j = 7; j >= 0; j--) {
+            byte = (b[i] >> j) & 1;
+            printf("%u", byte);
+        }
+    }
+    puts("");
 }
 
 /**
@@ -122,7 +147,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opjal(instruction);
         break;
     case 0b001010:
-        printf("WHY ISN'T THIS BEING CALLED!!!!!!!\n"); 
+        //printf("WHY ISN'T THIS BEING CALLED!!!!!!! %x\n", pc);
         opslti(instruction);
         break;
     case 0b001001:
@@ -150,8 +175,8 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opblez(instruction);
         break;
     default:
-        printf("Unhandled CPU instruction at 0x%08x\n", instruction.op);
-        std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
+        printf("Unhandled CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
+        //std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
         throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
     }
 }
@@ -257,8 +282,9 @@ void CPU::opslti(Instruction& instruction) {
     RegisterIndex s = instruction.s(); 
     RegisterIndex t = instruction.t();
     
-    int32_t result = static_cast<int32_t>(reg(s)) < i;
+    int32_t result = static_cast<int32_t>(reg(s) & 0xFFFFFFFF) < i;
     
+    printf("Setting %x as %x\n", t.reg, result);
     set_reg(t, static_cast<uint32_t>(result));
 }
 

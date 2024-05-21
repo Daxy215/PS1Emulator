@@ -3,8 +3,6 @@
 #include <cstdint>
 #include <optional>
 
-
-
 struct Range {
     std::optional<uint32_t> contains(uint32_t addr) const {
         if (addr >= start && addr < start + length) {

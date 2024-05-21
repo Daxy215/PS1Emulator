@@ -44,13 +44,13 @@ public:
     }
     
     // Returns the immediate value in bts [16:0] as sign-extended 32 bits.
-    uint32_t imm_se() const {
-        return static_cast<uint32_t>(static_cast<int16_t>(op & 0xffff));
+    uint32_t imm_se() {
+        return static_cast<uint32_t>(static_cast<int16_t>(op & 0xFFFF));
     }
     
     // Jumps to target stored in bits [25:0]
     RegisterIndex imm_jump() {
-        return {(op & 0x3ffffff)};
+        return {(op & 0x3FFFFFF)};
     }
     
     // Returns bits [31:26] of the instruction
@@ -58,15 +58,15 @@ public:
         return {op >> 26};
     }
     
+    // Returns the immediate values that are stored in bits [5:0]
+    RegisterIndex subfunction() {
+        return op & 0x3F;
+    }
+    
     // Same as the 's' function
     // Returns register index in bits [25:21]
     uint32_t copOpcode() {
         return (op >> 21) & 0x1F;
-    }
-    
-    // Returns the immediate values that are stored in bits [5:0]
-    RegisterIndex subfunction() {
-        return op & 0x3F;
     }
     
     // Shift immediate values that are stored in bits [10:6]
