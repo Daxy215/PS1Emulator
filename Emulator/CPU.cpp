@@ -10,17 +10,6 @@
 #include <stdexcept>
 #include <string>
 
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BINARY(byte)  \
-((byte) & 0x80 ? '1' : '0'), \
-((byte) & 0x40 ? '1' : '0'), \
-((byte) & 0x20 ? '1' : '0'), \
-((byte) & 0x10 ? '1' : '0'), \
-((byte) & 0x08 ? '1' : '0'), \
-((byte) & 0x04 ? '1' : '0'), \
-((byte) & 0x02 ? '1' : '0'), \
-((byte) & 0x01 ? '1' : '0') 
-
 //TODO Remove those
 std::string getHex(uint32_t value) {
     std::stringstream ss;
@@ -49,20 +38,6 @@ std::string getDetails(uint32_t value) {
     return hex + " = " + binary;
 }
 
-void printBits(size_t const size, void const * const ptr) {
-    unsigned char *b = (unsigned char*) ptr;
-    unsigned char byte;
-    int i, j;
-    
-    for (i = size-1; i >= 0; i--) {
-        for (j = 7; j >= 0; j--) {
-            byte = (b[i] >> j) & 1;
-            printf("%u", byte);
-        }
-    }
-    puts("");
-}
-
 /**
  * Byte - 8 bits
  * HalfWord - 16 bits or 2 bytes
@@ -83,7 +58,8 @@ void CPU::executeNextInstruction() {
     
     RegisterIndex reg = load.regIndex;
     set_reg(reg, reg.reg);
-    
+
+    // Rest load register
     load = {{0}, 0};
     
     Instruction* instruction = nextInstruction;
@@ -107,7 +83,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
     
-    std::cout << "Processingd; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.func()) << '\n';
+    std::cout << "Processingd; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.func()) << " PC; " << pc << '\n';
     
     switch (instruction.func()) {
     case 0b000000:
@@ -347,13 +323,11 @@ void CPU::opsb(Instruction& instruction) {
 
 // Load word
 void CPU::oplw(Instruction& instruction) {
-    /*Idk why I had this here??
-    if(sr & 0x10000 != 0) {
+    if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store while cache is isolated!";
         
         return;
     }
-    */
     
     RegisterIndex i = instruction.imm_se();
     RegisterIndex t = instruction.t();
@@ -478,7 +452,7 @@ void CPU::opmtc0(Instruction& instruction) {
         sr = v;
         break;
     case 13:
-        // case register
+        // cause register
         if(v != 0) {
             throw std::runtime_error("Unhandled write to cop0 register " + std::to_string(copr));
         }
@@ -554,7 +528,7 @@ void CPU::opbne(Instruction& instruction) {
     RegisterIndex t = instruction.t();
     
     // Check if not equal
-    if(reg(s) != reg(t)) {
+    if(reg(s).reg != reg(t).reg) {
         // Jump to the offset of i
         branch(i);
     }
@@ -607,14 +581,32 @@ void CPU::branch(uint32_t offset) {
 }
 
 void CPU::add(Instruction& instruction) {
+    int32_t s = static_cast<int32_t>(instruction.s().reg);
+    int32_t t = static_cast<int32_t>(instruction.t().reg);
+    RegisterIndex d = instruction.d();
+    
+    s = static_cast<int32_t>(reg(s));
+    t = static_cast<int32_t>(reg(t));
+    
+    if(std::optional<int32_t> v = check_add<int32_t>(s, t)) {
+        set_reg(d, static_cast<uint32_t>(v.value()));
+    } else
+        throw std::runtime_error("Add overflow");
+
+    /*
     RegisterIndex s = instruction.s();
     RegisterIndex t = instruction.t();
     RegisterIndex d = instruction.d();
-
-    if(auto v = check_add(s, t)) {
-        set_reg(d, v.value());
-    } else
-        throw std::runtime_error("Add overflow");
+    uint32_t s_val = static_cast<uint32_t>(this->reg(s));
+    uint32_t t_val = static_cast<uint32_t>(this->reg(t));
+    uint32_t v;
+    try {
+        v = s_val + t_val;
+    } catch (std::overflow_error& e) {
+        throw std::runtime_error("ADD overflow");
+    }
+    this->set_reg(d, v);
+     */
 }
 
 void CPU::addu(Instruction& instruction) {
@@ -629,6 +621,10 @@ void CPU::addu(Instruction& instruction) {
 
 uint32_t CPU::load32(uint32_t addr) {
     return interconnect->load32(addr);
+}
+
+uint16_t CPU::load16(uint32_t addr) {
+    return interconnect->load16(addr);
 }
 
 uint8_t CPU::load8(uint32_t addr) {

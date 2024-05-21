@@ -60,6 +60,8 @@ uint32_t Interconnect::load32(uint32_t addr) {
 }
 
 uint16_t Interconnect::load16(uint32_t addr) {
+    throw std::runtime_error("Unhandled fetch16 at address " + getDetail(addr));
+    
     return 0;
 }
 

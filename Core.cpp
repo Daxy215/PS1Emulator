@@ -130,6 +130,21 @@
  *  0x83c5              0xffff83c5                              -31803
  */
 
+/** Registers table
+ * $zero (Register 0): Constant value 0
+ * $at (Register 1): Assembler temporary
+ * $v0 - $v1 (Registers 2-3): Function result
+ * $a0 - $a3 (Registers 4-7): Function arguments
+ * $t0 - $t7 (Registers 8-15): Temporary registers
+ * $s0 - $s7 (Registers 16-23): Saved registers
+ * $t8 - $t9 (Registers 24-25): Temporary registers
+ * $k0 - $k1 (Registers 26-27): Reserved for OS kernel
+ * $gp (Register 28): Global pointer
+ * $sp (Register 29): Stack pointer
+ * $fp (Register 30): Frame pointer
+ * $ra (Register 31): Return address
+ */
+
 /** Information about some registers;
  *
  * Please note this is NOT written by me.
