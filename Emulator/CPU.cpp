@@ -125,7 +125,6 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opjal(instruction);
         break;
     case 0b001010:
-        //printf("WHY ISN'T THIS BEING CALLED!!!!!!! %x\n", pc);
         opslti(instruction);
         break;
     case 0b001011:
@@ -141,7 +140,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opandi(instruction);
         break;
     case 0b010000:
-        opmtc0(instruction);
+        opcop0(instruction);
         break;
     case 0b000101:
         opbne(instruction);
@@ -163,7 +162,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
 }
 
 void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
-    std::cerr << "Sub Processing; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.subfunction()) << " PC; " << pc << '\n';
+    std::cerr << "Sub Processing; " + getDetails(instruction.op) << " / " <<  getDetails(instruction.subfunction()) << '\n';
     
     switch (instruction.subfunction()) {
     case 0b000000:
@@ -208,8 +207,14 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b010000:
         opmfhi(instruction);
         break;
+    case 0b010001:
+        opmthi(instruction);
+        break;
     case 0b010010:
         opmflo(instruction);
+        break;
+    case 0b001100:
+        opmtlo(instruction);
         break;
     case 0b100011:
         opsubu(instruction);
@@ -517,10 +522,22 @@ void CPU::opmfhi(Instruction& instruction) {
     set_reg(d, hi);
 }
 
+void CPU::opmthi(Instruction& instruction) {
+    auto s = instruction.s();
+    
+    hi = reg(s);
+}
+
 void CPU::opmflo(Instruction& instruction) {
     RegisterIndex d = instruction.d();
     
     set_reg(d, lo);
+}
+
+void CPU::opmtlo(Instruction& instruction) {
+    auto s = instruction.s();
+    
+    lo = reg(s);
 }
 
 void CPU::opsubu(Instruction& instruction) {
@@ -561,6 +578,12 @@ void CPU::opcop0(Instruction& instruction) {
     case 0b00100: // COP0
         opmtc0(instruction);
         break;
+    case 0b000000:
+        opmfc0(instruction);
+        break;
+    case 0b10000:
+        oprfe(instruction);
+        break;
     default:
         std::cout << "Unhandled instruction: " + getDetails(instruction.copOpcode()) << "\n";
         throw std::runtime_error("Unhandled COP instruction: " + getDetails(instruction.copOpcode()));
@@ -575,7 +598,7 @@ void CPU::opmtc0(Instruction& instruction) {
     RegisterIndex cpur = instruction.t();
     uint32_t copr = instruction.d().reg;
     
-    RegisterIndex v = reg(cpur);
+    uint32_t v = cpur;
     
     switch (copr) {
     //Breakpoints registers for the future
@@ -604,6 +627,61 @@ void CPU::opmtc0(Instruction& instruction) {
     }
     
     load = {cpur, v};
+}
+
+void CPU::opmfc0(Instruction& instruction) {
+    auto cpur = instruction.t();
+    uint32_t copr = instruction.d().reg;
+    
+    switch (copr) {
+    case 12:
+        sr = copr;
+        break;
+    case 13:
+        cause = copr;
+        break;
+    case 14:
+        epc = copr;
+        break;
+    default:
+        throw std::runtime_error("Unhandled read from cop0r " + copr);
+        
+        break;
+    }
+}
+
+void CPU::oprfe(Instruction& instruction) {
+    if(instruction.op & 0x3f != 0b010000) {
+        throw std::runtime_error("Invalid cop0 instruction; " + instruction.op);
+    }
+
+    auto mode = sr & 0x3f;
+    sr &= !0x3f;
+    sr |= mode >> 2;
+}
+
+void CPU::exception(Exception cause) {
+    // Determine the exception handler address based on the 'BEV' bit
+    uint32_t handler = (sr & (1 << 22)) != 0 ? 0xbfc00180 : 0x80000080;
+    
+    // Shift bits [5:0] of 'SR' two places to the left
+    uint32_t mode = sr & 0x3F;
+    sr &= ~0x3F;
+    sr |= (mode << 2) & 0x3F;
+    
+    // Update 'CAUSE' register with the exception code (bits [6:2])
+    this->cause = static_cast<uint32_t>(cause) << 2;
+    
+    // Save current instruction address in 'EPC'
+    epc = currentpc;
+
+    // Exceptions don’t have a branch delay, we jump directly into the handler
+    pc = handler;
+    nextpc = pc + 4;//wrappingAdd(pc, 4);
+}
+
+void CPU::opSyscall(Instruction& instruction) {
+    exception(Exception::Syscall);
 }
 
 void CPU::opj(Instruction& instruction) {

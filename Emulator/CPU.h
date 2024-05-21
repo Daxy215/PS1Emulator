@@ -15,12 +15,17 @@ struct Load {
     Load(RegisterIndex reg, uint32_t val) : regIndex(reg), value(val) {}
 };
 
+enum Exception {
+    Syscall = 0x8,
+    
+};
+
 class CPU {
 public:
     CPU(Interconnect* interconnect) : nextpc(pc), outRegs{}, regs{}, interconnect(interconnect) {
         
     }
-
+    
     void executeNextInstruction();
     void decodeAndExecute(Instruction& instruction);
     void decodeAndExecuteSubFunctions(Instruction& instruction);
@@ -58,7 +63,7 @@ public:
     
     // Set on less than immediate
     void opslti(Instruction& instruction);
-
+    
     // Set on Less Than signed
     void opslt(Instruction& instruction);
     
@@ -132,8 +137,14 @@ public:
     // Move From HI
     void opmfhi(Instruction& instruction);
     
+    // Move to HI
+    void opmthi(Instruction& instruction);
+    
     // Move from LO
     void opmflo(Instruction& instruction);
+
+    // Move to LO
+    void opmtlo(Instruction& instruction);
     
     // Substract Unsigned
     void opsubu(Instruction& instruction);
@@ -149,6 +160,16 @@ public:
 
     // Also Coprocessor handling but only for COP0
     void opmtc0(Instruction& instruction);
+    
+    // Move from coprocessor 0
+    void opmfc0(Instruction& instruction);
+
+    // Return from exception
+    void oprfe(Instruction& instruction);
+    
+    void exception(Exception cause);
+    
+    void opSyscall(Instruction& instruction);
     
     // Register related functions
     RegisterIndex reg(uint32_t index) {
@@ -178,6 +199,16 @@ public:
     std::optional<T> check_add(T a, T b);
     
 public:
+    // Sets by the current instruction; if a branch occured,
+    // and the next instruction will be in the delay slot.
+    bool branchSlot = false;
+    
+    // If the current instruction executes in the delay slot
+    bool delaySlot = false;
+    
+    // Used for setting the EPC in expections
+    uint32_t currentpc;
+    
     // PC initial value should be at the beginning of the BIOS
     uint32_t pc =  0xbfc00000;
     
@@ -186,10 +217,16 @@ public:
     
     // Cop0; register 12; Status Register
     uint32_t sr = 0;
-
+    
+    // Cop0; register 13; Cause Register
+    uint32_t cause;
+    
+    // Cop0; register 14; EPC
+    uint32_t epc;
+    
     // High register for division remainder and multiplication high
     uint32_t hi =  0xdeadbeef;
-
+    
     // Low register for division quotient and multiplication low
     uint32_t lo =  0xdeadbeef;
     
