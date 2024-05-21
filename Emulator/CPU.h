@@ -46,12 +46,18 @@ public:
     
     // Set on less than unsigned
     void opsltu(Instruction& instruction);
+
+    // Set on less than immediate
+    void opslti(Instruction& instruction);
     
     // Store Word
     void opsw(Instruction& instruction);
 
     // Load word
     void oplw(Instruction instruction);
+
+    // Store Halfword
+    void opsh(Instruction& instruction);
     
     // Jump
     void opj(Instruction& instruction);
@@ -61,8 +67,8 @@ public:
     
     // Branch to immediate value 'offset'
     void branch(uint32_t offset);
-
-    // Add unsigneed
+    
+    // Add unsigned
     void addu(Instruction& instruction);
     
     // Add Immediate Unsigned
@@ -92,6 +98,7 @@ public:
     // Memory related functions
     uint32_t load32(uint32_t addr);
     void store32(uint32_t addr, uint32_t val);
+    void store16(uint32_t addr, uint16_t val);
     
     // Helper functions
     uint32_t wrappingAdd(uint32_t a, uint32_t b);

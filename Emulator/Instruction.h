@@ -66,12 +66,12 @@ public:
     
     // Returns the immediate values that are stored in bits [5:0]
     RegisterIndex subfunction() {
-        return op & 0x3f;
+        return op & 0x3F;
     }
     
     // Shift immediate values that are stored in bits [10:6]
     RegisterIndex shift() {
-        return (op >> 6) & 0x1f;
+        return (op >> 6) & 0x1F;
     }
     
 public:

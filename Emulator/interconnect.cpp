@@ -7,6 +7,7 @@
 #include <string>
 
 #include "Bios.h"
+#include "Ram.h"
 #include "Range.h"
 
 // TODO; Remove
@@ -48,7 +49,7 @@ uint32_t Interconnect::load32(uint32_t addr) {
     }
     
     if(auto offset = map::RAM.contains(addr)) {
-        throw std::runtime_error("Unhandled ram fetch32 at address " + getDetail(addr));
+        return ram->load32(offset.value());
     }
     
     if(auto offset = map::BIOS.contains(addr)) {
@@ -58,11 +59,11 @@ uint32_t Interconnect::load32(uint32_t addr) {
     throw std::runtime_error("Unhandled fetch32 at address " + getDetail(addr));
 }
 
-uint32_t Interconnect::load16(uint32_t addr) {
+uint16_t Interconnect::load16(uint32_t addr) {
     return 0;
 }
 
-uint32_t Interconnect::load8(uint32_t addr) {
+uint8_t Interconnect::load8(uint32_t addr) {
     return 0;
 }
 
@@ -108,10 +109,21 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
     //throw std::runtime_error("Unhandled store32 into address " + std::to_string(addr));
 }
 
-void Interconnect::store16(uint32_t addr, uint32_t val) {
+void Interconnect::store16(uint32_t addr, uint16_t val) {
+    // To avoid "bus errors"
+    if(addr % 2 != 0) {
+        throw std::runtime_error("Unaligned fetch16 at address " + getDetail(addr));
+    }
+
+    addr = map::maskRegion(addr);
+
+    if(auto offset = map::SPU.contains(addr)) {
+        throw std::runtime_error("Unaligned write to SPU register " + getDetail(addr));
+    }
     
+    throw std::runtime_error("Unhandled fetch16 at address " + getDetail(addr));
 }
 
-void Interconnect::store8(uint32_t addr, uint32_t val) {
+void Interconnect::store8(uint32_t addr, uint8_t val) {
     
 }

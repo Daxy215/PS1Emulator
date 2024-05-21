@@ -28,6 +28,9 @@ namespace map {
     static const Range SYSCONTROL = {0x1f801000, 36};
     static const Range CACHECONTROL = {0xfffe0130, 4}; // 0xfffe0130
     
+    // SPU Registers
+    static const Range SPU = {0x1f801c00, 640};
+    
     // Region mask
     static const std::array<uint32_t, 8> REGION_MASK = {
         0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,  // KUSEG: 2048MB

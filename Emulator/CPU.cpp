@@ -82,7 +82,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
     
-    std::cout << "Processing; " + getDetails(instruction.func()) << '\n';
+    std::cout << "Processingd; " + getDetails(instruction.op) << '\n';
     
     switch (instruction.func()) {
     case 0b000000:
@@ -104,6 +104,12 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b000010:
         opj(instruction);
         break;
+    case 0b001010:
+        opslti(instruction);
+        break;
+    case 0b101001:
+        opsh(instruction);
+        break;
     case 0b001001:
         addiu(instruction);
         break;
@@ -117,8 +123,9 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opbne(instruction);
         break;
     default:
-        std::cout << "Unhandled instruction: " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
-        throw std::runtime_error("Unhandled instruction: " + getDetails(instruction.op));
+        printf("Unhandled CPU instruction at 0x%08x\n", instruction.op);
+        std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
+        throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op));
     }
 }
 
@@ -140,7 +147,7 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         addu(instruction);
         break;
     default:
-        throw std::runtime_error("Unhandled instruction: " + getDetails(instruction.op));
+        throw std::runtime_error("Unhandled sub instruction: " + getDetails(instruction.op));
         
         break;
     }
@@ -206,6 +213,16 @@ void CPU::opsltu(Instruction& instruction) {
     set_reg(d, v); // V gets converted into a uint32
 }
 
+void CPU::opslti(Instruction& instruction) {
+    int32_t immediate = static_cast<int32_t>(instruction.imm_se());
+    RegisterIndex s = instruction.s(); 
+    RegisterIndex t = instruction.t();
+    
+    int32_t result = static_cast<int32_t>(reg(s)) < immediate ? 1 : 0;
+    
+    set_reg(t, static_cast<uint32_t>(result));
+}
+
 // Store word
 void CPU::opsw(Instruction& instruction) {
     // Can't write if we aren in cache isolation mode!
@@ -245,6 +262,24 @@ void CPU::oplw(Instruction instruction) {
     //set_reg(t, v);
 }
 
+// Store halfword
+void CPU::opsh(Instruction& instruction) {
+    if(sr & 0x10000 != 0) {
+        std::cout << "Ignoring store while cache is isolated!";
+        
+        return;
+    }
+
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+
+    uint32_t addr = wrappingAdd(reg(s), i);
+    uint16_t v    = static_cast<uint16_t>(reg(t));
+
+    store16(addr, v);
+}
+
 // addiu $8, $zero, 0xb88
 void CPU::addiu(Instruction& instruction) {
     uint32_t i = instruction.imm_se();
@@ -262,7 +297,7 @@ void CPU::addi(Instruction& instruction) {
     uint32_t s = instruction.s();
     
     s = reg(s);
-
+    
     // Check if an overflow occours
     auto results = check_add<uint32_t>(s, i);
     if(!results.has_value()) {
@@ -285,7 +320,7 @@ void CPU::opcop0(Instruction& instruction) {
         break;
     default:
         std::cout << "Unhandled instruction: " + getDetails(instruction.copOpcode()) << "\n";
-        throw std::runtime_error("Unhandled instruction: " + getDetails(instruction.copOpcode()));
+        throw std::runtime_error("Unhandled COP instruction: " + getDetails(instruction.copOpcode()));
         
         break;        
     }
@@ -374,6 +409,10 @@ uint32_t CPU::load32(uint32_t addr) {
 
 void CPU::store32(uint32_t addr, uint32_t val) {
     interconnect->store32(addr, val);
+}
+
+void CPU::store16(uint32_t addr, uint16_t val) {
+    interconnect->store16(addr, val);
 }
 
 uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {

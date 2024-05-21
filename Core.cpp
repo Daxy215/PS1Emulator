@@ -7,6 +7,7 @@
 #include "Emulator/Bios.h"
 #include "Emulator/CPU.h"
 #include "Emulator/interconnect.h"
+#include "Emulator/Ram.h"
 
 // Page 27
 
@@ -180,9 +181,10 @@
  */
 
 int main(int argc, char* argv[]) {
+    Ram* ram = new Ram();
     Bios* bios = new Bios("BIOS/ps-22a.bin");
     
-    Interconnect* inter = new Interconnect(bios);
+    Interconnect* inter = new Interconnect(ram, bios);
     
     CPU* cpu = new CPU(inter);
     
