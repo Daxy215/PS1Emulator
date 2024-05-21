@@ -175,8 +175,8 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opblez(instruction);
         break;
     default:
-        printf("Unhandled CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
-        //std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
+        //printf("Unhandled CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
+        std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
         throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
     }
 }
@@ -404,22 +404,21 @@ void CPU::addiu(Instruction& instruction) {
 }
 
 void CPU::addi(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
+    int32_t i = static_cast<int32_t>(instruction.imm_se());
     RegisterIndex t = instruction.t();
-    uint32_t s = instruction.s();
+    RegisterIndex sreg = instruction.s();
     
-    s = reg(s);
+    int32_t s = static_cast<int32_t>(reg(sreg));
     
-    // Check if an overflow occours
-    auto results = check_add<uint32_t>(s, i);
-    if(!results.has_value()) {
+    // Check if an overflow occurs
+    std::optional<int32_t> v = check_add<int32_t>(s, i);
+    if(!v.has_value()) {
         // Overflow!
         std::cout << "ADDi overflow\n";
         throw std::runtime_error("ADDi overflow\n");
     }
     
-    uint32_t v = wrappingAdd(s, i);
-    set_reg(t, v);
+    set_reg(t, static_cast<uint32_t>(v.value()));
 }
 
 void CPU::opand(Instruction& instruction) {
@@ -530,7 +529,7 @@ void CPU::opbxx(Instruction& instruction) {
     bool islink = ((instruction.op >> 20) & 1) != 0;
     
     int32_t v = static_cast<int32_t>(reg(s));
-
+    
     // Test "less than zero"
     uint32_t test (v < 0);
 
