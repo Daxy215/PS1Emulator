@@ -3,7 +3,6 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <vector>
 
 #include "Emulator/Bios.h"
 #include "Emulator/CPU.h"
@@ -49,15 +48,31 @@
         * Is an optional coprocessor that is available for floating points arithmetic usage.
         
     * Coprocessor 2 (cop2):
-        * Seems to be custom made for the Playstation? However, it's called,
+        * Seems to be custom-made for the Playstation? However, it's called,
         * Geometry Transformation Engine (GTE). Used for... 3D stuff, such as,
-        * perspectivies, transformations, matrixes etc..
-        
+        * perspectives, transformations, matrices etc..
+         
     * Coprocessor 3 (cop3):
         * This one isn't really implemented on the Playstation.
-        
-    * Note to future-self!
-        * Guide will probably never use 3D stuff, so... GLHF 
+ */
+
+/** More registers information
+ * $cop0 3 is BPC, used to generate a breakpoint exception when,
+    * the PC takes the given value.
+    
+ * $cop0 5 is BDA, the data breakpoint. It’s like BPC except it breaks when
+    * a certain address is accessed on a data load/store instead of a PC value.
+    
+ * $cop0 6: No information was found regarding this register
+    
+ * $cop0 7 is DCIC, used to enable and disable the various hardware breakpoints.
+ * $cop0 9 is BDAM, it’s a bitmask applied when testing for BDA above.
+    * That way we could trigger on a range of address instead of a single one.
+    
+ * $cop0 11 is BPCM, like BDAM but for masking the BPC breakpoint.
+ * $cop0 12 we’ve already encountered: it’s SR, the status register.
+ * $cop0 13 is CAUSE, which contains mostly read-only data describing the
+    * cause of an exception. Apparently only bits [9:8] are writable to force an exception.
  */
 
 // Tables; THEY AREN'T MADE BY ME!  ¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?

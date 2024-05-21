@@ -40,6 +40,12 @@ public:
 
     // Bitwise or
     void opor(Instruction& instruction);
+
+    // Bitwise not or
+    void opnor(Instruction& instruction);
+    
+    // Set on less than unsigned
+    void opsltu(Instruction& instruction);
     
     // Store Word
     void opsw(Instruction& instruction);
@@ -55,12 +61,15 @@ public:
     
     // Branch to immediate value 'offset'
     void branch(uint32_t offset);
+
+    // Add unsigneed
+    void addu(Instruction& instruction);
     
     // Add Immediate Unsigned
     void addiu(Instruction& instruction);
-
+    
     // Same as addiu but generates an exception if it overflows
-    void addi(Instruction instruction);
+    void addi(Instruction& instruction);
     
     // Coprocessors handling
     void opcop0(Instruction& instruction);

@@ -10,6 +10,34 @@
 
 #include "Instruction.h"
 
+//TODO Remove those
+std::string getHex(uint32_t value) {
+    std::stringstream ss;
+    ss << "0x" << std::setfill('0') << std::setw(8) << std::hex << value;
+    return ss.str();
+}
+
+std::string getBinary(uint32_t value) {
+    std::string binary = std::bitset<32>(value).to_string();
+    
+    std::string shiftedBin = binary.substr(26);
+    
+    std::string results = std::bitset<6>(std::stoi(shiftedBin, nullptr, 2) & 0x3F).to_string();
+    
+    std::stringstream ss;
+    // wrong hex values but who cares about those
+    ss << "Binary; 0b" << results;
+    
+    return ss.str();
+}
+
+std::string getDetails(uint32_t value) {
+    std::string hex = getHex(value);
+    std::string binary = getBinary(value);
+
+    return hex + " = " + binary;
+}
+
 /**
  * Byte - 8 bits
  * HalfWord - 16 bits or 2 bytes
@@ -47,21 +75,6 @@ void CPU::executeNextInstruction() {
     std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
 }
 
-// TODO; Remove me.
-std::string uint32ToHex(uint32_t value) {
-    std::string binary = std::bitset<32>(value).to_string();
-    
-    std::string shiftedBin = binary.substr(26);
-    
-    std::string results = std::bitset<6>(std::stoi(shiftedBin, nullptr, 2) & 0x3F).to_string();
-    
-    std::stringstream ss;
-    // wrong hex values but who cares about those
-    ss << "0x" << std::setfill('0') << std::setw(8) << std::hex << value << " Binary; 0b" << results;
-    
-    return ss.str();
-}
-
 // page 92
 //https://github.com/deadcore/playstation-emulator/blob/master/src/cpu/mod.rs
 void CPU::decodeAndExecute(Instruction& instruction) {
@@ -69,7 +82,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
     
-    std::cout << "Processing; " + uint32ToHex(instruction.func()) << '\n';
+    std::cout << "Processing; " + getDetails(instruction.func()) << '\n';
     
     switch (instruction.func()) {
     case 0b000000:
@@ -104,8 +117,8 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opbne(instruction);
         break;
     default:
-        std::cout << "Unhandled instruction: " << uint32ToHex(instruction.func()) << " = " << instruction.func() << '\n';
-        throw std::runtime_error("Unhandled instruction: " + uint32ToHex(instruction.op));
+        std::cout << "Unhandled instruction: " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
+        throw std::runtime_error("Unhandled instruction: " + getDetails(instruction.op));
     }
 }
 
@@ -117,8 +130,17 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b100101:
         opor(instruction);
         break;
+    case 0b100111:
+        opnor(instruction);
+        break;
+    case 0b101011:
+        opsltu(instruction);
+        break;
+    case 0b100001:
+        addu(instruction);
+        break;
     default:
-        throw std::runtime_error("Unhandled instruction: " + uint32ToHex(instruction.op));
+        throw std::runtime_error("Unhandled instruction: " + getDetails(instruction.op));
         
         break;
     }
@@ -142,8 +164,6 @@ void CPU::oplui(Instruction& instruction) {
     uint32_t v = i << 16;
     
     set_reg(t, v);
-    
-    //throw std::runtime_error("what now?");
 }
 
 void CPU::opori(Instruction& instruction) {
@@ -157,13 +177,33 @@ void CPU::opori(Instruction& instruction) {
 }
 
 void CPU::opor(Instruction& instruction) {
-    uint32_t d = instruction.d();
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+    RegisterIndex d = instruction.d();
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
     
     RegisterIndex v = reg(s) | reg(t);
     
     set_reg(d, v);
+}
+
+void CPU::opnor(Instruction& instruction) {
+    RegisterIndex d = instruction.d();
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+
+    RegisterIndex v = !(reg(s) | reg(t));
+
+    set_reg(d, v);
+}
+
+void CPU::opsltu(Instruction& instruction) {
+    RegisterIndex d = instruction.d();
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+    
+    RegisterIndex v = reg(s) < reg(t);
+    
+    set_reg(d, v); // V gets converted into a uint32
 }
 
 // Store word
@@ -199,7 +239,8 @@ void CPU::oplw(Instruction instruction) {
     
     RegisterIndex addr = wrappingAdd(reg(s), i);
     uint32_t v = load32(addr);
-
+    
+    // Put the load in the delay slot
     load = {t, v};
     //set_reg(t, v);
 }
@@ -215,7 +256,7 @@ void CPU::addiu(Instruction& instruction) {
     set_reg(t, v);
 }
 
-void CPU::addi(Instruction instruction) {
+void CPU::addi(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex t = instruction.t();
     uint32_t s = instruction.s();
@@ -231,7 +272,8 @@ void CPU::addi(Instruction instruction) {
     }
     
     uint32_t v = wrappingAdd(s, i);
-    set_reg(t, v);}
+    set_reg(t, v);
+}
 
 void CPU::opcop0(Instruction& instruction) {
     // Formation goes as:
@@ -242,8 +284,8 @@ void CPU::opcop0(Instruction& instruction) {
         opmtc0(instruction);
         break;
     default:
-        std::cout << "Unhandled instruction: " + uint32ToHex(instruction.copOpcode()) << "\n";
-        throw std::runtime_error("Unhandled instruction: " + uint32ToHex(instruction.copOpcode()));
+        std::cout << "Unhandled instruction: " + getDetails(instruction.copOpcode()) << "\n";
+        throw std::runtime_error("Unhandled instruction: " + getDetails(instruction.copOpcode()));
         
         break;        
     }
@@ -307,13 +349,23 @@ void CPU::branch(uint32_t offset) {
     // to the right as 'PC' addresses have to be aligned with 32 bits.
     
     //TODO; BRANCH!!
-    offset = offset << 2;
+    //offset = offset << 2;
     
-    pc = wrappingAdd(pc, offset);
+    //pc = wrappingAdd(pc, offset);
     
     // We need to compensate for the hardcoded
     // 'pc.wrapping_add(4)' in 'executeNextInstruction'
-    pc = wrappingSub(pc, 4);
+    //pc = wrappingSub(pc, 4);
+}
+
+void CPU::addu(Instruction& instruction) {
+    RegisterIndex s = instruction.s();
+    RegisterIndex t = instruction.t();
+    RegisterIndex d = instruction.d();
+    
+    RegisterIndex v = wrappingAdd(reg(s), reg(t));
+    
+    set_reg(d, v);
 }
 
 uint32_t CPU::load32(uint32_t addr) {

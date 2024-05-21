@@ -21,6 +21,7 @@ namespace map {
     static const Range MEMCONTROL = { 0x1f801000, 36};
     
     static const Range RAM_SIZE = {0x1f801060, 4};
-
+    static const Range RAM      = {0xa0000000, 2 * 1024 * 1024};
+    
     static const Range CACHECONTROL = {0xfffe0130, 4};
 }
