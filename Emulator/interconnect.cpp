@@ -122,6 +122,7 @@ uint8_t Interconnect::load8(uint32_t addr) {
     
     if(map::EXPANSION2.contains(addr)) {
         // No expansion implemented
+        throw std::runtime_error("NO EXPANSIOB" + getDetail(addr));
         return 0xFF;
     }
     

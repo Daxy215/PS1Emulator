@@ -81,6 +81,12 @@ public:
     // Bitwise not or
     void opnor(Instruction& instruction);
     
+    // Bitwise Exclusive Or
+    void opxor(Instruction& instruction);
+    
+    // Bitwise Exclusive or immediate
+    void opxori(Instruction& instruction);
+    
     // Set on less than unsigned
     void opsltu(Instruction& instruction);
     
@@ -101,6 +107,9 @@ public:
     
     // Load word
     void oplw(Instruction& instruction);
+
+    // Lop Word Left (Could be unaligned - Little endian)
+    void oplwl(Instruction& instruction);
     
     // Load Halfword signed
     void oplh(Instruction& instruction);
@@ -144,7 +153,7 @@ public:
     
     // Branch to immediate value 'offset'
     void branch(uint32_t offset);
-
+    
     // Add with expection on overflow
     void add(Instruction& instruction);
     
@@ -157,15 +166,24 @@ public:
     // Same as addiu but generates an exception if it overflows
     void addi(Instruction& instruction);
     
+    // Substract Unsigned
+    void opsubu(Instruction& instruction);
+    
+    // Substract and check for signed overflow
+    void opsub(Instruction& instruction);
+    
     // Mlutiply Unsigned
     void opmultu(Instruction& instruction);
-
+    
+    // Multiply signed
+    void opmult(Instruction& instruction);
+    
     // Divide signed
     void opdiv(Instruction& instruction);
-
+    
     // Divide Unsigned
     void opdivu(Instruction& instruction);
-
+    
     // Move From HI
     void opmfhi(Instruction& instruction);
     
@@ -174,12 +192,9 @@ public:
     
     // Move from LO
     void opmflo(Instruction& instruction);
-
+    
     // Move to LO
     void opmtlo(Instruction& instruction);
-    
-    // Substract Unsigned
-    void opsubu(Instruction& instruction);
     
     // Bitwise And
     void opand(Instruction& instruction);
@@ -190,18 +205,29 @@ public:
     // Coprocessors handling
     void opcop0(Instruction& instruction);
 
+    // Coprocessor 1 opcode (Doesn't exist on the PS1)
+    void opcop1(Instruction& instruction);
+
+    // Coprocessor 2w opcode (GTE)
+    void opcop2(Instruction& instruction);
+    
+    // Coprocessor 3 opcode (Also doesn't exist on the PS1)
+    void opcop3(Instruction& instruction);
+    
     // Also Coprocessor handling but only for COP0
     void opmtc0(Instruction& instruction);
     
     // Move from coprocessor 0
     void opmfc0(Instruction& instruction);
-
+    
     // Return from exception
     void oprfe(Instruction& instruction);
     
     void exception(Exception cause);
     
     void opSyscall(Instruction& instruction);
+
+    void opbreak(Instruction& instruction);
     
     // Register related functions
     RegisterIndex reg(uint32_t index) {

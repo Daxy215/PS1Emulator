@@ -208,11 +208,18 @@ int main(int argc, char* argv[]) {
     Interconnect* inter = new Interconnect(ram, bios);
     
     CPU* cpu = new CPU(inter);
+    int x = 0;
     
     while(true) {
         // TODO; Remove
         try {
+            if(x == 34) {
+                std::cout << "STOP\n";
+            }
+            
             cpu->executeNextInstruction();
+            
+            x++;
         } catch(std::runtime_error& e) {
             std::cerr << e.what() << '\n';
             throw; // Rethrow the error
