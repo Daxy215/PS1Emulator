@@ -52,8 +52,8 @@ uint32_t Interconnect::load32(uint32_t addr) {
         return ram->load32(offset.value());
     }
     
-    if(map::DMA.contains(addr)) {
-        throw std::runtime_error("Unhandled DMA read32 at address " + getDetail(addr));
+    if(auto offset = map::DMA.contains(addr)) {
+        return dmaReg(offset.value());
     }
     
     if(auto offset = map::GPU.contains(addr)) {
@@ -147,6 +147,11 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
         return;
     }
     
+    if(auto offset = map::DMA.contains(addr)) {
+        setDmaReg(offset.value(), val);
+        return;
+    }
+    
     if(auto offset = map::TIMERS.contains(addr)) {
         printf("Unhandled store32 to timer register %x 0x%08x\n", offset.value(), val);
         return;
@@ -164,7 +169,7 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
     auto offset = map::MEMCONTROL.contains(addr);
     
     if(!offset) {
-        //std::cout << "Unhandled store32 at address " + getDetail(addr) << '\n';
+        std::cout << "Unhandled store32 at address " + getDetail(addr) << '\n';
         return;
     }
     
@@ -217,7 +222,9 @@ void Interconnect::store16(uint32_t addr, uint16_t val) {
     }
     
     if(auto offset = map::SPU.contains(addr)) {
-        throw std::runtime_error("Unaligned store16 write to SPU register " + getDetail(addr));
+        printf("Unaligned store16 write to SPU register %s\n", getDetail(addr).c_str());
+        //throw std::runtime_error("Unaligned store16 write to SPU register " + getDetail(addr));
+        return;
     }
     
     throw std::runtime_error("Unhandled store16 at address " + getDetail(addr));
@@ -240,4 +247,26 @@ void Interconnect::store8(uint32_t addr, uint8_t val) {
     }
     
     throw std::runtime_error("Unhandled store8 at address " + getDetail(addr));
+}
+
+uint32_t Interconnect::dmaReg(uint32_t offset) {
+    switch (offset) {
+    case 0x70:
+        return dma->control;
+        break;
+    default:
+        printf("Unhandled DMA read access %x", offset);
+        break;
+    }
+}
+
+void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
+    switch (offset) {
+    case 0x70:
+        dma->setControl(val);
+        break;
+    default:
+        printf("Unhandled DMA write access %x", offset);
+        break;
+    }
 }

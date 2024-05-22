@@ -158,6 +158,7 @@
     <ClCompile Include="Core.cpp" />
     <ClCompile Include="Emulator\Bios.cpp" />
     <ClCompile Include="Emulator\CPU.cpp" />
+    <ClCompile Include="Emulator\Dma.cpp" />
     <ClCompile Include="Emulator\Instruction.cpp" />
     <ClCompile Include="Emulator\interconnect.cpp" />
     <ClCompile Include="Emulator\Ram.cpp" />
@@ -165,6 +166,7 @@
   <ItemGroup>
     <ClInclude Include="Emulator\Bios.h" />
     <ClInclude Include="Emulator\CPU.h" />
+    <ClInclude Include="Emulator\Dma.h" />
     <ClInclude Include="Emulator\Instruction.h" />
     <ClInclude Include="Emulator\interconnect.h" />
     <ClInclude Include="Emulator\Ram.h" />

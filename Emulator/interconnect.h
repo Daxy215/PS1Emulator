@@ -1,16 +1,19 @@
 ﻿#pragma once
 #include <cstdint>
 
+#include "Dma.h"
+
 /**
  * This class is used to allow the BIOS to communicate with the CPU! :D
  */
 
 class Ram;
 class Bios;
+class Dma;
 
 class Interconnect {
 public:
-    Interconnect(Ram* ram, Bios* bios) : ram(ram), bios(bios) {  }
+    Interconnect(Ram* ram, Bios* bios, Dma* dma) : ram(ram), bios(bios), dma(dma) {  }
     
     // TODO; Use templates and only use 1 function each
     
@@ -32,7 +35,14 @@ public:
     // Store byte
     void store8(uint32_t addr, uint8_t val);
     
+    // DMA
+    // DMA register read
+    uint32_t dmaReg(uint32_t offset);
+
+    void setDmaReg(uint32_t offset, uint32_t val);
+    
 private:
     Ram* ram;
     Bios* bios;
+    Dma* dma;
 };

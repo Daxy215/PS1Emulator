@@ -46,7 +46,31 @@
  
  * ONLY one DEVICE can access the BUS at a time! (TODO; Research why future me)
  * The DMA can only copy data between the RAM and a device!!
- 
+ *
+ * COPIED!!
+ * Implementing complete and accurate DMA support can be quite tricky. The
+ * main problem is that in certain modes the DMA sporadically gives back the
+ * control to the CPU. For instance while the GPU is busy processing a command
+ * and won’t accept any new input the DMA has to wait. Instead of wasting time
+ * it gives back control to the CPU to give it the opportunity to do something else.
+ * In order to emulate this behaviour correctly we need to emulate the GPU
+ * command FIFO, DMA timings and CPU timings correctly. Then we need to
+ * setup the state machine to switch between the CPU and DMA when needed.
+ * That would require quite some work to get right and we only have the BIOS
+ * boot logo to test it at this point.
+ * To avoid having to implement all that we’re going to make a simplifying
+ * assumption for now: when the DMA runs it does all the transfer at once without
+ * giving back control to the CPU. This won’t be exactly accurate but it should
+ * suffice to run the BIOS and hopefully some games.
+ * The reason I feel confident doing this simplification is that PCSX-R seems to
+ * do it that way and it can run quite many games, although some comments hint
+ * that it breaks with certain titles and it uses some hacks to improve compatibility.
+ * Mednafen on the other hand implements a much accurate DMA and actually
+ * emulates the DMA giving back the control to the CPU in certain situations,
+ * we’ll probably want to do something similar later on.
+ * For now let’s take a few steps back and revisit all the DMA register reads
+ * and writes done by the BIOS so that we can emulate them correctly.
+ * 
  * There 7 DMA channels: 
     * Channel 0 -> Is used to connect to the Media Decoder input
     * Channel 1 -> Is used to connect to the Media Decoder output
@@ -217,9 +241,14 @@ int main(int argc, char* argv[]) {
     Ram* ram = new Ram();
     Bios* bios = new Bios("BIOS/ps-22a.bin");
     
-    Interconnect* inter = new Interconnect(ram, bios);
+    Dma* dma = new Dma();
+    
+    Interconnect* inter = new Interconnect(ram, bios, dma);
     
     CPU* cpu = new CPU(inter);
+    
+    // TODO; Remove me
+    // Used for testing
     int x = 0;
     
     while(true) {

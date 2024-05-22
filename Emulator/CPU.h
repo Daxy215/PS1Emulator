@@ -101,7 +101,7 @@ public:
     
     // Store Word Left (Little Endian)
     void opswl(Instruction& instruction);
-
+    
     // Store Word Right (Little Endian)
     void opswr(Instruction& instruction);
     
