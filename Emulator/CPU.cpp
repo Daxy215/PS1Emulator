@@ -284,7 +284,7 @@ void CPU::opsra(Instruction& instruction) {
     RegisterIndex t = instruction.t();
     RegisterIndex d = instruction.d();
     
-    uint32_t v = static_cast<uint32_t>(reg(t)) >> i;
+    int32_t v = static_cast<int32_t>(reg(t)) >> i;
     
     set_reg(d, static_cast<uint32_t>(v));
 }
@@ -325,9 +325,9 @@ void CPU::opsltiu(Instruction& instruction) {
     auto i = instruction.imm_se();
     auto s = instruction.s();
     auto t = instruction.t();
-
-    uint32_t v = reg(s) < i;
-
+    
+    auto v = reg(s) < i;
+    
     set_reg(t, static_cast<uint32_t>(v));
 }
 
@@ -663,7 +663,8 @@ void CPU::opsubu(Instruction& instruction) {
     RegisterIndex t = instruction.t();
     RegisterIndex d = instruction.d();
     
-    uint32_t v = wrappingAdd(reg(s), reg(t));
+    //uint32_t v = wrappingAdd(reg(s), reg(t));
+    uint32_t v = reg(s) - reg(t);
     
     set_reg(d, v);
 }

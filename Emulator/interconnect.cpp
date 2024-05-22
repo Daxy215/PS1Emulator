@@ -145,9 +145,9 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
         printf("GPU read at %x = %08x", offset.value(), val);
         return;
     }
-
+    
     if(auto offset = map::TIMERS.contains(addr)) {
-        printf("Unhandled write32 to timer register %x 0x%08x\n", offset.value(), val);
+        printf("Unhandled store32 to timer register %x 0x%08x\n", offset.value(), val);
         return;
     }
     
