@@ -119,9 +119,9 @@ public:
     
     // Load Word Right little endian
     void oplwr(Instruction& instruction);
-
+    
     // Store Word Left little endian
-    void opslw(Instruction& instruction);
+    //void opslw(Instruction& instruction);
     
     // Load Halfword signed
     void oplh(Instruction& instruction);

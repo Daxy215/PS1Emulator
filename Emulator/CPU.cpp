@@ -139,9 +139,9 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b100110:
         oplwr(instruction);
         break;
-    case 0b101010:
-        opslw(instruction);
-        break;
+    //case 0b101010:
+    //    opslw(instruction);
+    //    break;
     case 0b100001:
         oplh(instruction);
         break;
@@ -527,16 +527,16 @@ void CPU::opswl(Instruction& instruction) {
     
     switch (addr & 3) {
     case 0:
-        mem = (curMem & 0x00FFFFFF) | (v << 24);
+        mem = (curMem & 0xFFFFFF00) | (v >> 24);
         break;
     case 1:
-        mem = (curMem & 0x0000FFFF) | (v << 16);
+        mem = (curMem & 0xFFFF0000) | (v >> 16);
         break;
     case 2:
-        mem = (curMem & 0x000000FF) | (v << 8);
+        mem = (curMem & 0xFF000000) | (v >> 8);
         break;
     case 3:
-        mem = (curMem & 0x00000000) | (v << 0);
+        mem = (curMem & 0x00000000) | (v >> 0);
         break;
     default:
         throw std::runtime_error("Unreachable code!");
@@ -728,38 +728,38 @@ void CPU::oplwr(Instruction& instruction) {
     load = {t, v};
 }
 
-void CPU::opslw(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
-    
-    uint32_t addr = wrappingAdd(reg(s), i);
-    uint32_t v    = reg(t);
-
-    uint32_t alignedAddr = addr & ~3;
-
-    uint32_t curmem = load32(alignedAddr);
-    
-    switch (v) {
-    case 0:
-        v = (curmem & 0xFFFFFF00) | (v >> 24);
-        break;
-    case 1:
-        v = (curmem & 0xffff0000) | (v >> 16);
-        break;
-    case 2:
-        v = (curmem & 0xFF000000) | (v >> 8);
-        break;
-    case 3:
-        v = (curmem & 0x00000000) | (v >> 0);
-        break;
-    default:
-        throw std::runtime_error("Unreachable code!");
-    }
-    
-    // Put the load in the delay slot
-    load = {t, v};
-}
+//void CPU::opslw(Instruction& instruction) {
+//    auto i = instruction.imm_se();
+//    auto t = instruction.t();
+//    auto s = instruction.s();
+//    
+//    uint32_t addr = wrappingAdd(reg(s), i);
+//    uint32_t v    = reg(t);
+//
+//    uint32_t alignedAddr = addr & ~3;
+//
+//    uint32_t curmem = load32(alignedAddr);
+//    
+//    switch (v) {
+//    case 0:
+//        v = (curmem & 0xFFFFFF00) | (v >> 24);
+//        break;
+//    case 1:
+//        v = (curmem & 0xffff0000) | (v >> 16);
+//        break;
+//    case 2:
+//        v = (curmem & 0xFF000000) | (v >> 8);
+//        break;
+//    case 3:
+//        v = (curmem & 0x00000000) | (v >> 0);
+//        break;
+//    default:
+//        throw std::runtime_error("Unreachable code!");
+//    }
+//    
+//    // Put the load in the delay slot
+//    load = {t, v};
+//}
 
 void CPU::oplh(Instruction& instruction) {
     auto i = instruction.imm_se();
