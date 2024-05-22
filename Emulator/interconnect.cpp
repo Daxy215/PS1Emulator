@@ -164,7 +164,7 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
     auto offset = map::MEMCONTROL.contains(addr);
     
     if(!offset) {
-        std::cout << "Unhandled store32 at address " + getDetail(addr) << '\n';
+        //std::cout << "Unhandled store32 at address " + getDetail(addr) << '\n';
         return;
     }
     

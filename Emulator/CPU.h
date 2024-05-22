@@ -99,6 +99,12 @@ public:
     // Store Word
     void opsw(Instruction& instruction);
     
+    // Store Word Left (Little Endian)
+    void opswl(Instruction& instruction);
+
+    // Store Word Right (Little Endian)
+    void opswr(Instruction& instruction);
+    
     // Store Halfword
     void opsh(Instruction& instruction);
     
@@ -107,9 +113,15 @@ public:
     
     // Load word
     void oplw(Instruction& instruction);
-
-    // Lop Word Left (Could be unaligned - Little endian)
+    
+    // Load Word Left (Could be unaligned - Little endian)
     void oplwl(Instruction& instruction);
+    
+    // Load Word Right little endian
+    void oplwr(Instruction& instruction);
+
+    // Store Word Left little endian
+    void opslw(Instruction& instruction);
     
     // Load Halfword signed
     void oplh(Instruction& instruction);
@@ -195,6 +207,30 @@ public:
     
     // Move to LO
     void opmtlo(Instruction& instruction);
+
+    // Load word in COP 0
+    void oplwc0(Instruction& instruction);
+
+    // Load word in COP 1
+    void oplwc1(Instruction& instruction);
+
+    // Load word in COP 2
+    void oplwc2(Instruction& instruction);
+
+    // Load word in COP 3
+    void oplwc3(Instruction& instruction);
+    
+    // Store word in COP 0
+    void opswc0(Instruction& instruction);
+    
+    // Store word in COP 1
+    void opswc1(Instruction& instruction);
+    
+    // Store word in COP 2
+    void opswc2(Instruction& instruction);
+    
+    // Store word in COP 3
+    void opswc3(Instruction& instruction);
     
     // Bitwise And
     void opand(Instruction& instruction);
@@ -228,6 +264,8 @@ public:
     void opSyscall(Instruction& instruction);
 
     void opbreak(Instruction& instruction);
+
+    void opillegal(Instruction& instruction);
     
     // Register related functions
     RegisterIndex reg(uint32_t index) {

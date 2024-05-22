@@ -28,10 +28,11 @@ namespace map {
     static const Range CACHECONTROL = {0xfffe0130, 4}; // 0xfffe0130
     
     // SPU Registers
-    // Basically sounds and the DMA
+    // Basically sound thingies
     static const Range SPU = {0x1f801c00, 640};
     
     // Direct Memory Access registers
+    // Used to move data back and fourth between RAM & (GPU, CDROM, SPU.. etc..)
     static const Range DMA = {0x1f801080, 0x80};
     
     // Expansion regions

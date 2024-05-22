@@ -41,9 +41,21 @@
 /** IMPORTANT INFORMATION
  * PS1 uses the MIPS instruction set.
  * Each instruction is exactly 32 bits long or 4 bytes.
- *
+ 
  * Initial value of PC is 0xbfc00000(The beginning of the BIOS)
- *
+ 
+ * ONLY one DEVICE can access the BUS at a time! (TODO; Research why future me)
+ * The DMA can only copy data between the RAM and a device!!
+ 
+ * There 7 DMA channels: 
+    * Channel 0 -> Is used to connect to the Media Decoder input
+    * Channel 1 -> Is used to connect to the Media Decoder output
+    * Channel 2 -> Is used to connect to the GPU
+    * Channel 3 -> Is used to connect to the CDROM drive
+    * Channel 4 -> Is used to connect to the SPU
+    * Channel 5 -> Is used to connect to the extension port
+    * Channel 6 -> Is used to connect to the RAM and is used to clear an "ordering table"
+    
  * The PS1 uses little-endian formation for storing data.
     * As they store the least significant byte first.
     
@@ -213,10 +225,6 @@ int main(int argc, char* argv[]) {
     while(true) {
         // TODO; Remove
         try {
-            if(x == 34) {
-                std::cout << "STOP\n";
-            }
-            
             cpu->executeNextInstruction();
             
             x++;

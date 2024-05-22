@@ -118,6 +118,12 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b101011:
         opsw(instruction);
         break;
+    case 0b101010:
+        opswl(instruction);
+        break;
+    case 0b101110:
+        opswr(instruction);
+        break;
     case 0b101001:
         opsh(instruction);
         break;
@@ -129,6 +135,12 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         break;
     case 0b100010:
         oplwl(instruction);
+        break;
+    case 0b100110:
+        oplwr(instruction);
+        break;
+    case 0b101010:
+        opslw(instruction);
         break;
     case 0b100001:
         oplh(instruction);
@@ -175,6 +187,30 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     case 0b010011:
         opcop3(instruction);
         break;
+    case 0b110000:
+        oplwc0(instruction);
+        break;
+    case 0b110001:
+        oplwc1(instruction);
+        break;
+    case 0b110010:
+        oplwc2(instruction);
+        break;
+    case 0b110011:
+        oplwc3(instruction);
+        break;
+    case 0b111000:
+        opswc0(instruction);
+        break;
+    case 0b111001:
+        opswc1(instruction);
+        break;
+    case 0b111010:
+        opswc2(instruction);
+        break;
+    case 0b111011:
+        opswc3(instruction);
+        break;
     case 0b000101:
         opbne(instruction);
         break;
@@ -188,6 +224,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         opblez(instruction);
         break;
     default:
+        opillegal(instruction);
         printf("Unhandled CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
         std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
         throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
@@ -473,6 +510,76 @@ void CPU::opsw(Instruction& instruction) {
     }
 }
 
+void CPU::opswl(Instruction& instruction) {
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
+    
+    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t v    = reg(t);
+    
+    uint32_t alignedAddr = addr & ~3;
+    
+    // Load the current value for the aligned word,
+    // at the target address
+    uint32_t curMem = load32(alignedAddr);
+    uint32_t mem;
+    
+    switch (addr & 3) {
+    case 0:
+        mem = (curMem & 0x00FFFFFF) | (v << 24);
+        break;
+    case 1:
+        mem = (curMem & 0x0000FFFF) | (v << 16);
+        break;
+    case 2:
+        mem = (curMem & 0x000000FF) | (v << 8);
+        break;
+    case 3:
+        mem = (curMem & 0x00000000) | (v << 0);
+        break;
+    default:
+        throw std::runtime_error("Unreachable code!");
+    }
+    
+    store32(addr, mem);
+}
+
+void CPU::opswr(Instruction& instruction) {
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
+    
+    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t v    = reg(t);
+    
+    uint32_t alignedAddr = addr & ~3;
+    
+    // Load the current value for the aligned word,
+    // at the target address
+    uint32_t curMem = load32(alignedAddr);
+    uint32_t mem;
+    
+    switch (addr & 3) {
+    case 0:
+        mem = (curMem & 0x00FFFFFF) | (v << 0);
+        break;
+    case 1:
+        mem = (curMem & 0x0000FFFF) | (v << 8);
+        break;
+    case 2:
+        mem = (curMem & 0x000000FF) | (v << 16);
+        break;
+    case 3:
+        mem = (curMem & 0x00000000) | (v << 24);
+        break;
+    default:
+        throw std::runtime_error("Unreachable code!");
+    }
+    
+    store32(addr, mem);
+}
+
 // Store halfword
 void CPU::opsh(Instruction& instruction) {
     if((sr & 0x10000) != 0) {
@@ -545,20 +652,20 @@ void CPU::oplwl(Instruction& instruction) {
     auto s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
-
+    
     // This instruction bypasses the load delay restriction:
     // this instruction will merge the new contents,
     // with the value that is currently being loaded if needed.
     uint32_t curv = outRegs[static_cast<size_t>(t.reg)];
-
+    
     // Next we load the *aligned* word containing the first address byte
     uint32_t alignedAddr = addr & ~3;
     uint32_t alignedWord = load32(alignedAddr);
-
+    
     // Depending on the address alignment we fetch, 1, 2, 3 or 4,
     // *most* significant bytes and put them in the target register.
     uint32_t v = addr & 3;
-
+    
     switch (v) {
     case 0:
         v = (curv & 0x00FFFFFF) | (alignedWord << 24);
@@ -571,6 +678,80 @@ void CPU::oplwl(Instruction& instruction) {
         break;
     case 3:
         v = (curv & 0x00000000) | (alignedWord << 0);
+        break;
+    default:
+        throw std::runtime_error("Unreachable code!");
+    }
+    
+    // Put the load in the delay slot
+    load = {t, v};
+}
+
+void CPU::oplwr(Instruction& instruction) {
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
+    
+    uint32_t addr = wrappingAdd(reg(s), i);
+    
+    // This instruction bypasses the load delay restriction:
+    // this instruction will merge the new contents,
+    // with the value that is currently being loaded if needed.
+    uint32_t curv = outRegs[static_cast<size_t>(t.reg)];
+    
+    // Next we load the *aligned* word containing the first address byte
+    uint32_t alignedAddr = addr & ~3;
+    uint32_t alignedWord = load32(alignedAddr);
+    
+    // Depending on the address alignment we fetch, 1, 2, 3 or 4,
+    // *most* significant bytes and put them in the target register.
+    uint32_t v = addr & 3;
+    
+    switch (v) {
+    case 0:
+        v = (curv & 0x00000000) | (alignedWord >> 0);
+        break;
+    case 1:
+        v = (curv & 0xFF000000) | (alignedWord >> 8);
+        break;
+    case 2:
+        v = (curv & 0xFFFF0000) | (alignedWord >> 16);
+        break;
+    case 3:
+        v = (curv & 0xFFFFFF00) | (alignedWord >> 24);
+        break;
+    default:
+        throw std::runtime_error("Unreachable code!");
+    }
+    
+    // Put the load in the delay slot
+    load = {t, v};
+}
+
+void CPU::opslw(Instruction& instruction) {
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
+    
+    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t v    = reg(t);
+
+    uint32_t alignedAddr = addr & ~3;
+
+    uint32_t curmem = load32(alignedAddr);
+    
+    switch (v) {
+    case 0:
+        v = (curmem & 0xFFFFFF00) | (v >> 24);
+        break;
+    case 1:
+        v = (curmem & 0xffff0000) | (v >> 16);
+        break;
+    case 2:
+        v = (curmem & 0xFF000000) | (v >> 8);
+        break;
+    case 3:
+        v = (curmem & 0x00000000) | (v >> 0);
         break;
     default:
         throw std::runtime_error("Unreachable code!");
@@ -764,6 +945,44 @@ void CPU::opmtlo(Instruction& instruction) {
     lo = reg(s);
 }
 
+void CPU::oplwc0(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+}
+
+void CPU::oplwc1(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+}
+
+void CPU::oplwc2(Instruction& instruction) {
+    printf("Unhandled GTE LWC %x", instruction.op);
+}
+
+void CPU::oplwc3(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+}
+
+void CPU::opswc0(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+}
+
+void CPU::opswc1(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+}
+
+void CPU::opswc2(Instruction& instruction) {
+    printf("Unhandled GTE SWC %x", instruction.op);
+}
+
+void CPU::opswc3(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+}
+
 void CPU::opsubu(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     RegisterIndex t = instruction.t();
@@ -953,6 +1172,11 @@ void CPU::opSyscall(Instruction& instruction) {
 
 void CPU::opbreak(Instruction& instruction) {
     exception(Break);
+}
+
+void CPU::opillegal(Instruction& instruction) {
+    printf("Illegal instruction %x", instruction.op);
+    exception(IllegalInstruction);
 }
 
 void CPU::opj(Instruction& instruction) {
