@@ -56,8 +56,22 @@ uint32_t Interconnect::load32(uint32_t addr) {
         throw std::runtime_error("Unhandled DMA read32 at address " + getDetail(addr));
     }
     
+    if(auto offset = map::GPU.contains(addr)) {
+        printf("GPU read at %x", offset.value());
+        return 0;
+    }
+    
     if(auto offset = map::IRQ_CONTROL.contains(addr)) {
         printf("IRAQ control read %x\n", offset.value());
+        
+        // GPUSTAT; set bit 28 to signal that GPU is read to receive DMA blocks
+        switch (offset.value()) {
+        case 4:
+            return 0x10000000;
+        default:
+            return 0;
+        }
+        
         return 0;
     }
     
@@ -69,6 +83,22 @@ uint32_t Interconnect::load32(uint32_t addr) {
 }
 
 uint16_t Interconnect::load16(uint32_t addr) {
+    addr = map::maskRegion(addr);
+    
+    if(map::SPU.contains(addr)) {
+        printf("Unhandled fetch16 from SPU register %08x", addr);
+        return 0;
+    }
+    
+    if(std::optional<uint16_t> offset = map::RAM.contains(addr)) {
+        return ram->load16(offset.value());
+    }
+
+    if(auto offset = map::IRQ_CONTROL.contains(addr)) {
+        printf("IRAQ control read %x\n", offset.value());
+        return 0;
+    }
+    
     throw std::runtime_error("Unhandled fetch16 at address " + getDetail(addr));
     
     return 0;
@@ -106,9 +136,23 @@ void Interconnect::store32(uint32_t addr, uint32_t val) {
     if(addr % 4 != 0) {
         throw std::runtime_error("Unaligned fetch32 at address " + getDetail(addr));
     }
-
+    
     if(auto offset = map::RAM.contains(addr)) {
         ram->store32(offset.value(), val);
+    }
+    
+    if(auto offset = map::GPU.contains(addr)) {
+        printf("GPU read at %x = %08x", offset.value(), val);
+        return;
+    }
+
+    if(auto offset = map::TIMERS.contains(addr)) {
+        printf("Unhandled write32 to timer register %x 0x%08x\n", offset.value(), val);
+        return;
+    }
+    
+    if(map::DMA.contains(addr)) {
+        throw std::runtime_error("Unhandled DMA store32 at address " + getDetail(addr));
     }
     
     if(auto offset = map::IRQ_CONTROL.contains(addr)) {
@@ -163,6 +207,11 @@ void Interconnect::store16(uint32_t addr, uint16_t val) {
     
     if(auto offset = map::TIMERS.contains(addr)) {
         printf("Unhandled write to timer register %x 0x%08x\n", offset.value(), val);
+        return;
+    }
+
+    if(auto offset = map::IRQ_CONTROL.contains(addr)) {
+        printf("IRAQ control write %x at %04x\n", offset.value(), val);
         return;
     }
     

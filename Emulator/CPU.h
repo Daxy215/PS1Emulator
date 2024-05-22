@@ -49,13 +49,22 @@ public:
 
     // Shift Left Logical
     void opsll(Instruction& instruction);
-
+    
+    // Shift Left Logical Variable
+    void opsllv(Instruction& instruction);
+    
     // Shift Right Arithmetic
     void opsra(Instruction& instruction);
+    
+    // Shift Right Arithmetic Variable
+    void opsrav(Instruction& instruction);
     
     // Shift Right Logical
     void opsrl(Instruction& instruction);
 
+    // Shift Right Logical Variable
+    void opsrlv(Instruction& instruction);
+    
     // Set if Less Than Immediate Unsigned
     void opsltiu(Instruction& instruction);
     
@@ -68,7 +77,7 @@ public:
     
     // Bitwise or
     void opor(Instruction& instruction);
-
+    
     // Bitwise not or
     void opnor(Instruction& instruction);
     
@@ -92,6 +101,12 @@ public:
     
     // Load word
     void oplw(Instruction& instruction);
+    
+    // Load Halfword signed
+    void oplh(Instruction& instruction);
+    
+    // Load halfword unsigned
+    void oplhu(Instruction& instruction);
     
     // Load byte
     void oplb(Instruction& instruction);
@@ -141,6 +156,9 @@ public:
     
     // Same as addiu but generates an exception if it overflows
     void addi(Instruction& instruction);
+    
+    // Mlutiply Unsigned
+    void opmultu(Instruction& instruction);
 
     // Divide signed
     void opdiv(Instruction& instruction);

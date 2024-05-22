@@ -20,6 +20,15 @@ uint32_t Ram::load32(uint32_t offset) {
     return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
 }
 
+uint16_t Ram::load16(uint16_t offset) {
+    size_t of = static_cast<size_t>(offset);
+    
+    uint16_t b0 = data[of + 0];
+    uint16_t b1 = data[of + 1];
+    
+    return b0 | (b1 << 8);
+}
+
 uint8_t Ram::load8(uint8_t offset) {
     return data[offset];
 }

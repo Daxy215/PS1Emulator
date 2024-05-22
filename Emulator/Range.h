@@ -21,16 +21,17 @@ namespace map {
     static const Range RAM_SIZE = {0x1f801060, 4}; // 0x1f801060
     
     static const Range BIOS = { 0x1fc00000, 512 * 1024}; // 0xbfc00000
+    static const Range GPU  = {0x1f801810, 8};
     
     static const Range MEMCONTROL = { 0x1f801000, 36}; // 0x1f801000
-    //static const Range MEMCONTROL = {0x1f801000, 36};
+    //static const Range SYSCONTROL = {0x1f801000, 36};
     static const Range CACHECONTROL = {0xfffe0130, 4}; // 0xfffe0130
     
     // SPU Registers
+    // Basically sounds and the DMA
     static const Range SPU = {0x1f801c00, 640};
-
+    
     // Direct Memory Access registers
-    // Basically sounds and the SPU
     static const Range DMA = {0x1f801080, 0x80};
     
     // Expansion regions

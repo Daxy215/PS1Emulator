@@ -68,7 +68,7 @@ void CPU::executeNextInstruction() {
     
     // increment the PC
     pc = nextpc;
-    nextpc = wrappingAdd(pc, 4);
+    nextpc = wrappingAdd(nextpc, 4);
     
     RegisterIndex reg = load.regIndex;
     auto val   = load.value;
@@ -122,6 +122,12 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         break;
     case 0b100011:
         oplw(instruction);
+        break;
+    case 0b100001:
+        oplh(instruction);
+        break;
+    case 0b100101:
+        oplhu(instruction);
         break;
     case 0b100000:
         oplb(instruction);
@@ -179,11 +185,20 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b000000:
         opsll(instruction);
         break;
+    case 0b000100:
+        opsllv(instruction);
+        break;
     case 0b000011:
         opsra(instruction);
         break;
+    case 0b000111:
+        opsrav(instruction);
+        break;
     case 0b000010:
         opsrl(instruction);
+        break;
+    case 0b000110:
+        opsrlv(instruction);
         break;
     case 0b100101:
         opor(instruction);
@@ -208,6 +223,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     case 0b100001:
         addu(instruction);
+        break;
+    case 0b011001:
+        opmultu(instruction);
         break;
     case 0b011010:
         opdiv(instruction);
@@ -250,6 +268,17 @@ void CPU::opsll(Instruction& instruction) {
     set_reg(d, v);
 }
 
+void CPU::opsllv(Instruction& instruction) {
+    auto d = instruction.d();
+    auto s = instruction.s();
+    auto t = instruction.t();
+    
+    // Shift amount is truncated to 5 bits
+    uint32_t v = reg(t) << (reg(s) & 0x1F);
+    
+    set_reg(d, v);
+}
+
 void CPU::opsra(Instruction& instruction) {
     RegisterIndex i = instruction.shift();
     RegisterIndex t = instruction.t();
@@ -260,12 +289,34 @@ void CPU::opsra(Instruction& instruction) {
     set_reg(d, static_cast<uint32_t>(v));
 }
 
+void CPU::opsrav(Instruction& instruction) {
+    auto d = instruction.d();
+    auto s = instruction.s();
+    auto t = instruction.t();
+    
+    // Shift amount is truncated to 5 bits
+    int32_t v = static_cast<int32_t>(reg(t) >> (reg(s) & 0x1f));
+    
+    set_reg(d, static_cast<uint32_t>(v));
+}
+
 void CPU::opsrl(Instruction& instruction) {
     auto i = instruction.shift();
     auto t = instruction.t();
     auto d = instruction.d();
     
     uint32_t v = reg(t) >> i;
+    
+    set_reg(d, v);
+}
+
+void CPU::opsrlv(Instruction& instruction) {
+    auto d = instruction.d();
+    auto s = instruction.s();
+    auto t = instruction.t();
+    
+    // Shift amount is truncated to 5 bits
+    uint32_t v = reg(t) >> (reg(s) & 0x1F);
     
     set_reg(d, v);
 }
@@ -443,6 +494,37 @@ void CPU::oplw(Instruction& instruction) {
         exception(LoadAddressError);
 }
 
+void CPU::oplh(Instruction& instruction) {
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
+    
+    uint32_t addr = wrappingAdd(reg(s), i);
+    
+    // Cast as i16 to force sign extension
+    int16_t v = static_cast<int16_t>(load16(addr));
+    
+    // Put the load in the delay slot
+    load = {t, static_cast<uint32_t>(v)};
+}
+
+void CPU::oplhu(Instruction& instruction) {
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
+
+    uint32_t addr = wrappingAdd(reg(s), i);
+
+    // Address must be 16bit aligned
+    if(addr % 2 == 0) {
+        uint16_t v = load16(addr);
+        
+        load = {t, static_cast<uint32_t>(v)};
+    } else {
+        exception(LoadAddressError);
+    }
+}
+
 // Load byte
 void CPU::oplb(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
@@ -495,6 +577,19 @@ void CPU::addi(Instruction& instruction) {
     }
     
     set_reg(t, static_cast<uint32_t>(v.value()));
+}
+
+void CPU::opmultu(Instruction& instruction) {
+    auto s = instruction.s();
+    auto t = instruction.t();
+    
+    uint64_t a = static_cast<uint64_t>(reg(s));
+    uint64_t b = static_cast<uint64_t>(reg(t));
+    
+    uint64_t v = a * b;
+    
+    hi = static_cast<uint32_t>(v >> 32);
+    lo = static_cast<uint32_t>(v);
 }
 
 void CPU::opdiv(Instruction& instruction) {
@@ -608,7 +703,7 @@ void CPU::opcop0(Instruction& instruction) {
         oprfe(instruction);
         break;
     default:
-        std::cout << "Unhandled instruction: " + getDetails(instruction.copOpcode()) << "\n";
+        std::cout << "Unhandled COP0 instruction: " + getDetails(instruction.copOpcode()) << "\n";
         throw std::runtime_error("Unhandled COP instruction: " + getDetails(instruction.copOpcode()));
         
         break;        
@@ -677,7 +772,7 @@ void CPU::oprfe(Instruction& instruction) {
     if(instruction.op & 0x3f != 0b010000) {
         throw std::runtime_error("Invalid cop0 instruction; " + instruction.op);
     }
-
+    
     auto mode = sr & 0x3f;
     sr &= !0x3f;
     sr |= mode >> 2;
