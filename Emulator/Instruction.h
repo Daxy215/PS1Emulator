@@ -1,8 +1,6 @@
 ﻿#pragma once
 #include <cstdint>
 
-//#include "CPU.h"
-
 struct RegisterIndex {
     RegisterIndex() : reg(0) {}
     RegisterIndex(uint32_t reg) : reg(reg) {}

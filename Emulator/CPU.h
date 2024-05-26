@@ -46,7 +46,7 @@ public:
     
     // Instructions
     // TODO; Please move those in a different class future me!
-
+    
     // Shift Left Logical
     void opsll(Instruction& instruction);
     
@@ -61,7 +61,7 @@ public:
     
     // Shift Right Logical
     void opsrl(Instruction& instruction);
-
+    
     // Shift Right Logical Variable
     void opsrlv(Instruction& instruction);
     
@@ -159,7 +159,7 @@ public:
     
     // Branch if greater than zero
     void opbgtz(Instruction& instruction);
-
+    
     // Branch if less than or equal to zero
     void opblez(Instruction& instruction);
     
@@ -207,16 +207,16 @@ public:
     
     // Move to LO
     void opmtlo(Instruction& instruction);
-
+    
     // Load word in COP 0
     void oplwc0(Instruction& instruction);
-
+    
     // Load word in COP 1
     void oplwc1(Instruction& instruction);
-
+    
     // Load word in COP 2
     void oplwc2(Instruction& instruction);
-
+    
     // Load word in COP 3
     void oplwc3(Instruction& instruction);
     
@@ -240,10 +240,10 @@ public:
     
     // Coprocessors handling
     void opcop0(Instruction& instruction);
-
+    
     // Coprocessor 1 opcode (Doesn't exist on the PS1)
     void opcop1(Instruction& instruction);
-
+    
     // Coprocessor 2w opcode (GTE)
     void opcop2(Instruction& instruction);
     
@@ -262,9 +262,9 @@ public:
     void exception(Exception cause);
     
     void opSyscall(Instruction& instruction);
-
+    
     void opbreak(Instruction& instruction);
-
+    
     void opillegal(Instruction& instruction);
     
     // Register related functions

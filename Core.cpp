@@ -6,8 +6,8 @@
 
 #include "Emulator/Bios.h"
 #include "Emulator/CPU.h"
-#include "Emulator/interconnect.h"
-#include "Emulator/Ram.h"
+//#include "Emulator/interconnect.h"
+//#include "Emulator/Ram.h"
 
 // Page 83
 
@@ -25,11 +25,20 @@
 // https://en.wikipedia.org/wiki/R3000
 // https://www.dsi.unive.it/~gasparetto/materials/MIPS_Instruction_Set.pdf
 
-// Used this A LOT to figure out which instruction I need to convert
+// Used this A LOT to figure out which instruction I need to translate the instructions further
 // https://inst.eecs.berkeley.edu/~cs61c/resources/MIPS_help.html
 // R-TYPE INSTRUCTIONS -> subfunction
 // J-TYPE INSTRUCTIONS -> ??? Jump instructions?
 // I-TYPE INSTRUCTIONS -> functions
+//
+// https://en.wikipedia.org/wiki/MIPS_architecture
+// https://www.dsi.unive.it/~gasparetto/materials/MIPS_Instruction_Set.pdf
+//
+// Explains the process VERY well
+// https://psx.arthus.net/docs/MIPS%20Instruction%20Set-harvard.pdf
+// https://app.box.com/s/q1tl8yuufsftosvxqyce
+// https://app.box.com/s/lmr4nw30cvdhdk5ng7ex
+// https://www.cs.columbia.edu/~sedwards/classes/2012/3827-spring/mips-isa.pdf
 
 /**
  * Where I got the BIOS from:
@@ -79,6 +88,20 @@
     * Channel 4 -> Is used to connect to the SPU
     * Channel 5 -> Is used to connect to the extension port
     * Channel 6 -> Is used to connect to the RAM and is used to clear an "ordering table"
+    
+ * DMA Channel Control register description
+    * Field bits        Description
+    * 0                 Transfer direction: RAM-to-device(0) or device-RAM(1)
+    * 1                 Address increment(0) or decrement(1) mode
+    * 2                 Chopping mode
+    * [10:9]            Synchronization type: Manual(0), Request(1) or Linked List(2)
+    * [18:16]           Chopping DMA window
+    * [22:20]           Chopping CPU window
+    * 24                Enable
+    * 28                Manual trigger
+    * [30:29]           Unknown
+    * 
+    * PAGE 28 for more information
     
  * The PS1 uses little-endian formation for storing data.
     * As they store the least significant byte first.
@@ -254,12 +277,17 @@ int main(int argc, char* argv[]) {
     while(true) {
         // TODO; Remove
         try {
+            /*if(x == 17641) {
+                printf("performing GTE");
+            }*/
+            
+            // Unhandled GTE LWC cacacaca??
             cpu->executeNextInstruction();
             
             x++;
         } catch(std::runtime_error& e) {
             std::cerr << e.what() << '\n';
-            throw; // Rethrow the error
+            //throw; // Rethrow the error
         }
     }
     

@@ -1,5 +1,5 @@
 ﻿#include "CPU.h"
-#include "Instruction.h"
+//#include "Instruction.h"
 
 #include <array>
 #include <bitset>
@@ -501,9 +501,9 @@ void CPU::opsw(Instruction& instruction) {
     uint32_t s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
-    uint32_t v    = reg(t).reg;
-
+    
     if(addr % 4 == 0) {
+        uint32_t v    = reg(t).reg;
         store32(addr, v);
     } else {
         exception(StoreAddressError);
@@ -956,7 +956,8 @@ void CPU::oplwc1(Instruction& instruction) {
 }
 
 void CPU::oplwc2(Instruction& instruction) {
-    printf("Unhandled GTE LWC %x", instruction.op);
+    // Geometry Transformation Engine
+    printf("Unhandled GTE LWC %s\n", std::to_string(instruction.op).c_str());
 }
 
 void CPU::oplwc3(Instruction& instruction) {
@@ -1126,7 +1127,7 @@ void CPU::opmfc0(Instruction& instruction) {
 }
 
 void CPU::oprfe(Instruction& instruction) {
-    if(instruction.op & 0x3f != 0b010000) {
+    if((instruction.op & 0x3f) != 0b010000) {
         throw std::runtime_error("Invalid cop0 instruction; " + instruction.op);
     }
     
@@ -1175,7 +1176,7 @@ void CPU::opbreak(Instruction& instruction) {
 }
 
 void CPU::opillegal(Instruction& instruction) {
-    printf("Illegal instruction %x", instruction.op);
+    printf("Illegal instruction %x\n", instruction.op);
     exception(IllegalInstruction);
 }
 
@@ -1350,27 +1351,33 @@ void CPU::addu(Instruction& instruction) {
 }
 
 uint32_t CPU::load32(uint32_t addr) {
-    return interconnect->load32(addr);
+    return interconnect->load<uint32_t>(addr);
+    //return interconnect->load32(addr);
 }
 
 uint16_t CPU::load16(uint32_t addr) {
-    return interconnect->load16(addr);
+    return interconnect->load<uint16_t>(addr);
+    //return interconnect->load16(addr);
 }
 
 uint8_t CPU::load8(uint32_t addr) {
-    return interconnect->load8(addr);
+    return interconnect->load<uint8_t>(addr);
+    //return interconnect->load8(addr);
 }
 
 void CPU::store32(uint32_t addr, uint32_t val) {
-    interconnect->store32(addr, val);
+    interconnect->store<uint32_t>(addr, val);
+    //interconnect->store32(addr, val);
 }
 
 void CPU::store16(uint32_t addr, uint16_t val) {
-    interconnect->store16(addr, val);
+    interconnect->store<uint16_t>(addr, val);
+    //interconnect->store16(addr, val);
 }
 
 void CPU::store8(uint32_t addr, uint8_t val) {
-    interconnect->store8(addr, val);
+    interconnect->store<uint8_t>(addr, val);
+    //interconnect->store8(addr, val);
 }
 
 uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
