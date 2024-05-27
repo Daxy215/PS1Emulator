@@ -222,9 +222,9 @@ void CPU::decodeAndExecute(Instruction& instruction) {
             break;
         default:
             opillegal(instruction); // Illegal instruction
-            printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func().reg, instruction.op);
-            std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
-            throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
+            //printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func().reg, instruction.op);
+            //std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
+            //throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
     }
 }
 
@@ -1143,7 +1143,7 @@ void CPU::opbreak(Instruction& instruction) {
 }
 
 void CPU::opillegal(Instruction& instruction) {
-    printf("Illegal instruction %x\n", instruction.op);
+    printf("Illegal instruction %x PC; %x\n", instruction.op, pc);
     exception(IllegalInstruction);
 }
 
