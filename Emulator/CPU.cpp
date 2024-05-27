@@ -596,10 +596,10 @@ void CPU::opsh(Instruction& instruction) {
     
     // Don't really need static cast here, but it's easier to read
     // or at least.. Understand what is happening
-    uint16_t v    = static_cast<uint16_t>(reg(t));
+    uint32_t v    = reg(t);
     
     if(addr % 2 == 0) {
-        store16(addr, v);
+        store16(addr, static_cast<uint16_t>(v));
     } else {
        exception(StoreAddressError); 
     }
@@ -617,9 +617,9 @@ void CPU::opsb(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
-    uint8_t v    = static_cast<uint8_t>(reg(t));
+    uint32_t v    = reg(t);
     
-    store8(addr, v);
+    store8(addr, static_cast<uint8_t>(v));
 }
 
 // Load word
@@ -638,7 +638,7 @@ void CPU::oplw(Instruction& instruction) {
 
     if(addr % 4 == 0) {
         uint32_t v = load32(addr);
-    
+        
         // Put the load in the delay slot
         load = {t, v};
         //set_reg(t, v);
@@ -1113,7 +1113,7 @@ void CPU::exception(Exception cause) {
     sr |= (mode << 2) & 0x3F;
     
     // Update 'CAUSE' register with the exception code (bits [6:2])
-    this->cause = static_cast<uint32_t>(cause) << 2;
+    this->cause |= static_cast<uint32_t>(cause) << 2;
     
     // Save current instruction address in 'EPC'
     epc = currentpc;
@@ -1121,15 +1121,16 @@ void CPU::exception(Exception cause) {
     if(delaySlot) {
         // When an exception occurs in a delay slot 'EPC' points
         // to the branch instruction and bit 31 of 'CAUSE' is set.
-        epc = pc - 4; // WrappingSub(4) ;-}
-        this->cause |= (1 << 31);
+        epc = wrappingSub(epc, 4);
+        //epc = pc - 4; // WrappingSub(4) ;-}
+        //this->cause |= (1 << 31);
         // C++ is too epic :D
-        //this->cause = (static_cast<uint32_t>(cause) << 1) | (this->cause & 0x3FC00000);
+        this->cause |= (static_cast<uint32_t>(1) << static_cast<uint32_t>(31));
     }
     
     // Exceptions don’t have a branch delay, we jump directly into the handler
     pc = handler;
-    nextpc = pc + 4;//wrappingAdd(pc, 4);
+    nextpc = wrappingAdd(pc, 4);
     
     std::cerr << "EXECPTION OCCOURED!!" << cause << "\n";
 }
@@ -1143,7 +1144,8 @@ void CPU::opbreak(Instruction& instruction) {
 }
 
 void CPU::opillegal(Instruction& instruction) {
-    printf("Illegal instruction %x PC; %x\n", instruction.op, pc);
+    printf("Illegal instruction %d %d PC; %d\n", instruction.func().reg, instruction.subfunction().reg, currentpc);
+    //std::cerr << "Illegal instruction " << instruction.op << " PC; " << currentpc << "\n";
     exception(IllegalInstruction);
 }
 
@@ -1263,7 +1265,7 @@ void CPU::branch(uint32_t offset) {
     // pc was being rest back to '0' after BNE,
     // so I double-checked what the output was meant to be,
     // and it was supposed to be 4294967256.
-
+    
     /**
      * So I did some digging on why wrappingSub wouldn't return 0 in this case;
         * 4294967260 is 0xFFFFFFEC in HEX, and when you perform the subraction,
@@ -1274,7 +1276,8 @@ void CPU::branch(uint32_t offset) {
             * It seems that the wrapping subraction function only results in 0,
             * IF the subraction crosses the boundary of the minimum value(0)..
      */
-    
+
+    // In the end.. It's removed after searching for hours of this stupid problem..
     //pc -= 4;
 }
 
@@ -1350,13 +1353,35 @@ void CPU::store8(uint32_t addr, uint8_t val) {
 uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
     // Perform wrapping addition (wrap around upon overflow)
     //return a + b < a ? UINT32_MAX : a + b;
-    return a + b;
+    //return a + b;
+    
+    // Perform regular addition
+    unsigned int sum = a + b;
+    
+    // Check for overflow
+    if (sum < a) {
+        // Overflow occurred, wrap around
+        return ~a; // This will effectively wrap around due to unsigned arithmetic
+    }
+    
+    return sum;
 }
 
 uint32_t CPU::wrappingSub(uint32_t a, uint32_t b) {
     // Perform wrapping subtraction (wrap around upon underflow)
     //return a - b > a ? 0 : a - b;
-    return a - b;
+    //return a - b;
+    
+    // Perform regular subtraction
+    unsigned int diff = a - b;
+    
+    // Check for underflow
+    if (diff > a) {
+        // Underflow occurred, wrap around
+        return (~b) + 1; // This will effectively wrap around due to unsigned arithmetic
+    }
+    
+    return diff;
 }
 
 template <typename T>

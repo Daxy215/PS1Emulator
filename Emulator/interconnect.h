@@ -117,7 +117,8 @@ public:
             throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
-        throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
+        printf("wee %d\n", addr);
+        //throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
     }
     
     template<typename T>

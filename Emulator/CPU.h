@@ -288,11 +288,11 @@ public:
     void store8(uint32_t addr, uint8_t val);
     
     // Helper functions
-    uint32_t wrappingAdd(uint32_t a, uint32_t b);
-    uint32_t wrappingSub(uint32_t a, uint32_t b);
+    static uint32_t wrappingAdd(uint32_t a, uint32_t b);
+    static uint32_t wrappingSub(uint32_t a, uint32_t b);
     
     template<typename T>
-    std::optional<T> check_add(T a, T b);
+    static std::optional<T> check_add(T a, T b);
     
 public:
     // Sets by the current instruction; if a branch occured,

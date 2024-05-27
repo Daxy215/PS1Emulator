@@ -7,6 +7,7 @@
 #include <string>
 
 #include "Bios.h"
+#include "CPU.h"
 #include "Ram.h"
 //#include "Range.h"
 
@@ -39,7 +40,7 @@ std::string getDetail(uint32_t value) {
     return hex + " = " + binary;
 }
 
-/*  // NOLINT(clang-diagnostic-comment, clang-diagnostic-comment, clang-diagnostic-comment)
+/*
 template <typename T>
 T Interconnect::load(uint32_t addr) {
     addr = map::maskRegion(addr);
@@ -179,7 +180,7 @@ void Interconnect::store(uint32_t addr, T val) {
 }
 */
 
-/*
+/*  // NOLINT(clang-diagnostic-comment)
 // Loads a 32bit word at 'addr'
 uint32_t Interconnect::load32(uint32_t addr) {
     addr = map::maskRegion(addr);
@@ -522,12 +523,12 @@ void Interconnect::store8(uint32_t addr, uint8_t val) {
 uint32_t Interconnect::dmaReg(uint32_t offset) {
     uint32_t major = (offset & 0x70) >> 4;
     uint32_t minor = offset & 0xF;
-
+    
     switch (major) {
         // Per-channel registers 0...6
     case 0: case 1: case 2: case 3: case 4: case 5: case 6: {
             Channel* channel = dma->getChannel(PortC::fromIndex(major));
-        
+            
             switch (minor) {
             case 8:
                 return channel->control();
@@ -608,34 +609,36 @@ void Interconnect::dmaBlock(Port port) {
                 break;
             }
         case ToRam: {
-                uint32_t srcWord;
-            
+                uint32_t srcWord = 0;
+                
                 switch(port) {
-                    // Clear ordering table
                 case Otc:
+                    // Clear ordering table
                     if(remsz == 1) {
                         // Last entry contains the end of the table marker
                         srcWord = 0xFFFFFF;
                     } else {
                         // Pointer to the previous entry
                         // TODO; Wrapped sub
-                        srcWord = (addr - 4) & 0x1FFFFF;
+                        //srcWord = (addr - 4) & 0x1FFFFF;
+                        srcWord = CPU::wrappingSub(srcWord, 4) & 0x1FFFFF;
                     }
-                
+                    
                     break;
                 default:
                     throw std::runtime_error("Unhandled DMA source port" + std::to_string(static_cast<uint8_t>(port)));    
                     break;
                 }
-            
+                
                 ram->store<uint32_t>(curAddr, srcWord);    
-            
+                
                 break;
             }
         }
         
         // TODO; Wrapping add
-        addr += increment;
+        //addr += increment;
+        addr = CPU::wrappingAdd(addr, increment);
         remsz.value() -= 1;
     }
     

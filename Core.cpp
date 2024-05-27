@@ -281,7 +281,8 @@ int main(int argc, char* argv[]) {
             /*if(x == 17641) {
                 printf("performing GTE");
             }*/
-            
+            //printf("F; %d\n", x);
+            //std::cerr << x << std::endl;
             // Unhandled GTE LWC cacacaca??
             cpu->executeNextInstruction();
             

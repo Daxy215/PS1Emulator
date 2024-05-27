@@ -25,35 +25,35 @@ namespace Emulator {
     // Video output horizontal resolution
     struct HorizontalRes {
         uint8_t value;
-
+        
         static HorizontalRes fromFields(uint8_t hr1, uint8_t hr2) {
             uint8_t hr = (hr2 & 1) | ((hr1 & 3) << 1);
             return HorizontalRes{hr};
         }
-
+        
         uint32_t intoStatus() const {
             return static_cast<uint32_t>(value) << 16;
         }
     };
-
+    
     // Video output vertical resolution
     enum class VerticalRes {
         Y240Lines = 0,
         Y480Lines = 1,
     };
-
+    
     // Video Modes
     enum class VMode {
         Ntsc = 0,
         Pal = 1,
     };
-
+    
     // Display area color depth
     enum class DisplayDepth {
         D15Bits = 0,
         D24Bits = 1,
     };
-
+    
     // Requested DMA direction
     enum class DmaDirection {
         Off = 0,
@@ -73,18 +73,13 @@ namespace Emulator {
         
         CommandBuffer() : buffer(), len(0) {}
         
-        class Index {
-        public:
-            using Output = uint32_t;
-            
-            uint32_t* index(CommandBuffer& buffer, size_t index) const {
-                if (index >= buffer.len) {
-                    throw std::out_of_range("Command buffer index out of range: " + std::to_string(index));
-                }
-                
-                return &buffer.buffer[index];
+        uint32_t* index(CommandBuffer& buffer, size_t index) const {
+            if (index >= buffer.len) {
+                throw std::out_of_range("Command buffer index out of range: " + std::to_string(index));
             }
-        };
+                
+            return &buffer.buffer[index];
+        }
         
         void clear() {
             len = 0;
@@ -162,6 +157,21 @@ namespace Emulator {
         void gp0MaskBitSetting(uint32_t val) {
             forceSetMaskBit = (val & 1) != 0;
             preserveMaskedPixels = (val & 2) != 0;
+        }
+        
+        // GP0(0x00): No operations
+        void gp0Nop(uint32_t val) {
+            // NOP
+        }
+        
+        // GP0(0x28): Momochrome Opaque Quadrilateral
+        void gp0QuadMonoOpaque(uint32_t val) {
+            printf("DRAWING A QUAD!!");
+        }
+        
+        // GP0(0x01): Clear Cache
+        void gp0ClearCache() {
+            // TODO; Implement me
         }
         
         // Handles writes to the GP1 command register
@@ -242,7 +252,7 @@ namespace Emulator {
         uint32_t gp0CommandRemaining;
         
         // Pointer to the method implementing the current GP command
-        std::function<void(Gpu&)> Gp0CommandMethod;
+        std::function<void(Gpu&, uint32_t)> Gp0CommandMethod;
     };
 }
 #endif // GPU_H
