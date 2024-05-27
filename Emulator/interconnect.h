@@ -6,6 +6,7 @@
 
 #include "Bios.h"
 #include "Dma.h"
+#include "Gpu.h"
 #include "Ram.h"
 #include "Range.h"
 
@@ -150,12 +151,12 @@ public:
         
         if (auto offset = map::GPU.contains(abs_addr)) {
             switch (offset.value()) {
-                /*case 0:
-                    gpu.gp0(val);
+                case 0:
+                    gpu->gp0(val);
                     break;
                 case 4:
-                    gpu.gp1(val);
-                    break;*/
+                    gpu->gp1(val);
+                    break;
                 default:
                     throw std::runtime_error("GPU write " + std::to_string(offset.value()) + ": 0x" + to_hex(val));
             }
@@ -265,4 +266,5 @@ private:
     Ram* ram;
     Bios* bios;
     Dma* dma;
+    Emulator::Gpu* gpu;
 };

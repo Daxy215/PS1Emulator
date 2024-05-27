@@ -671,7 +671,7 @@ void Interconnect::dmaLinkedList(Port port) {
             
             uint32_t command = ram->load<uint32_t>(addr);
             
-            printf("GPU command %08x", command);
+            gpu->gp0(command);
             
             remsz -= 1;
         }

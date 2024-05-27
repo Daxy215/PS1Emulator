@@ -100,134 +100,131 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     //printf("Processing CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
     
     switch (instruction.func()) {
-    case 0b000000:
-        decodeAndExecuteSubFunctions(instruction);
-        break;
-    case 0b001110:
-        opxori(instruction);
-        break;
-    case 0b000001:
-        opbxx(instruction);
-        break;
-    case 0b001111:
-        oplui(instruction);
-        break;
-    case 0b001101:
-        opori(instruction);
-        break;
-    case 0b101011:
-        opsw(instruction);
-        break;
-    case 0b101010:
-        opswl(instruction);
-        break;
-    case 0b101110:
-        opswr(instruction);
-        break;
-    case 0b101001:
-        opsh(instruction);
-        break;
-    case 0b101000:
-        opsb(instruction);
-        break;
-    case 0b100011:
-        oplw(instruction);
-        break;
-    case 0b100010:
-        oplwl(instruction);
-        break;
-    case 0b100110:
-        oplwr(instruction);
-        break;
-    //case 0b101010:
-    //    opslw(instruction);
-    //    break;
-    case 0b100001:
-        oplh(instruction);
-        break;
-    case 0b100101:
-        oplhu(instruction);
-        break;
-    case 0b100000:
-        oplb(instruction);
-        break;
-    case 0b100100:
-        oplbu(instruction);
-        break;
-    case 0b000010:
-        opj(instruction);
-        break;
-    case 0b000011:
-        opjal(instruction);
-        break;
-    case 0b001010:
-        opslti(instruction);
-        break;
-    case 0b001011:
-        opsltiu(instruction);
-        break;
-    case 0b001001:
-        addiu(instruction);
-        break;
-    case 0b001000:
-        addi(instruction);
-        break;
-    case 0b001100:
-        opandi(instruction);
-        break;
-    case 0b010000:
-        opcop0(instruction);
-        break;
-    case 0b010001:
-        opcop1(instruction);
-        break;
-    case 0b010010:
-        opcop2(instruction);
-        break;
-    case 0b010011:
-        opcop3(instruction);
-        break;
-    case 0b110000:
-        oplwc0(instruction);
-        break;
-    case 0b110001:
-        oplwc1(instruction);
-        break;
-    case 0b110010:
-        oplwc2(instruction);
-        break;
-    case 0b110011:
-        oplwc3(instruction);
-        break;
-    case 0b111000:
-        opswc0(instruction);
-        break;
-    case 0b111001:
-        opswc1(instruction);
-        break;
-    case 0b111010:
-        opswc2(instruction);
-        break;
-    case 0b111011:
-        opswc3(instruction);
-        break;
-    case 0b000101:
-        opbne(instruction);
-        break;
-    case 0b000100:
-        opbeq(instruction);
-        break;
-    case 0b000111:
-        opbgtz(instruction);
-        break;
-    case 0b000110:
-        opblez(instruction);
-        break;
-    default:
-        opillegal(instruction);
-        printf("Unhandled CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
-        std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
-        throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
+        case 0b000000:
+            decodeAndExecuteSubFunctions(instruction); // ALU operations (e.g., add, subtract, shift)
+            break;
+        case 0b001110:
+            opxori(instruction); // XOR immediate
+            break;
+        case 0b000001:
+            opbxx(instruction); // Branches and jumps
+            break;
+        case 0b001111:
+            oplui(instruction); // Load Upper Immediate
+            break;
+        case 0b001101:
+            opori(instruction); // OR immediate
+            break;
+        case 0b101011:
+            opsw(instruction); // Store word
+            break;
+        case 0b101010:
+            opswl(instruction); // Store word left
+            break;
+        case 0b101110:
+            opswr(instruction); // Store word right
+            break;
+        case 0b101001:
+            opsh(instruction); // Store halfword
+            break;
+        case 0b101000:
+            opsb(instruction); // Store byte
+            break;
+        case 0b100011:
+            oplw(instruction); // Load word
+            break;
+        case 0b100010:
+            oplwl(instruction); // Load word left
+            break;
+        case 0b100110:
+            oplwr(instruction); // Load word right
+            break;
+        case 0b100001:
+            oplh(instruction); // Load halfword
+            break;
+        case 0b100101:
+            oplhu(instruction); // Load halfword unsigned
+            break;
+        case 0b100000:
+            oplb(instruction); // Load byte
+            break;
+        case 0b100100:
+            oplbu(instruction); // Load byte unsigned
+            break;
+        case 0b000010:
+            opj(instruction); // Jump
+            break;
+        case 0b000011:
+            opjal(instruction); // Jump and link
+            break;
+        case 0b001010:
+            opslti(instruction); // Set if less than immediate
+            break;
+        case 0b001011:
+            opsltiu(instruction); // Set if less than immediate unsigned
+            break;
+        case 0b001001:
+            addiu(instruction); // Add immediate unsigned
+            break;
+        case 0b001000:
+            addi(instruction); // Add immediate
+            break;
+        case 0b001100:
+            opandi(instruction); // AND immediate
+            break;
+        case 0b010000:
+            opcop0(instruction); // Coprocessor 0 instructions
+            break;
+        case 0b010001:
+            opcop1(instruction); // Coprocessor 1 instructions
+            break;
+        case 0b010010:
+            opcop2(instruction); // Coprocessor 2 instructions
+            break;
+        case 0b010011:
+            opcop3(instruction); // Coprocessor 3 instructions
+            break;
+        case 0b110000:
+            oplwc0(instruction); // Load word coprocessor 0
+            break;
+        case 0b110001:
+            oplwc1(instruction); // Load word coprocessor 1
+            break;
+        case 0b110010:
+            oplwc2(instruction); // Load word coprocessor 2 (Unhandled)
+            break;
+        case 0b110011:
+            oplwc3(instruction); // Load word coprocessor 3
+            break;
+        case 0b111000:
+            opswc0(instruction); // Store word coprocessor 0
+            break;
+        case 0b111001:
+            opswc1(instruction); // Store word coprocessor 1
+            break;
+        case 0b111010:
+            opswc2(instruction); // Store word coprocessor 2
+            break;
+        case 0b111011:
+            opswc3(instruction); // Store word coprocessor 3
+            break;
+        case 0b000101:
+            opbne(instruction); // Branch if not equal
+            break;
+        case 0b000100:
+            opbeq(instruction); // Branch if equal
+            break;
+        case 0b000111:
+            opbgtz(instruction); // Branch if greater than zero
+            break;
+        case 0b000110:
+            opblez(instruction); // Branch if less than or equal to zero
+            break;
+        default:
+            opillegal(instruction); // Illegal instruction
+            printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func().reg, instruction.op);
+            std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
+            throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
     }
 }
 
@@ -304,7 +301,7 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b010010:
         opmflo(instruction);
         break;
-    case 0b001100:
+    case 0b010011:
         opmtlo(instruction);
         break;
     case 0b100011:
@@ -312,6 +309,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     case 0b100100:
         opand(instruction);
+        break;
+    case 0b001100:
+        opSyscall(instruction);
         break;
     default:
         throw std::runtime_error("Unhandled sub instruction: " + getDetails(instruction.op));
@@ -728,39 +728,6 @@ void CPU::oplwr(Instruction& instruction) {
     load = {t, v};
 }
 
-//void CPU::opslw(Instruction& instruction) {
-//    auto i = instruction.imm_se();
-//    auto t = instruction.t();
-//    auto s = instruction.s();
-//    
-//    uint32_t addr = wrappingAdd(reg(s), i);
-//    uint32_t v    = reg(t);
-//
-//    uint32_t alignedAddr = addr & ~3;
-//
-//    uint32_t curmem = load32(alignedAddr);
-//    
-//    switch (v) {
-//    case 0:
-//        v = (curmem & 0xFFFFFF00) | (v >> 24);
-//        break;
-//    case 1:
-//        v = (curmem & 0xffff0000) | (v >> 16);
-//        break;
-//    case 2:
-//        v = (curmem & 0xFF000000) | (v >> 8);
-//        break;
-//    case 3:
-//        v = (curmem & 0x00000000) | (v >> 0);
-//        break;
-//    default:
-//        throw std::runtime_error("Unreachable code!");
-//    }
-//    
-//    // Put the load in the delay slot
-//    load = {t, v};
-//}
-
 void CPU::oplh(Instruction& instruction) {
     auto i = instruction.imm_se();
     auto t = instruction.t();
@@ -957,7 +924,7 @@ void CPU::oplwc1(Instruction& instruction) {
 
 void CPU::oplwc2(Instruction& instruction) {
     // Geometry Transformation Engine
-    printf("Unhandled GTE LWC %s\n", std::to_string(instruction.op).c_str());
+    //printf("Unhandled GTE LWC %s\n", std::to_string(instruction.op).c_str());
 }
 
 void CPU::oplwc3(Instruction& instruction) {
@@ -1150,7 +1117,7 @@ void CPU::exception(Exception cause) {
     
     // Save current instruction address in 'EPC'
     epc = currentpc;
-
+    
     if(delaySlot) {
         // When an exception occurs in a delay slot 'EPC' points
         // to the branch instruction and bit 31 of 'CAUSE' is set.

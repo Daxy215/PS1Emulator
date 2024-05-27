@@ -24,6 +24,7 @@
 // https://en.wikipedia.org/wiki/NOP // For null functions etc..
 // https://en.wikipedia.org/wiki/R3000
 // https://www.dsi.unive.it/~gasparetto/materials/MIPS_Instruction_Set.pdf
+// https://github.com/Lameguy64/PSn00bSDK
 
 // Used this A LOT to figure out which instruction I need to translate the instructions further
 // https://inst.eecs.berkeley.edu/~cs61c/resources/MIPS_help.html
