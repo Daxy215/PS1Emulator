@@ -49,7 +49,7 @@ namespace map {
     static const Range CDROM = {0x1f801800, 0x4};
     
     static const Range MDEC = {0x1f801820, 8};
-        
+            
     // Interrupt Control registers (status and mask)
     static const Range IRQ_CONTROL = {0x1f801070, 8};
     
@@ -68,7 +68,7 @@ namespace map {
     
     inline uint32_t maskRegion(uint32_t addr) {
         // Index address space in 512 chunks
-        size_t index = addr >> 29;
+        size_t index = static_cast<size_t>(addr >> 29);
         
         if(index >= REGION_MASK.size()) {
             throw std::out_of_range("Address index out of range");

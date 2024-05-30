@@ -161,7 +161,7 @@ public:
     void opbgtz(Instruction& instruction);
     
     // Branch if less than or equal to zero
-    void opblez(Instruction& instruction);
+    void opbltz(Instruction& instruction);
     
     // Branch to immediate value 'offset'
     void branch(uint32_t offset);
@@ -269,7 +269,7 @@ public:
     
     // Register related functions
     RegisterIndex reg(uint32_t index) {
-        return regs[index];
+        return regs[static_cast<size_t>(index)];
     }
     
     void set_reg(uint32_t index, RegisterIndex val) {

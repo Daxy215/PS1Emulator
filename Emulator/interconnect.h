@@ -1,5 +1,7 @@
 ﻿#pragma once
+
 #include <cstdint>
+#include <iostream>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -26,7 +28,6 @@ public:
         uint32_t abs_addr = map::maskRegion(addr);
         
         if (auto offset = map::RAM.contains(abs_addr)) {
-            //return ram->load32(offset.value());
             return ram->load<T>(offset.value());
         }
         
@@ -39,12 +40,14 @@ public:
         }
         
         if (auto offset = map::BIOS.contains(abs_addr)) {
-            if(sizeof(T) == 4)
+            size_t size = sizeof(T);
+            //TODO; i'm too lazy
+            if(size == 4)
                 return bios->load32(offset.value());
-            else if(sizeof(T) == 1)
+            else if(size == 1)
                 return bios->load8(offset.value());
             else {
-                throw std::runtime_error("Unhandled size of 2 ;}? " + sizeof(T));
+                throw std::runtime_error("Unhandled size of 2 ;}? " + size);
             }
         }
         
@@ -73,10 +76,12 @@ public:
         }
         
         if (auto _ = map::CDROM.contains(abs_addr)) {
+            //return 0;
             throw std::runtime_error("Unhandled CDROM load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::MDEC.contains(abs_addr)) {
+            //return 0;
             throw std::runtime_error("Unhandled MDEC load at address 0x" + to_hex(addr));
         }
         
@@ -86,6 +91,7 @@ public:
         }
         
         if (auto _ = map::PADMEMCARD.contains(abs_addr)) {
+            //return 0;
             throw std::runtime_error("Unhandled PAD_MEMCARD load at address 0x" + to_hex(addr));
         }
         
@@ -94,6 +100,7 @@ public:
         }
         
         if (auto _ = map::RAM_SIZE.contains(abs_addr)) {
+            //return 0;
             throw std::runtime_error("Unhandled RAM_SIZE load at address 0x" + to_hex(addr));
         }
         
@@ -101,7 +108,8 @@ public:
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled MEM_CONTROL access (" + std::to_string(sizeof(T)) + ")");
             }
-            
+
+            //return 0;
             throw std::runtime_error("Unhandled MEM_CONTROL load at address 0x" + to_hex(addr));
         }
         
@@ -109,16 +117,19 @@ public:
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled cache control access (" + std::to_string(sizeof(T)) + ")");
             }
-            
+
+            //return 0;
             throw std::runtime_error("Unhandled CACHE_CONTROL load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
+            //return 0;
             throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
-        printf("wee %d\n", addr);
+        //std::cerr << "Wee; 0x" << to_hex(addr) << "\n";
         //throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
+        //return 0;
     }
     
     template<typename T>
@@ -161,6 +172,7 @@ public:
                 default:
                     throw std::runtime_error("GPU write " + std::to_string(offset.value()) + ": 0x" + to_hex(val));
             }
+            
             return;
         }
         
@@ -176,10 +188,9 @@ public:
         if (auto offset = map::MDEC.contains(abs_addr)) {
             throw std::runtime_error("Unhandled write to MDEC 0x" + to_hex(offset.value()));
         }
-
+        
         if (auto offset = map::SPU.contains(abs_addr)) {
             throw std::runtime_error("Unhandled write: SPU control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
-            return;
         }
         
         if (auto offset = map::PADMEMCARD.contains(abs_addr)) {
@@ -190,12 +201,13 @@ public:
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled cache control access");
             }
+            
             return;
         }
         
         if (auto offset = map::MEMCONTROL.contains(abs_addr)) {
             if (sizeof(T) != 4) {
-                throw std::runtime_error("Unhandled MEM_CONTROL access (" + std::to_string(sizeof(T)) + ")");
+                throw std::runtime_error("Unbalanced MEM_CONTROL access (" + std::to_string(sizeof(T)) + ")");
             }
             
             switch (offset.value()) {
@@ -203,15 +215,18 @@ public:
                     if (val != 0x1f000000) {
                         throw std::runtime_error("Bad expansion 1 base address: 0x" + to_hex(val));
                     }
+                    
                     break;
                 case 4:
                     if (val != 0x1f802000) {
                         throw std::runtime_error("Bad expansion 2 base address: 0x" + to_hex(val));
                     }
+                    
                     break;
                 default:
                     throw std::runtime_error("Unhandled write to MEM_CONTROL register 0x" + to_hex(offset.value()) + ": 0x" + to_hex(val));
             }
+            
             return;
         }
         
@@ -219,6 +234,7 @@ public:
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled RAM_SIZE access");
             }
+            
             return;
         }
         

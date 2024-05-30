@@ -40,6 +40,7 @@
 // https://app.box.com/s/q1tl8yuufsftosvxqyce
 // https://app.box.com/s/lmr4nw30cvdhdk5ng7ex
 // https://www.cs.columbia.edu/~sedwards/classes/2012/3827-spring/mips-isa.pdf
+// https://gist.github.com/dbousamra/f662f381d33fcf5c4a5475c4a656fa19
 
 /**
  * Where I got the BIOS from:

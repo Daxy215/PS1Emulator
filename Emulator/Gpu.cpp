@@ -43,7 +43,7 @@ uint32_t Emulator::Gpu::status() {
     r |= 0 << 31;
     
     r |= hres.intoStatus();
-
+    
     // XXX Temporary hack: If we don't emulate bit 31 correctly,
     // setting 'vres' to 1 locks the BIOS:
     // r |= static_cast<uint32_t>(vmode) << 19;
@@ -79,7 +79,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
     case 0x00:
         break;
     case 0xE1:
-            gp0DrawMode(val);
+        gp0DrawMode(val);
         break;
     default:
         throw std::runtime_error("Unhandled GP0 command " + std::to_string(val));
@@ -87,12 +87,11 @@ void Emulator::Gpu::gp0(uint32_t val) {
     }
 }
 
-
 void Emulator::Gpu::gp0DrawMode(uint32_t val) {
     pageBaseX = static_cast<uint8_t>((val & 0xF));
     pageBaseY = static_cast<uint8_t>((val >> 4) & 1);
     semiTransparency = static_cast<uint8_t>((val >> 5) & 3);
-
+    
     switch ((val >> 7) & 3) {
     case 0:
         textureDepth = TextureDepth::T4Bit;
@@ -118,7 +117,7 @@ void Emulator::Gpu::gp1(uint32_t val) {
     if(gp0CommandRemaining == 0) {
         // Start a new GP0 command
         uint32_t opcode = (val >> 24) & 0xFF;
-    
+        
         switch (opcode) {
         case 0x00:
             gp0CommandRemaining = 1;
@@ -171,7 +170,7 @@ void Emulator::Gpu::gp1(uint32_t val) {
 
 void Emulator::Gpu::gp1Reset(uint32_t val) {
     interrupt = false;
-
+    
     pageBaseX = 0;
     pageBaseY = 0;
     semiTransparency = 0;
@@ -193,9 +192,9 @@ void Emulator::Gpu::gp1Reset(uint32_t val) {
     drawingYOffset = 0;
     forceSetMaskBit = false;
     preserveMaskedPixels = false;
-
+    
     dmaDirection = DmaDirection::Off;
-
+    
     displayDisabled = false;
     displayVramXStart = 0;
     displayVramYStart = 0;
@@ -225,7 +224,7 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     displayDepth = (val & 0x10) != 0 ? DisplayDepth::D15Bits : DisplayDepth::D24Bits;
     
     interlaced = (val & 0x20)!= 0;
-        
+    
     if ((val & 0x80) != 0) {
         std::cout << "Unsupported display mode: " << std::hex << val << '\n';
     }

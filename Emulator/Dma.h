@@ -191,35 +191,35 @@ struct Channel {
         
     }
 
-    bool enable;
+    bool enable = false;
     
     // Used to start the DMA transfer whe 'sync' is 'Manual'
-    bool trigger;
+    bool trigger = false;
     
     // If the DMA 'chops' the transfer and lets the CPU run in the gaps
-    bool chop;
+    bool chop = false;
     
     // Chopping DMA window size (log2 number of words)
-    uint8_t chopDmaSz;
+    uint8_t chopDmaSz = 0;
     
     // Chopping CPU window size (lgo2 number of cycles)
-    uint8_t chopCpuSz;
+    uint8_t chopCpuSz = 0;
     
     // Unknown 2 RW bits in configuration register
-    uint8_t dummy;
+    uint8_t dummy = 0;
 
     // Size of a block in words
-    uint16_t blockSize;
+    uint16_t blockSize = 0;
 
     // Block count, Only used when 'sync' is 'Request'
-    uint16_t blockCount;
+    uint16_t blockCount = 0;
     
     // DMA start address
-    uint32_t base;
+    uint32_t base = 0;
     
-    Direction direction;
-    Step step;
-    Sync sync;
+    Direction direction = ToRam;
+    Step step = Increment;
+    Sync sync = Manual;
 };
 
 class Dma {
@@ -245,21 +245,21 @@ public:
     Channel* getChannel(Port port) { return channels[static_cast<size_t>(port)]; }
 public:
     // master IRQ enable
-    bool irqEn;
+    bool irqEn = false;
     
     // IRQ enable for individual channels
-    uint8_t channelIrqEn;
+    uint8_t channelIrqEn = 0;
 
     // IRQ flags for individual channels
-    uint8_t channelIraqFlags;
+    uint8_t channelIraqFlags = 0;
     
     // When set the interrupt is active unconditionally (even if 'irq_en' is false)
-    bool forceIrq;
+    bool forceIrq = false;
     
     // Bits [0:5] of the interrupt registers are RW but I don't know,
     // what they're supposed to do so I just store them and send them,
     // back untouched on reads
-    uint8_t irqDummy;
+    uint8_t irqDummy = 0;
     
     // Rest value taken from the Nocash PSX spec
     uint32_t control = 0x07654321;

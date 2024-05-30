@@ -11,35 +11,6 @@
 #include "Ram.h"
 //#include "Range.h"
 
-// TODO; Remove
-//TODO Remove those
-std::string getHex1(uint32_t value) {
-    std::stringstream ss;
-    ss << "0x" << std::setfill('0') << std::setw(8) << std::hex << value;
-    return ss.str();
-}
-
-std::string getBinary1(uint32_t value) {
-    std::string binary = std::bitset<32>(value).to_string();
-    
-    std::string shiftedBin = binary.substr(26);
-    
-    std::string results = std::bitset<6>(std::stoi(shiftedBin, nullptr, 2) & 0x3F).to_string();
-    
-    std::stringstream ss;
-    // wrong hex values but who cares about those
-    ss << "Binary; 0b" << results;
-    
-    return ss.str();
-}
-
-std::string getDetail(uint32_t value) {
-    std::string hex = getHex1(value);
-    std::string binary = getBinary1(value);
-
-    return hex + " = " + binary;
-}
-
 /*
 template <typename T>
 T Interconnect::load(uint32_t addr) {
@@ -180,7 +151,7 @@ void Interconnect::store(uint32_t addr, T val) {
 }
 */
 
-/*  // NOLINT(clang-diagnostic-comment)
+/*
 // Loads a 32bit word at 'addr'
 uint32_t Interconnect::load32(uint32_t addr) {
     addr = map::maskRegion(addr);
@@ -525,18 +496,19 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
     uint32_t minor = offset & 0xF;
     
     switch (major) {
-        // Per-channel registers 0...6
     case 0: case 1: case 2: case 3: case 4: case 5: case 6: {
-            Channel* channel = dma->getChannel(PortC::fromIndex(major));
-            
-            switch (minor) {
-            case 8:
-                return channel->control();
-            default:
-                throw std::runtime_error("Unhandled DMA read at " + std::to_string(offset));
-            }
+        // Per-channel registers 0...6
+        Channel* channel = dma->getChannel(PortC::fromIndex(major));
+        
+        switch (minor) {
+        case 8:
+            return channel->control();
+        default:
             break;
+            //throw std::runtime_error("Unhandled DMA read at " + std::to_string(offset));
         }
+        break;
+    }
     // Common DMA registers            
     case 7: {
         switch (minor) {
@@ -567,7 +539,7 @@ void Interconnect::doDma(Port port) {
     // DMA transfer has been started, for now let's
     // process everything in one pass (i.e. no
     // chopping or priority handling)
-
+    
     switch(dma->getChannel(port)->sync) {
     case LinkedList:
         dmaLinkedList(port);
@@ -586,14 +558,14 @@ void Interconnect::dmaBlock(Port port) {
     
     // Transfer size in words
     std::optional<uint32_t> remsz = channel.transferSize();
-
+    
     while(remsz.value() > 0) {
         // Not sure what happens if the address is bogus,
         // Mednafen just makes addr this way, maybe that's,
         // how the hardware behaves (i.e. the RAM address,
         // wraps and the two LSB are ignored, seems reasonable enough.
         uint32_t curAddr = addr & 0x1FFFFE;
-
+        
         switch (channel.direction) {
         case FromRam: {
                 uint32_t srcWord = ram->load<uint32_t>(curAddr);

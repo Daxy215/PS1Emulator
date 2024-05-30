@@ -68,7 +68,7 @@ void CPU::executeNextInstruction() {
     
     // increment the PC
     pc = nextpc;
-    nextpc = wrappingAdd(nextpc, 4);
+    nextpc = wrappingAdd(4, nextpc);
     
     RegisterIndex reg = load.regIndex;
     auto val   = load.value;
@@ -84,7 +84,6 @@ void CPU::executeNextInstruction() {
     // Executes the instruction
     decodeAndExecute(*(instruction));
     
-    // TODO; Make this as a function
     // regs = outRegs;
     std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
 }
@@ -218,11 +217,11 @@ void CPU::decodeAndExecute(Instruction& instruction) {
             opbgtz(instruction); // Branch if greater than zero
             break;
         case 0b000110:
-            opblez(instruction); // Branch if less than or equal to zero
+            opbltz(instruction); // Branch if less than or equal to zero
             break;
         default:
-            opillegal(instruction); // Illegal instruction
-            //printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func().reg, instruction.op);
+            //opillegal(instruction); // Illegal instruction
+            printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func().reg, instruction.op);
             //std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
             //throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
     }
@@ -314,7 +313,7 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         opSyscall(instruction);
         break;
     default:
-        throw std::runtime_error("Unhandled sub instruction: " + getDetails(instruction.op));
+        //printf("Unhandled sub instruction: %s\n", getDetails(instruction.op).c_str());
         
         break;
     }
@@ -331,9 +330,9 @@ void CPU::opsll(Instruction& instruction) {
 }
 
 void CPU::opsllv(Instruction& instruction) {
-    auto d = instruction.d();
-    auto s = instruction.s();
-    auto t = instruction.t();
+    uint32_t d = instruction.d();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
     
     // Shift amount is truncated to 5 bits
     uint32_t v = reg(t) << (reg(s) & 0x1F);
@@ -357,7 +356,7 @@ void CPU::opsrav(Instruction& instruction) {
     auto t = instruction.t();
     
     // Shift amount is truncated to 5 bits
-    int32_t v = static_cast<int32_t>(reg(t) >> (reg(s) & 0x1f));
+    auto v = static_cast<int32_t>(reg(t) >> (reg(s) & 0x1f));
     
     set_reg(d, static_cast<uint32_t>(v));
 }
@@ -458,9 +457,9 @@ void CPU::opsltu(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     RegisterIndex t = instruction.t();
     
-    RegisterIndex v = reg(s) < reg(t);
+    bool v = reg(s) < reg(t);
     
-    set_reg(d, v); // V gets converted into a uint32
+    set_reg(d, static_cast<uint32_t>(v)); // V gets converted into a uint32
 }
 
 void CPU::opslti(Instruction& instruction) {
@@ -468,27 +467,35 @@ void CPU::opslti(Instruction& instruction) {
     RegisterIndex s = instruction.s(); 
     RegisterIndex t = instruction.t();
     
-    int32_t result = static_cast<int32_t>(reg(s) & 0xFFFFFFFF) < i;
+    uint32_t v = (static_cast<int32_t>(reg(s))) < i;
+    
+    set_reg(t, static_cast<uint32_t>(v));
+    
+    /*int32_t result = static_cast<int32_t>(reg(s) & 0xFFFFFFFF) < i;
     
     printf("Setting %x as %x\n", t.reg, result);
-    set_reg(t, static_cast<uint32_t>(result));
+    set_reg(t, static_cast<uint32_t>(result));*/
 }
 
 void CPU::opslt(Instruction& instruction) {
-    auto d = instruction.d();
-    auto sReg = instruction.s();
-    auto tReg = instruction.t();
+    uint32_t d = instruction.d();
+    uint32_t sReg = instruction.s();
+    uint32_t tReg = instruction.t();
     
     int32_t s = static_cast<int32_t>(reg(sReg));
     int32_t t = static_cast<int32_t>(reg(tReg));
     
-    auto v = s < t;
+    bool v = s < t;
     
     set_reg(d, static_cast<uint32_t>(v));
 }
 
 // Store word
 void CPU::opsw(Instruction& instruction) {
+    uint32_t i = instruction.imm_se();
+    uint32_t t = instruction.t();
+    uint32_t s = instruction.s();
+    
     // Can't write if we are in cache isolation mode!
     if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store-word while cache is isolated!\n";
@@ -496,14 +503,11 @@ void CPU::opsw(Instruction& instruction) {
         return;
     }
     
-    uint32_t i = instruction.imm_se();
-    uint32_t t = instruction.t();
-    uint32_t s = instruction.s();
-    
     uint32_t addr = wrappingAdd(reg(s), i);
     
     if(addr % 4 == 0) {
-        uint32_t v    = reg(t).reg;
+        uint32_t v    = reg(t);
+        
         store32(addr, v);
     } else {
         exception(StoreAddressError);
@@ -562,16 +566,16 @@ void CPU::opswr(Instruction& instruction) {
     
     switch (addr & 3) {
     case 0:
-        mem = (curMem & 0x00FFFFFF) | (v << 0);
+        mem = (curMem & 0x0000000) | (v << 0);
         break;
     case 1:
-        mem = (curMem & 0x0000FFFF) | (v << 8);
+        mem = (curMem & 0x000000FF) | (v << 8);
         break;
     case 2:
-        mem = (curMem & 0x000000FF) | (v << 16);
+        mem = (curMem & 0x0000FFFF) | (v << 16);
         break;
     case 3:
-        mem = (curMem & 0x00000000) | (v << 24);
+        mem = (curMem & 0x00FFFFFF) | (v << 24);
         break;
     default:
         throw std::runtime_error("Unreachable code!");
@@ -583,7 +587,7 @@ void CPU::opswr(Instruction& instruction) {
 // Store halfword
 void CPU::opsh(Instruction& instruction) {
     if((sr & 0x10000) != 0) {
-        std::cout << "Ignoring store while cache is isolated!\n";
+        std::cout << "Ignoring store-halfword while cache is isolated!\n";
         
         return;
     }
@@ -594,12 +598,10 @@ void CPU::opsh(Instruction& instruction) {
     
     uint32_t addr = wrappingAdd(reg(s), i);
     
-    // Don't really need static cast here, but it's easier to read
-    // or at least.. Understand what is happening
-    uint32_t v    = reg(t);
-    
     if(addr % 2 == 0) {
-        store16(addr, static_cast<uint16_t>(v));
+        uint32_t v    = reg(t);
+        
+        store16(addr, v);
     } else {
        exception(StoreAddressError); 
     }
@@ -607,7 +609,7 @@ void CPU::opsh(Instruction& instruction) {
 
 void CPU::opsb(Instruction& instruction) {
     if((sr & 0x10000) != 0) {
-        std::cout << "Ignoring store while cache is isolated!\n";
+        std::cout << "Ignoring store-byte while cache is isolated!\n";
         
         return;
     }
@@ -624,15 +626,15 @@ void CPU::opsb(Instruction& instruction) {
 
 // Load word
 void CPU::oplw(Instruction& instruction) {
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+
     if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store while cache is isolated!";
         
         return;
     }
-    
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex t = instruction.t();
-    RegisterIndex s = instruction.s();
     
     RegisterIndex addr = wrappingAdd(reg(s), i);
 
@@ -647,16 +649,16 @@ void CPU::oplw(Instruction& instruction) {
 }
 
 void CPU::oplwl(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+    uint32_t i = instruction.imm_se();
+    uint32_t t = instruction.t();
+    uint32_t s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
     
     // This instruction bypasses the load delay restriction:
     // this instruction will merge the new contents,
     // with the value that is currently being loaded if needed.
-    uint32_t curv = outRegs[static_cast<size_t>(t.reg)];
+    uint32_t curv = outRegs[static_cast<size_t>(t)];
     
     // Next we load the *aligned* word containing the first address byte
     uint32_t alignedAddr = addr & ~3;
@@ -688,16 +690,16 @@ void CPU::oplwl(Instruction& instruction) {
 }
 
 void CPU::oplwr(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+    uint32_t i = instruction.imm_se();
+    uint32_t t = instruction.t();
+    uint32_t s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
     
     // This instruction bypasses the load delay restriction:
     // this instruction will merge the new contents,
     // with the value that is currently being loaded if needed.
-    uint32_t curv = outRegs[static_cast<size_t>(t.reg)];
+    uint32_t curv = outRegs[static_cast<size_t>(t)];
     
     // Next we load the *aligned* word containing the first address byte
     uint32_t alignedAddr = addr & ~3;
@@ -729,26 +731,37 @@ void CPU::oplwr(Instruction& instruction) {
 }
 
 void CPU::oplh(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+    uint32_t i = instruction.imm_se();
+    uint32_t t = instruction.t();
+    uint32_t s = instruction.s();
+    
+    // Can't write if we are in cache isolation mode!
+    if((sr & 0x10000) != 0) {
+        std::cout << "Ignoring store-word while cache is isolated!\n";
+            
+        return;
+    }
     
     uint32_t addr = wrappingAdd(reg(s), i);
-    
-    // Cast as i16 to force sign extension
-    int16_t v = static_cast<int16_t>(load16(addr));
-    
-    // Put the load in the delay slot
-    load = {t, static_cast<uint32_t>(v)};
+
+    if(addr % 2 == 0) {
+        // Cast as i16 to force sign extension
+        int16_t v = static_cast<int16_t>(load16(addr));
+        
+        // Put the load in the delay slot
+        load = {t, static_cast<uint32_t>(v)};
+    } else {
+        exception(LoadAddressError);
+    }
 }
 
 void CPU::oplhu(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
-
+    uint32_t i = instruction.imm_se();
+    uint32_t t = instruction.t();
+    uint32_t s = instruction.s();
+    
     uint32_t addr = wrappingAdd(reg(s), i);
-
+    
     // Address must be 16bit aligned
     if(addr % 2 == 0) {
         uint16_t v = load16(addr);
@@ -797,6 +810,18 @@ void CPU::addiu(Instruction& instruction) {
 
 void CPU::addi(Instruction& instruction) {
     int32_t i = static_cast<int32_t>(instruction.imm_se());
+    uint32_t t = instruction.t();
+    uint32_t sReg = instruction.s();
+    
+    int32_t s = static_cast<int32_t>(reg(sReg));
+    
+    if(std::optional<int32_t> v = check_add<int32_t>(s, i)) {
+        set_reg(t, static_cast<uint32_t>(v.value()));
+    } else {
+        exception(Overflow);
+    }
+    
+    /*int32_t i = static_cast<int32_t>(instruction.imm_se());
     RegisterIndex t = instruction.t();
     RegisterIndex sreg = instruction.s();
     
@@ -809,7 +834,7 @@ void CPU::addi(Instruction& instruction) {
     } else {
         int32_t v = s + i;
         set_reg(t, static_cast<uint32_t>(v));
-    }
+    }*/
     
     /*std::optional<int32_t> v = check_add<int32_t>(s, i);
     if(!v.has_value()) {
@@ -856,7 +881,7 @@ void CPU::opdiv(Instruction& instruction) {
     if(d == 0) {
         // Division by zero.. Please don't
         hi = static_cast<uint32_t>(n);
-
+        
         if(n >= 0)
             lo = 0xffffffff;
         else
@@ -896,7 +921,8 @@ void CPU::opmfhi(Instruction& instruction) {
 
 void CPU::opmthi(Instruction& instruction) {
     auto s = instruction.s();
-    
+
+    //TODO; Check if this is meant to be "lo" or "hi"
     hi = reg(s);
 }
 
@@ -956,8 +982,8 @@ void CPU::opsubu(Instruction& instruction) {
     RegisterIndex t = instruction.t();
     RegisterIndex d = instruction.d();
     
-    //uint32_t v = wrappingAdd(reg(s), reg(t));
-    uint32_t v = reg(s) - reg(t);
+    uint32_t v = wrappingAdd(reg(s), reg(t));
+    //uint32_t v = reg(s) - reg(t);
     
     set_reg(d, v);
 }
@@ -1037,7 +1063,8 @@ void CPU::opmtc0(Instruction& instruction) {
     RegisterIndex cpur = instruction.t();
     uint32_t copr = instruction.d().reg;
     
-    uint32_t v = cpur;
+    uint32_t v = reg(cpur);
+    uint32_t x = cpur;
     
     switch (copr) {
     //Breakpoints registers for the future
@@ -1065,7 +1092,7 @@ void CPU::opmtc0(Instruction& instruction) {
         break;
     }
     
-    load = {cpur, v};
+    //load = {cpur, v};
 }
 
 void CPU::opmfc0(Instruction& instruction) {
@@ -1094,11 +1121,15 @@ void CPU::opmfc0(Instruction& instruction) {
 }
 
 void CPU::oprfe(Instruction& instruction) {
+    // There are other instructions with the same encoding but all
+    // are virtual memory related And the Playstation doesnt't
+    // implement them. Still, let's make sure we're not running
+    // buggy code .
     if((instruction.op & 0x3f) != 0b010000) {
         throw std::runtime_error("Invalid cop0 instruction; " + instruction.op);
     }
     
-    auto mode = sr & 0x3f;
+    uint32_t mode = sr & 0x3f;
     sr &= ~0x3f;
     sr |= mode >> 2;
 }
@@ -1132,7 +1163,7 @@ void CPU::exception(Exception cause) {
     pc = handler;
     nextpc = wrappingAdd(pc, 4);
     
-    std::cerr << "EXECPTION OCCOURED!!" << cause << "\n";
+    std::cerr << "EXCEPTION OCCURRED!!" << cause << "\n";
 }
 
 void CPU::opSyscall(Instruction& instruction) {
@@ -1158,45 +1189,51 @@ void CPU::opj(Instruction& instruction) {
 void CPU::opjr(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     
-    pc = reg(s);
+    nextpc = reg(s);
 }
 
 void CPU::opjal(Instruction& instruction) {
     // Store return address in £31($ra)
-    set_reg(31, pc);
-    
     opj(instruction);
+    
+    set_reg(31, nextpc);
 }
 
 void CPU::opjalr(Instruction& instruction) {
     RegisterIndex d = instruction.d();
     RegisterIndex s = instruction.s();
-
-    set_reg(d, pc);
-    pc = reg(s);
+    
+    set_reg(d, nextpc);
+    nextpc = reg(s);
 }
 
 void CPU::opbxx(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex s = instruction.s();
     
-    bool isbgez = (instruction.op >> 16) & 1;
-    bool islink = ((instruction.op >> 20) & 1) != 0;
+    uint32_t op = instruction.op;
+    
+    bool isbgez = (op >> 16) & 1;
+    
+    // It's not enough to test for bit 20 to see if we're supposed
+    // to link, if any bit in the range [19:17] is set the link
+    // doesn't take place And RA is left untouched.
+    bool islink = ((op >> 17) & 0xF) == 0x8;
     
     int32_t v = static_cast<int32_t>(reg(s));
     
     // Test "less than zero"
-    uint32_t test (static_cast<uint32_t>(v) < 0);
-
+    bool test (static_cast<uint32_t>(v < 0));
+    
     // If the test is "greater than or equal to zero" we need
     // to negate the comparison above since
     // ("a >= 0" <=> "!(a < 0)"). The xor takes care of that.
     test = test ^ isbgez;
-
+    
     if(test != 0) {
         if(islink) {
             // Store return address in R31 of RA
-            set_reg(31, pc);
+            set_reg(31, nextpc);
         }
         
         branch(i);
@@ -1235,7 +1272,7 @@ void CPU::opbgtz(Instruction& instruction) {
     }
 }
 
-void CPU::opblez(Instruction& instruction) {
+void CPU::opbltz(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex s = instruction.s();
     
@@ -1276,18 +1313,18 @@ void CPU::branch(uint32_t offset) {
             * It seems that the wrapping subraction function only results in 0,
             * IF the subraction crosses the boundary of the minimum value(0)..
      */
-
+    
     // In the end.. It's removed after searching for hours of this stupid problem..
     //pc -= 4;
 }
 
 void CPU::add(Instruction& instruction) {
-    int32_t s = static_cast<int32_t>(instruction.s().reg);
-    int32_t t = static_cast<int32_t>(instruction.t().reg);
-    RegisterIndex d = instruction.d();
+    uint32_t sReg = instruction.s().reg;
+    uint32_t tReg = instruction.t().reg;
+    uint32_t d = instruction.d();
     
-    s = static_cast<int32_t>(reg(s));
-    t = static_cast<int32_t>(reg(t));
+    int32_t s = static_cast<int32_t>(reg(sReg));
+    int32_t t = static_cast<int32_t>(reg(tReg));
     
     if(std::optional<int32_t> v = check_add<int32_t>(s, t)) {
         set_reg(d, static_cast<uint32_t>(v.value()));
@@ -1353,15 +1390,23 @@ void CPU::store8(uint32_t addr, uint8_t val) {
 uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
     // Perform wrapping addition (wrap around upon overflow)
     //return a + b < a ? UINT32_MAX : a + b;
-    //return a + b;
+    
+    // Turns out.. Mr C++ already does wrapping add
+    // ty C++ so much.
+    
+    // I had to get a Rust IDE and learn it's basics to make sure
+    // that they are both are outputting the same results,
+    // and they were somehow after crying for days.
+    return a + b;
     
     // Perform regular addition
     unsigned int sum = a + b;
     
     // Check for overflow
-    if (sum < a) {
+    if (sum < a || sum < b) {
         // Overflow occurred, wrap around
         return ~a; // This will effectively wrap around due to unsigned arithmetic
+        //return sum;
     }
     
     return sum;
@@ -1370,7 +1415,7 @@ uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
 uint32_t CPU::wrappingSub(uint32_t a, uint32_t b) {
     // Perform wrapping subtraction (wrap around upon underflow)
     //return a - b > a ? 0 : a - b;
-    //return a - b;
+    return a - b;
     
     // Perform regular subtraction
     unsigned int diff = a - b;
