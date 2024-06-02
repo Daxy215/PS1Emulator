@@ -40,15 +40,8 @@ public:
         }
         
         if (auto offset = map::BIOS.contains(abs_addr)) {
-            size_t size = sizeof(T);
-            //TODO; i'm too lazy
-            if(size == 4)
-                return bios->load32(offset.value());
-            else if(size == 1)
-                return bios->load8(offset.value());
-            else {
-                throw std::runtime_error("Unhandled size of 2 ;}? " + size);
-            }
+            //std::cerr << "Offset; " + std::to_string(offset.value());
+            return bios->load<T>(offset.value());
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
@@ -108,9 +101,9 @@ public:
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled MEM_CONTROL access (" + std::to_string(sizeof(T)) + ")");
             }
-
-            //return 0;
-            throw std::runtime_error("Unhandled MEM_CONTROL load at address 0x" + to_hex(addr));
+            
+            return 0;
+            //throw std::runtime_error("Unhandled MEM_CONTROL load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::CACHECONTROL.contains(abs_addr)) {
@@ -127,7 +120,7 @@ public:
             throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
-        //std::cerr << "Wee; 0x" << to_hex(addr) << "\n";
+        std::cerr << "Wee; 0x" << to_hex(addr) << "\n";
         //throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
         //return 0;
     }
@@ -224,7 +217,9 @@ public:
                     
                     break;
                 default:
-                    throw std::runtime_error("Unhandled write to MEM_CONTROL register 0x" + to_hex(offset.value()) + ": 0x" + to_hex(val));
+                    printf("Unhandled write to MEM_CONTROL register %s: %0x8\n", to_hex(offset.value()).c_str(), to_hex(val));
+                    //throw std::runtime_error("Unhandled write to MEM_CONTROL register 0x" + to_hex(offset.value()) + ": 0x" + to_hex(val));
+                    break;
             }
             
             return;

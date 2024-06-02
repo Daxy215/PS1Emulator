@@ -20,7 +20,9 @@ namespace map {
         uint32_t length;
     };
     
-    static const Range RAM      = {0x00000000, 2 * 1024 * 1024}; // 0xa0000000
+    /// Main RAM: 2MB mirrored four times over the first 8MB (probably
+    /// in case they decided to use a bigger RAM later on?)
+    static const Range RAM      = {0x00000000, 8 * 1024 * 1024}; // 0xa0000000
     static const Range RAM_SIZE = {0x1f801060, 4}; // 0x1f801060
     
     static const Range BIOS = { 0x1fc00000, 512 * 1024}; // 0xbfc00000
@@ -49,7 +51,7 @@ namespace map {
     static const Range CDROM = {0x1f801800, 0x4};
     
     static const Range MDEC = {0x1f801820, 8};
-            
+    
     // Interrupt Control registers (status and mask)
     static const Range IRQ_CONTROL = {0x1f801070, 8};
     

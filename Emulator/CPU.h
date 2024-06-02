@@ -158,7 +158,7 @@ public:
     void opbeq(Instruction& instruction);
     
     // Branch if greater than zero
-    void opbgtz(Instruction& instruction);
+    void opbqtz(Instruction& instruction);
     
     // Branch if less than or equal to zero
     void opbltz(Instruction& instruction);
@@ -306,7 +306,7 @@ public:
     uint32_t currentpc;
     
     // PC initial value should be at the beginning of the BIOS
-    uint32_t pc =  0xbfc00000;
+    uint32_t pc = -1077936128;//0xbfc00000;
     
     // Next value of the PC - Used to simulate the branch delay slot
     uint32_t nextpc;
@@ -337,7 +337,7 @@ public:
     // First entry must always contain a 0.
     RegisterIndex regs[32];
 private:
-    Instruction* nextInstruction = new Instruction(0x0); //NOP
+    //Instruction* nextInstruction = new Instruction(0x0); //NOP
     
     Interconnect* interconnect;
 };

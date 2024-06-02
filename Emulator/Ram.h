@@ -6,25 +6,28 @@ class Ram {
 public:
     Ram();
     
-    // Fetch using little endian from a given 'offset'
     template<typename T>
-    T load(uint32_t offset) {
-        uint32_t value = 0;
+    uint32_t load(uint32_t offset) const {
+        // The two MSB are ignored, the 2MB RAM is mirrored four times
+        // over the first 8MB of address space
+        offset &= 0x1fffff;
         
-        for(uint32_t i = 0; i < sizeof(T); ++i) {
-            value |= static_cast<uint32_t>(data[offset + i]) << (i * 8);
+        uint32_t v = 0;
+        for (size_t i = 0; i < sizeof(T); ++i) {
+            v |= static_cast<uint32_t>(data[offset + i]) << (i * 8);
         }
         
-        return static_cast<T>(value);
+        return v;
     }
     
-    // Store using little endian into a given 'offset'
     template<typename T>
-    void store(uint32_t offset, T val) {
-        uint32_t valAsUint32 = static_cast<uint32_t>(val);
+    void store(uint32_t offset, uint32_t val) {
+        // The two MSB are ignored, the 2MB RAM is mirrored four times
+        // over the first 8MB of address space
+        offset &= 0x1fffff;
         
-        for(uint32_t i = 0; i < sizeof(T); i++) {
-            data[offset + i] = static_cast<uint8_t>((valAsUint32 >> (i * 8)) & 0xFF);
+        for (size_t i = 0; i < sizeof(T); ++i) {
+            data[offset + i] = static_cast<uint8_t>((val >> (i * 8)));
         }
     }
     

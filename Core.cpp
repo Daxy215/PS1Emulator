@@ -1,5 +1,6 @@
 // Core.cpp
 
+#include <assert.h>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -262,15 +263,139 @@
     * Dont get ANY of this. Page 16
  */
 
+void ramReadTest() {
+    Ram ram;
+    
+    ram.store<uint32_t>(0, 0x12345678u);
+    ram.store<uint32_t>(32, 0x0abcdef0u);
+    
+    assert(ram.load<uint32_t>(0) == 0x12345678u);
+    assert(ram.load<uint32_t>(32) == 0x0abcdef0u);
+    
+    assert(ram.load<uint16_t>(0) == 0x5678u);
+    assert(ram.load<uint16_t>(2) == 0x1234u);
+    
+    assert(ram.load<uint16_t>(32) == 0xdef0u);
+    assert(ram.load<uint16_t>(34) == 0x0abcu);
+    
+    assert(ram.load<uint8_t>(0) == 0x78u);
+    assert(ram.load<uint8_t>(1) == 0x56u);
+    assert(ram.load<uint8_t>(2) == 0x34u);
+    assert(ram.load<uint8_t>(3) == 0x12u);
+
+    assert(ram.load<uint8_t>(32) == 0xf0u);
+    assert(ram.load<uint8_t>(33) == 0xdeu);
+    assert(ram.load<uint8_t>(34) == 0xbcu);
+    assert(ram.load<uint8_t>(35) == 0x0au);
+}
+
+void ramWriteTest() {
+    Ram ram;
+    
+    ram.store<uint32_t>(32, 0x12345678u);
+    ram.store<uint16_t>(32, 0xabcd); // This should overwrite the previous value
+    
+    assert(ram.load<uint32_t>(32) == 0x1234abcdu);
+    
+    ram.store<uint32_t>(32, 0x12345678u);
+    ram.store<uint16_t>(34, 0xabcd); // This should not affect the previous value
+    
+    uint32_t va = ram.load<uint32_t>(32);
+    uint32_t f = 0x12345678u;
+    //assert(ram.load<uint32_t>(32) == 0x12345678u);
+    
+    ram.store<uint32_t>(32, 0x12345678u);
+    ram.store<uint8_t>(32, 0xab); // Overwrite with a smaller value
+    assert(ram.load<uint32_t>(32) == 0x123456abu);
+    
+    ram.store<uint32_t>(32, 0x12345678u);
+    ram.store<uint8_t>(33, 0xab); // Overwrite part of the value
+    assert(ram.load<uint32_t>(32) == 0x1234ab78u);
+    
+    ram.store<uint32_t>(32, 0x12345678u);
+    ram.store<uint8_t>(34, 0xab); // Overwrite part of the value
+    assert(ram.load<uint32_t>(32) == 0x12ab5678u);
+    
+    ram.store<uint32_t>(32, 0x12345678u);
+    ram.store<uint8_t>(35, 0xab); // Overwrite part of the value
+    assert(ram.load<uint32_t>(32) == 0xab345678u);
+    uint32_t ds = ram.load<uint32_t>(32);
+}
+
+// Function to map opcodes to instruction names
+std::string getInstructionName(uint32_t instruction) {
+    static const std::unordered_map<uint8_t, std::string> opcodeMap = {
+        {0x00, "SPECIAL"},
+        {0x01, "REGIMM"},
+        {0x02, "J"},
+        {0x03, "JAL"},
+        {0x04, "BEQ"},
+        {0x05, "BNE"},
+        {0x06, "BLEZ"},
+        {0x07, "BGTZ"},
+        {0x08, "ADDI"},
+        {0x09, "ADDIU"},
+        {0x0A, "SLTI"},
+        {0x0B, "SLTIU"},
+        {0x0C, "ANDI"},
+        {0x0D, "ORI"},
+        {0x0E, "XORI"},
+        {0x0F, "LUI"},
+        {0x20, "LB"},
+        {0x21, "LH"},
+        {0x22, "LWL"},
+        {0x23, "LW"},
+        {0x24, "LBU"},
+        {0x25, "LHU"},
+        {0x26, "LWR"},
+        {0x28, "SB"},
+        {0x29, "SH"},
+        {0x2A, "SWL"},
+        {0x2B, "SW"},
+        {0x2E, "SWR"},
+        {0x32, "LWC2"},
+        {0x3A, "SWC2"}
+    };
+
+    uint8_t opcode = (instruction >> 26) & 0x3F;
+    auto it = opcodeMap.find(opcode);
+    if (it != opcodeMap.end()) {
+        return it->second;
+    } else {
+        return "UNKNOWN";
+    }
+}
+
+uint32_t decodeInstruction(const std::vector<uint8_t>& buffer, size_t offset) {
+    return buffer[offset] |
+           (buffer[offset + 1] << 8) |
+           (buffer[offset + 2] << 16) |
+           (buffer[offset + 3] << 24);
+}
+
 int main(int argc, char* argv[]) {
-    Ram* ram = new Ram();
+    ramWriteTest();
+    
+    Ram ram;
     Bios* bios = new Bios("BIOS/ps-22a.bin");
     
     Dma* dma = new Dma();
     
-    Interconnect* inter = new Interconnect(ram, bios, dma);
+    Interconnect* inter = new Interconnect(&ram, bios, dma);
     
     CPU* cpu = new CPU(inter);
+    
+    // Iterate through the buffer and decode instructions
+    //for (size_t i = 0; i < bios->data.size(); i += 4) {
+    //    uint32_t instruction = decodeInstruction(bios->data, i);
+    //    uint32_t op = instruction >> 26;
+    //    std::string instructionName = getInstructionName(instruction);
+    //    
+    //    // Print the instruction address, raw data, and name
+    //    std::cerr << std::hex << std::setw(8) << std::setfill('0') << i << ": "
+    //              << std::setw(8) << std::setfill('0') << instruction << " - "
+    //              << instructionName << "\n";
+    //}
     
     // TODO; Remove me
     // Used for testing
@@ -279,15 +404,30 @@ int main(int argc, char* argv[]) {
     while(true) {
         // TODO; Remove
         try {
+            if(x >= Bios::BIOS_SIZE) {
+                //printf("Huh??\n");
+            }
             /*if(x == 17641) {
-                printf("performing GTE");
+             *                printf("performing GTE");
             }*/
             //printf("F; %d\n", x);
             //std::cerr << x << std::endl;
             // Unhandled GTE LWC cacacaca??
-            cpu->executeNextInstruction();
+            //for (int i = 0; i <= 10000000; i++) {
+                // 95
+                if(x == 414) { //412
+                    printf("s");
+                }
+                
+                //if(i != x) {
+                //    //printf("SS ;{");
+                //}
+                
+                //std::cerr << " - I; " << std::to_string(x) << std::endl;
+                cpu->executeNextInstruction();
+                x++;
+            //}
             
-            x++;
         } catch(std::runtime_error& e) {
             std::cerr << e.what() << '\n';
             //throw; // Rethrow the error
