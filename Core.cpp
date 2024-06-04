@@ -352,7 +352,6 @@ int main(int argc, char* argv[]) {
     // TODO; Remove me
     // Used for testing
     int x = 0;
-    int lastR2 = 0;
     
     while(true) {
         // TODO; Remove
@@ -406,22 +405,11 @@ int main(int argc, char* argv[]) {
                  * subu was the problem..
                  * I had wrappingadd instead of wrappingsub
                  */
-                if(x == 2725555) {
-                    printf("now?");
-                }
-                
                 //std::cerr << " - I; " << std::to_string(x) << std::endl;
                 cpu->executeNextInstruction();
-
-                if(cpu->test) {
-                    cpu->test = false;
-                    
-                    lastR2 = x;
-                    //std::cerr << std::to_string(lastR2) << " - " << std::to_string(x) << '\n';
-                }
             
                 //printf(" - %x\n", x);
-                std::cerr << " - " << std::to_string(x) << "\n";
+                //std::cerr << " - " << std::to_string(x) << "\n";
                 x++;
             //}
         } catch(std::runtime_error& e) {

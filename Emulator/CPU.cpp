@@ -101,7 +101,7 @@ void CPU::executeNextInstruction() {
     //nextInstruction = new Instruction(load32(pc));
     uint32_t pc = this->pc;
     Instruction* instruction = new Instruction(load32(pc));
-    std::cerr << "pc: " << std::to_string(pc);
+    //std::cerr << "pc: " << std::to_string(pc);
     //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str());
     
     // Save the address of the current instruction to save in
