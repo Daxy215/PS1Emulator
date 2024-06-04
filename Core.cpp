@@ -43,6 +43,20 @@
 // https://www.cs.columbia.edu/~sedwards/classes/2012/3827-spring/mips-isa.pdf
 // https://gist.github.com/dbousamra/f662f381d33fcf5c4a5475c4a656fa19
 
+/* List of problems;
+ * Wrapped_add and wrapped_sub were returning the wrong values,
+    * in the end, I learnt that the default c++ behaviour,
+    * handles this problem, so I just returned a simple sum of the two
+    
+ * wrong pc counting.. MANY.. MANY different times
+    * This also caused the program to read the wrong instructions
+    * and skip some..
+    
+ * checked_add -> caused a problem of returning overflow when it shouldn't
+ * instruction -> imm_see returns the wrong value
+ * 
+ */
+
 /**
  * Where I got the BIOS from:
  * https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20-%20BIOS%20Images/
@@ -263,67 +277,8 @@
     * Dont get ANY of this. Page 16
  */
 
-void ramReadTest() {
-    Ram ram;
-    
-    ram.store<uint32_t>(0, 0x12345678u);
-    ram.store<uint32_t>(32, 0x0abcdef0u);
-    
-    assert(ram.load<uint32_t>(0) == 0x12345678u);
-    assert(ram.load<uint32_t>(32) == 0x0abcdef0u);
-    
-    assert(ram.load<uint16_t>(0) == 0x5678u);
-    assert(ram.load<uint16_t>(2) == 0x1234u);
-    
-    assert(ram.load<uint16_t>(32) == 0xdef0u);
-    assert(ram.load<uint16_t>(34) == 0x0abcu);
-    
-    assert(ram.load<uint8_t>(0) == 0x78u);
-    assert(ram.load<uint8_t>(1) == 0x56u);
-    assert(ram.load<uint8_t>(2) == 0x34u);
-    assert(ram.load<uint8_t>(3) == 0x12u);
-
-    assert(ram.load<uint8_t>(32) == 0xf0u);
-    assert(ram.load<uint8_t>(33) == 0xdeu);
-    assert(ram.load<uint8_t>(34) == 0xbcu);
-    assert(ram.load<uint8_t>(35) == 0x0au);
-}
-
-void ramWriteTest() {
-    Ram ram;
-    
-    ram.store<uint32_t>(32, 0x12345678u);
-    ram.store<uint16_t>(32, 0xabcd); // This should overwrite the previous value
-    
-    assert(ram.load<uint32_t>(32) == 0x1234abcdu);
-    
-    ram.store<uint32_t>(32, 0x12345678u);
-    ram.store<uint16_t>(34, 0xabcd); // This should not affect the previous value
-    
-    uint32_t va = ram.load<uint32_t>(32);
-    uint32_t f = 0x12345678u;
-    //assert(ram.load<uint32_t>(32) == 0x12345678u);
-    
-    ram.store<uint32_t>(32, 0x12345678u);
-    ram.store<uint8_t>(32, 0xab); // Overwrite with a smaller value
-    assert(ram.load<uint32_t>(32) == 0x123456abu);
-    
-    ram.store<uint32_t>(32, 0x12345678u);
-    ram.store<uint8_t>(33, 0xab); // Overwrite part of the value
-    assert(ram.load<uint32_t>(32) == 0x1234ab78u);
-    
-    ram.store<uint32_t>(32, 0x12345678u);
-    ram.store<uint8_t>(34, 0xab); // Overwrite part of the value
-    assert(ram.load<uint32_t>(32) == 0x12ab5678u);
-    
-    ram.store<uint32_t>(32, 0x12345678u);
-    ram.store<uint8_t>(35, 0xab); // Overwrite part of the value
-    assert(ram.load<uint32_t>(32) == 0xab345678u);
-    uint32_t ds = ram.load<uint32_t>(32);
-}
-
 // Function to map opcodes to instruction names
-std::string getInstructionName(uint32_t instruction) {
+/*std::string getInstructionName(uint32_t instruction) {
     static const std::unordered_map<uint8_t, std::string> opcodeMap = {
         {0x00, "SPECIAL"},
         {0x01, "REGIMM"},
@@ -364,7 +319,7 @@ std::string getInstructionName(uint32_t instruction) {
     } else {
         return "UNKNOWN";
     }
-}
+}*/
 
 uint32_t decodeInstruction(const std::vector<uint8_t>& buffer, size_t offset) {
     return buffer[offset] |
@@ -374,16 +329,13 @@ uint32_t decodeInstruction(const std::vector<uint8_t>& buffer, size_t offset) {
 }
 
 int main(int argc, char* argv[]) {
-    ramWriteTest();
+    //ramWriteTest();
     
     Ram ram;
-    Bios* bios = new Bios("BIOS/ps-22a.bin");
+    Bios bios = Bios("BIOS/ps-22a.bin");
+    Dma dma;
     
-    Dma* dma = new Dma();
-    
-    Interconnect* inter = new Interconnect(&ram, bios, dma);
-    
-    CPU* cpu = new CPU(inter);
+    CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma));
     
     // Iterate through the buffer and decode instructions
     //for (size_t i = 0; i < bios->data.size(); i += 4) {
@@ -400,13 +352,17 @@ int main(int argc, char* argv[]) {
     // TODO; Remove me
     // Used for testing
     int x = 0;
+    int lastR2 = 0;
     
     while(true) {
         // TODO; Remove
         try {
-            if(x >= Bios::BIOS_SIZE) {
-                //printf("Huh??\n");
-            }
+            //if(x >= Bios::BIOS_SIZE) {
+            //    //printf("Huh??\n");
+            //}
+            //if(x == 1552) {
+            //    printf("here\n");
+            //}
             /*if(x == 17641) {
              *                printf("performing GTE");
             }*/
@@ -415,19 +371,59 @@ int main(int argc, char* argv[]) {
             // Unhandled GTE LWC cacacaca??
             //for (int i = 0; i <= 10000000; i++) {
                 // 95
-                if(x == 414) { //412
-                    printf("s");
-                }
-                
+                //if(x == 414) { //412
+                //    printf("s");
+                //}
+                /**
+                 * pc: 3217032248 - 34312
+                 * pc: 3217032252Exception: Exception 0x80000003 encountered at address 0x7ffefceb0be0
+                 */
+                //if(x == 121) {
+                //}
+            
                 //if(i != x) {
                 //    //printf("SS ;{");
                 //}
                 
+                //if(x == 2725555) {
+                
+                //if(x == 441438) {
+                //    printf("starting DMA!");
+                //}
+            
+                // 441438???? - 2725555??
+                // So;
+                /**
+                 * pc: 10548 - 86558
+                 * pc: 10572 - 86559
+                 * pc: 10576 - 86560
+                 *
+                 * supposed:
+                 * PC; 10548 - 86558
+                 * PC; 10552 - 86559
+                 * PC; 10556 - 86560
+                 *
+                 * subu was the problem..
+                 * I had wrappingadd instead of wrappingsub
+                 */
+                if(x == 2725555) {
+                    printf("now?");
+                }
+                
                 //std::cerr << " - I; " << std::to_string(x) << std::endl;
                 cpu->executeNextInstruction();
+
+                if(cpu->test) {
+                    cpu->test = false;
+                    
+                    lastR2 = x;
+                    //std::cerr << std::to_string(lastR2) << " - " << std::to_string(x) << '\n';
+                }
+            
+                //printf(" - %x\n", x);
+                std::cerr << " - " << std::to_string(x) << "\n";
                 x++;
             //}
-            
         } catch(std::runtime_error& e) {
             std::cerr << e.what() << '\n';
             //throw; // Rethrow the error

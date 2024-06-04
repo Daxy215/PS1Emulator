@@ -11,6 +11,49 @@
 #include <string>
 
 //TODO Remove those
+std::string getInstructionName(uint32_t instruction) {
+    static const std::unordered_map<uint8_t, std::string> opcodeMap = {
+        {0x00, "SPECIAL"},
+        {0x01, "REGIMM"},
+        {0x02, "J"},
+        {0x03, "JAL"},
+        {0x04, "BEQ"},
+        {0x05, "BNE"},
+        {0x06, "BLEZ"},
+        {0x07, "BGTZ"},
+        {0x08, "ADDI"},
+        {0x09, "ADDIU"},
+        {0x0A, "SLTI"},
+        {0x0B, "SLTIU"},
+        {0x0C, "ANDI"},
+        {0x0D, "ORI"},
+        {0x0E, "XORI"},
+        {0x0F, "LUI"},
+        {0x20, "LB"},
+        {0x21, "LH"},
+        {0x22, "LWL"},
+        {0x23, "LW"},
+        {0x24, "LBU"},
+        {0x25, "LHU"},
+        {0x26, "LWR"},
+        {0x28, "SB"},
+        {0x29, "SH"},
+        {0x2A, "SWL"},
+        {0x2B, "SW"},
+        {0x2E, "SWR"},
+        {0x32, "LWC2"},
+        {0x3A, "SWC2"}
+    };
+
+    uint8_t opcode = (instruction >> 26) & 0x3F;
+    auto it = opcodeMap.find(opcode);
+    if (it != opcodeMap.end()) {
+        return it->second;
+    } else {
+        return "UNKNOWN";
+    }
+}
+
 std::string getHex(uint32_t value) {
     std::stringstream ss;
     ss << "0x" << std::setfill('0') << std::setw(8) << std::hex << value;
@@ -58,6 +101,8 @@ void CPU::executeNextInstruction() {
     //nextInstruction = new Instruction(load32(pc));
     uint32_t pc = this->pc;
     Instruction* instruction = new Instruction(load32(pc));
+    std::cerr << "pc: " << std::to_string(pc);
+    //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str());
     
     // Save the address of the current instruction to save in
     // 'EPC' in case of an exception.
@@ -677,7 +722,7 @@ void CPU::opsw(Instruction& instruction) {
     
     // Can't write if we are in cache isolation mode!
     if((sr & 0x10000) != 0) {
-        std::cerr << "Ignoring store-word while cache is isolated!\n";
+        //std::cerr << "Ignoring store-word while cache is isolated!\n";
         
         return;
     }
@@ -1161,7 +1206,8 @@ void CPU::opsubu(Instruction& instruction) {
     RegisterIndex t = instruction.t();
     RegisterIndex d = instruction.d();
     
-    uint32_t v = wrappingAdd(reg(s), reg(t));
+    // I CANT BELIEVE I HAD THIS AS WRAPPINGADD AND NOT WRAPPINGSUB!!!!!
+    uint32_t v = wrappingSub(reg(s), reg(t));
     //uint32_t v = reg(s) - reg(t);
     
     set_reg(d, v);
@@ -1378,6 +1424,8 @@ void CPU::opj(Instruction& instruction) {
     nextpc = (pc & 0xf0000000) | (i << 2);
 }
 
+// TODO; Instruction; SPECIAL - 17384
+// which is this, I guess this is giving me the wrong results??
 void CPU::opjr(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     
@@ -1386,9 +1434,13 @@ void CPU::opjr(Instruction& instruction) {
 
 void CPU::opjal(Instruction& instruction) {
     // Store return address in £31($ra)
-    opj(instruction);
+    uint32_t ra = nextpc;
     
-    set_reg(31, nextpc);
+    opj(instruction);
+    //uint32_t i = instruction.imm_jump();
+    //nextpc = (pc & 0xf0000000) | (i << 2);
+    
+    set_reg(31, ra);
 }
 
 void CPU::opjalr(Instruction& instruction) {
@@ -1539,6 +1591,7 @@ void CPU::add(Instruction& instruction) {
      */
 }
 
+//TODO; reg 3 is wrong? 1562 at 86552
 void CPU::addu(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     RegisterIndex t = instruction.t();
@@ -1591,6 +1644,15 @@ uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
     // and they were somehow after crying for days.
     return a + b;
     
+    /*uint64_t temp = static_cast<uint64_t>(a) + b;
+    
+    if (temp > UINT32_MAX) {
+        // Overflow occurred, wrap around
+        temp -= UINT32_MAX + 1;
+    }
+    
+    return static_cast<uint32_t>(temp);*/
+    
     // Perform regular addition
     unsigned int sum = a + b;
     
@@ -1621,13 +1683,26 @@ uint32_t CPU::wrappingSub(uint32_t a, uint32_t b) {
     return diff;
 }
 
+//https://stackoverflow.com/questions/3944505/detecting-signed-overflow-in-c-c
 template <typename T>
-std::optional<T> CPU::check_add(T a, T b) {
-    if (b > std::numeric_limits<T>::max() - a) {
+std::optional<T> CPU::check_add(T lhs, T rhs) {
+    if(lhs >= 0) {
+        if(std::numeric_limits<T>::max() - lhs < rhs) {
+            return std::nullopt;
+        }
+    } else {
+        if(rhs < std::numeric_limits<T>::max() - lhs) {
+            return std::nullopt;
+        }
+    }
+    
+    return lhs + rhs;
+    
+    /*if (b > std::numeric_limits<T>::max() - a) {
         // Overflow occurred
         return std::nullopt;
     }
     
     // No overflow, perform addition
-    return a + b;
+    return a + b;*/
 }

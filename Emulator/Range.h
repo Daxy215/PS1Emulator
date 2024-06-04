@@ -63,9 +63,9 @@ namespace map {
     // Region mask
     static const std::array<uint32_t, 8> REGION_MASK = {
         0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,  // KUSEG: 2048MB
-        0x7fffffff,                                      // KSEG0: 512MB
-        0x1fffffff,                                      // KSEG1: 512MB
-        0xffffffff, 0xffffffff                           // KSEG2: 1024MB
+        0x7fffffff,                                      // KSEG0:  512MB
+        0x1fffffff,                                      // KSEG1:  512MB
+        0xffffffff, 0xffffffff,                          // KSEG2: 1024MB
     };
     
     inline uint32_t maskRegion(uint32_t addr) {

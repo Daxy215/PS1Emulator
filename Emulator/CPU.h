@@ -36,7 +36,7 @@ enum Exception {
 
 class CPU {
 public:
-    CPU(Interconnect* interconnect) : nextpc(pc), outRegs{}, regs{}, interconnect(interconnect) {
+    CPU(Interconnect* interconnect) : nextpc(pc + 4), outRegs{}, regs{}, interconnect(interconnect) {
         
     }
     
@@ -267,12 +267,18 @@ public:
     
     void opillegal(Instruction& instruction);
     
+    bool test = false;
+    
     // Register related functions
     RegisterIndex reg(uint32_t index) {
         return regs[static_cast<size_t>(index)];
     }
     
     void set_reg(uint32_t index, RegisterIndex val) {
+        if(index == 3) {
+            test = true;
+        }
+        
         outRegs[index] = val;
         
         // We need to always rest R0 to 0

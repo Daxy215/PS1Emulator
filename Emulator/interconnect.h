@@ -45,7 +45,7 @@ public:
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
-            printf("IRQ control read %s", to_hex(offset.value()).c_str());
+            printf("IRQ control read %s\n", to_hex(offset.value()).c_str());
             return 0;
         }
         
@@ -141,11 +141,12 @@ public:
                 throw std::runtime_error("ScratchPad access through uncached memory");
             }
             
-            throw std::runtime_error("Unhandled write to SCRATCH_PAD 0x" + to_hex(offset.value()));
+            throw std::runtime_error(" to SCRATCH_PAD 0x" + to_hex(offset.value()));
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            //throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            printf("IRQ control unhandled..\n");
             return;
         }
         
@@ -170,7 +171,7 @@ public:
         }
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled TIMERS control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            //throw std::runtime_error("Unhandled TIMERS control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
             return;
         }
         
@@ -183,7 +184,9 @@ public:
         }
         
         if (auto offset = map::SPU.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled write: SPU control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            printf("hex error spu\n");
+            return;
+            //throw std::runtime_error(": 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
         
         if (auto offset = map::PADMEMCARD.contains(abs_addr)) {
