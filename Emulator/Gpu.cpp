@@ -41,7 +41,8 @@ uint32_t Emulator::Gpu::status() {
     
     // Bit 31 should change depending on the currently drawn line (whether it's even, odd or in the vblank apparently). Let's not bother with it for now.
     r |= 0 << 31;
-    
+
+    //TODO;
     r |= hres.intoStatus();
     
     // XXX Temporary hack: If we don't emulate bit 31 correctly,
@@ -49,7 +50,11 @@ uint32_t Emulator::Gpu::status() {
     // r |= static_cast<uint32_t>(vmode) << 19;
      r |= static_cast<uint32_t>(vmode) << 20;
     
-    // Not sure about that, I'm guessing that it's the signal checked by the DMA in when sending data in Request synchronization mode. For now I blindly follow the Nocash spec.
+    // Not sure about that,
+    // I'm guessing that it's the signal
+    // checked by the DMA in when sending
+    // data in Request synchronization mode.
+    // For now I blindly follow the Nocash spec.
     uint32_t dmaRequest = 0;
     
     switch (dmaDirection) {
@@ -73,16 +78,93 @@ uint32_t Emulator::Gpu::status() {
 }
 
 void Emulator::Gpu::gp0(uint32_t val) {
-    uint32_t opcode = (val >> 24) & 0xFF;
+    if(gp0CommandRemaining == 0) {
+        // Start a new GP0 command
+        uint32_t opcode = (val >> 24) & 0xFF;
+        
+        switch (opcode) {
+        case 0x00:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0Nop;
+            break;
+        case 0x01:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0ClearCache;
+            break;
+        case 0x28:
+            gp0CommandRemaining = 5;
+            Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
+            break;
+        case 0x30:
+            gp0CommandRemaining = 6;
+            Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
+            break;
+        case 0x38:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
+            break;
+        case 0xA0:
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp0ImageLoad;
+            break;
+        case 0xE1:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0DrawMode;
+            break;
+        case 0xE2:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0TextureWindow;
+            break;
+        case 0xE3:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0DrawingAreaTopLeft;
+            break;
+        case 0xE4:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0DrawingAreaBottomRight;
+            break;
+        case 0xE5:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0DrawingOffset;
+            break;
+        case 0xE6:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0MaskBitSetting;
+            break;
+        case 0xC0:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0ImageStore;
+            break;
+        case 0x2C:
+            gp0CommandRemaining = 9;
+            Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
+            break;
+        default:
+            throw std::runtime_error("Unhandled GP0 command " + std::to_string(opcode));
+            break;
+        }
+        
+        gp0Command.clear();
+    }
     
-    switch (opcode) {
-    case 0x00:
+    gp0CommandRemaining--;
+    
+    switch (gp0Mode) {
+    case Command:
+        gp0Command.pushWord(val);
+        
+        if(gp0CommandRemaining == 0) {
+            // All of the parameters optioned; run the command
+            Gp0CommandMethod(*this, val);
+        }
         break;
-    case 0xE1:
-        gp0DrawMode(val);
-        break;
-    default:
-        throw std::runtime_error("Unhandled GP0 command " + std::to_string(val));
+    case ImageLoad:
+        // XXX Should copy pixel data to VRAM
+        if (gp0CommandRemaining == 0) {
+            // Load done, switch back to command mode
+            gp0Mode = Gp0Mode::Command;
+        }
+        
         break;
     }
 }
@@ -114,7 +196,42 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
 }
 
 void Emulator::Gpu::gp1(uint32_t val) {
-    if(gp0CommandRemaining == 0) {
+    uint32_t opcode = (val >> 24) & 0xFF;
+
+    switch (opcode) {
+    case 0x00:
+        gp1Reset(val);
+        break;
+    case 0x01:
+        gp1ResetCommandBuffer(val);
+        break;
+    case 0x02:
+        gp1AcknowledgeIrq(val);
+        break;
+    case 0x03:
+        gp1DisplayEnable(val);
+        break;
+    case 0x04:
+        gp1DmaDirection(val);
+        break;
+    case 0x05:
+        gp1DisplayVramStart(val);
+        break;
+    case 0x06:
+        gp1DisplayHorizontalRange(val);
+        break;
+    case 0x07:
+        gp1DisplayVerticalRange(val);
+        break;
+    case 0x08:
+        gp1DisplayMode(val);
+        break;
+    default:
+        std::cerr << "ERROR; Unhandled GPU command " << std::to_string(opcode) << '\n'; 
+        break;
+    }
+    
+    /*if(gp0CommandRemaining == 0) {
         // Start a new GP0 command
         uint32_t opcode = (val >> 24) & 0xFF;
         
@@ -165,7 +282,7 @@ void Emulator::Gpu::gp1(uint32_t val) {
     if(gp0CommandRemaining == 0) {
        // All of the parameters optioned; run the command
         Gp0CommandMethod(*this, val);
-    }
+    }*/
 }
 
 void Emulator::Gpu::gp1Reset(uint32_t val) {

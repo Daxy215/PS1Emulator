@@ -498,11 +498,11 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
     switch (major) {
     case 0: case 1: case 2: case 3: case 4: case 5: case 6: {
         // Per-channel registers 0...6
-        Channel* channel = dma->getChannel(PortC::fromIndex(major));
+        Channel& channel = dma->getChannel(PortC::fromIndex(major));
         
         switch (minor) {
         case 8:
-            return channel->control();
+            return channel.control();
         default:
             break;
             //throw std::runtime_error("Unhandled DMA read at " + std::to_string(offset));
@@ -540,7 +540,7 @@ void Interconnect::doDma(Port port) {
     // process everything in one pass (i.e. no
     // chopping or priority handling)
     
-    switch(dma->getChannel(port)->sync) {
+    switch(dma->getChannel(port).sync) {
     case LinkedList:
         dmaLinkedList(port);
         break;
@@ -551,7 +551,7 @@ void Interconnect::doDma(Port port) {
 }
 
 void Interconnect::dmaBlock(Port port) {
-    Channel& channel = *dma->getChannel(port);
+    Channel& channel = dma->getChannel(port);
     
     uint32_t increment = (channel.step == Increment) ? 4 : -4;
     uint32_t addr = channel.base;
@@ -572,7 +572,8 @@ void Interconnect::dmaBlock(Port port) {
                 
                 switch (port) {
                 case Gpu:
-                    printf("GPU data %08x", srcWord);
+                    //printf("GPU data %08x", srcWord);
+                    gpu->gp0(srcWord);
                     break;
                 default:
                     throw std::runtime_error("Unhandled DMA destination port " + std::to_string(static_cast<uint8_t>(port)));
@@ -618,7 +619,7 @@ void Interconnect::dmaBlock(Port port) {
 }
 
 void Interconnect::dmaLinkedList(Port port) {
-    Channel& channel = *dma->getChannel(port);
+    Channel& channel = dma->getChannel(port);
     
     uint32_t addr = channel.base & 0x1FFFFC;
     
@@ -674,7 +675,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     switch (major) {
     case 0: case 1: case 2: case 3: case 4: case 5: case 6: {
             Port port = PortC::fromIndex(major);
-            Channel& channel = *dma->getChannel(port);
+            Channel& channel = dma->getChannel(port);
             
             switch (minor) {
             case 0:

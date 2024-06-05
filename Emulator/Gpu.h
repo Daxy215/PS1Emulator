@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <string>
 
+// https://psx-spx.consoledev.net/graphicsprocessingunitgpu/
+
 namespace Emulator {
     // Depth of the pixel values in a texture page
     enum class TextureDepth {
@@ -90,6 +92,13 @@ namespace Emulator {
             len++;
         }
     };
+
+    enum Gp0Mode {
+        // Default mode: Handling commands
+        Command,
+        // Loading an image into VRAM
+        ImageLoad,
+    };
     
     // GPU structure
     class Gpu {
@@ -127,8 +136,9 @@ namespace Emulator {
             drawingAreaTop = static_cast<uint16_t>((val >> 10) & 0x3FF);
             drawingAreaLeft = static_cast<uint16_t>(val & 0x3FF);
         }
-        
-        void gp0DrawingBottomRight(uint32_t val) {
+
+        // GP0(0xE4): Set Drawing Area bottom right
+        void gp0DrawingAreaBottomRight(uint32_t val) {
             drawingAreaBottom = static_cast<uint16_t>((val >> 10) & 0x3FF);
             drawingAreaRight = static_cast<uint16_t>(val & 0x3FF);
         }
@@ -169,9 +179,58 @@ namespace Emulator {
             printf("DRAWING A QUAD!!");
         }
         
+        // GP0(0x30): Triangle
+        void gp0TriangleShadedOpaque(uint32_t val) {
+            printf("Triangle shaded");
+        }
+
+        // GP0(0xC2):
+        void gp0QuadTextureBlendOpaque(uint32_t val) {
+            printf("Quad texture blending");
+        }
+        
+        // GP0(0x38): gp0QuadShadedOpaque
+        void gp0QuadShadedOpaque(uint32_t val) {
+            printf("Quad shaded");
+        }
+        
         // GP0(0x01): Clear Cache
-        void gp0ClearCache() {
+        void gp0ClearCache(uint32_t val) {
             // TODO; Implement me
+        }
+        
+        // GP0(0xA0): Load Image
+        void gp0ImageLoad(uint32_t val) {
+            // Parameter 2 contains the image resolution
+            uint32_t res = gp0Command.buffer[2];
+            
+            uint32_t width = res & 0xFFFF;
+            uint32_t height = res >> 16;
+            
+            // Size of the image in 16bit pixels
+            uint32_t imgSize = width * height;
+            
+            // If we have an odd number of pixels we must round up
+            // since we transfer 32bits at a time. There'll be 16bits
+            // of padding in the last word
+            imgSize = (imgSize + 1) & ~1;
+            
+            // Store number of words expected for this image
+            gp0CommandRemaining = imgSize / 2;
+            
+            // Put the GP0 state machine in ImageLoad mode
+            gp0Mode = ImageLoad;
+        }
+        
+        // GP0(0xC0): Load Store
+        void gp0ImageStore(uint32_t val) {
+            // Parameter 2 contains the image resolution
+            uint32_t res = gp0Command.buffer[2];
+            
+            uint32_t width = res & 0xFFFF;
+            uint32_t height = res >> 16;
+            
+            printf("Unhandled image store %x %x", width, height);
         }
         
         // Handles writes to the GP1 command register
@@ -182,6 +241,11 @@ namespace Emulator {
         
         // GP1(0x80): Display Mode
         void gp1DisplayMode(uint32_t val);
+        
+        // GP1(0x03): Display Enable
+        void gp1DisplayEnable(uint32_t val) {
+            displayDisabled = (val & 1) != 0;
+        }
         
         // GP1(0x04): DMA Direction
         void gp1DmaDirection(uint32_t val);
@@ -202,6 +266,18 @@ namespace Emulator {
         void gp1DisplayVerticalRange(uint32_t val) {
             displayLineStart = static_cast<uint16_t>(val & 0x3FF);
             displayLineEnd = static_cast<uint16_t>((val >> 10) & 0x3FF);
+        }
+        
+        // GP1(0x01): Reset Command Buffer
+        void gp1ResetCommandBuffer(uint32_t val) {
+            gp0Command.clear();
+            gp0CommandRemaining = 0;
+            gp0Mode = Command; 
+        }
+        
+        // GP1(0x02): Acknowledge Interrupt
+        void gp1AcknowledgeIrq(uint32_t val) {
+            interrupt = false;
         }
         
         // Retrieve value of the "read" register
@@ -249,7 +325,10 @@ namespace Emulator {
         CommandBuffer gp0Command;
         
         // Remaining words for the current GP0 command
-        uint32_t gp0CommandRemaining;
+        uint32_t gp0CommandRemaining = 0;
+        
+        // Current mode for GP0
+        Gp0Mode gp0Mode = Command;
         
         // Pointer to the method implementing the current GP command
         std::function<void(Gpu&, uint32_t)> Gp0CommandMethod;

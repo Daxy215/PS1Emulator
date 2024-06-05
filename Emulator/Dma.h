@@ -239,10 +239,10 @@ public:
     void setControl(uint32_t val);
 
     // Returns a reference to a channel by the port number
-    Channel* getChannel(Port port) const { return channels[static_cast<size_t>(port)]; }
+    //Channel& getChannel(Port port) const { return channels[static_cast<size_t>(port)]; }
     
     // Returns a reference to a channel by port number
-    Channel* getChannel(Port port) { return channels[static_cast<size_t>(port)]; }
+    Channel& getChannel(Port port) { return channels[static_cast<size_t>(port)]; }
 public:
     // master IRQ enable
     bool irqEn = false;
@@ -263,7 +263,7 @@ public:
     
     // Rest value taken from the Nocash PSX spec
     uint32_t control = 0x07654321;
-
+    
     // The 7 channel instances
-    Channel* channels[7];
+    Channel channels[7];
 };

@@ -29,8 +29,8 @@
 
 // Used this A LOT to figure out which instruction I need to translate the instructions further
 // https://inst.eecs.berkeley.edu/~cs61c/resources/MIPS_help.html
-// R-TYPE INSTRUCTIONS -> subfunction
-// J-TYPE INSTRUCTIONS -> ??? Jump instructions?
+// R-TYPE INSTRUCTIONS -> sub functions
+// J-TYPE INSTRUCTIONS -> ??? Jump instructions? COP??
 // I-TYPE INSTRUCTIONS -> functions
 //
 // https://en.wikipedia.org/wiki/MIPS_architecture
@@ -42,6 +42,9 @@
 // https://app.box.com/s/lmr4nw30cvdhdk5ng7ex
 // https://www.cs.columbia.edu/~sedwards/classes/2012/3827-spring/mips-isa.pdf
 // https://gist.github.com/dbousamra/f662f381d33fcf5c4a5475c4a656fa19
+//
+// Helped a lot with the GPU
+// https://psx-spx.consoledev.net/graphicsprocessingunitgpu/
 
 /* List of problems;
  * Wrapped_add and wrapped_sub were returning the wrong values,
@@ -49,12 +52,16 @@
     * handles this problem, so I just returned a simple sum of the two
     
  * wrong pc counting.. MANY.. MANY different times
+    * (Future me here; Had even more PC problems) 
     * This also caused the program to read the wrong instructions
     * and skip some..
     
  * checked_add -> caused a problem of returning overflow when it shouldn't
  * instruction -> imm_see returns the wrong value
- * 
+    * Can't remember exactly but it was returning the
+    * correct value, however, I had a bug somewhere else
+    
+ * sub instruction -> Was using wrappingadd instead of wrappingsub..
  */
 
 /**
@@ -334,8 +341,9 @@ int main(int argc, char* argv[]) {
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
     Dma dma;
+    Emulator::Gpu gpu;
     
-    CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma));
+    CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma, &gpu));
     
     // Iterate through the buffer and decode instructions
     //for (size_t i = 0; i < bios->data.size(); i += 4) {

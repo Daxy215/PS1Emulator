@@ -21,7 +21,7 @@ class Bios;
 
 class Interconnect {
 public:
-    Interconnect(Ram* ram, Bios* bios, Dma* dma) : ram(ram), bios(bios), dma(dma) {  }
+    Interconnect(Ram* ram, Bios* bios, Dma* dma, Emulator::Gpu* gpu) : ram(ram), bios(bios), dma(dma), gpu(gpu) {  }
     
     template<typename T>
     T load(uint32_t addr) {
@@ -54,7 +54,7 @@ public:
         }
         
         if (auto offset = map::GPU.contains(abs_addr)) {
-            printf("GPU read %s", std::to_string(offset.value()).c_str());
+            //printf("GPU read %s\n", std::to_string(offset.value()).c_str());
             switch (offset.value()) {
                 case 4:
                     return 0x1c000000;
@@ -79,7 +79,7 @@ public:
         }
         
         if (auto _ = map::SPU.contains(abs_addr)) {
-            printf("Unhandled read from SPU register %s", to_hex(abs_addr).c_str());
+            //printf("Unhandled read from SPU register %s", to_hex(abs_addr).c_str());
             return 0;
         }
         
@@ -146,7 +146,7 @@ public:
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
             //throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
-            printf("IRQ control unhandled..\n");
+            //printf("IRQ control unhandled..\n");
             return;
         }
         
@@ -184,7 +184,7 @@ public:
         }
         
         if (auto offset = map::SPU.contains(abs_addr)) {
-            printf("hex error spu\n");
+            //printf("hex error spu\n");
             return;
             //throw std::runtime_error(": 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
