@@ -101,7 +101,6 @@ void CPU::executeNextInstruction() {
     //nextInstruction = new Instruction(load32(pc));
     uint32_t pc = this->pc;
     Instruction* instruction = new Instruction(load32(pc));
-    //std::cerr << "pc: " << std::to_string(pc);
     //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str());
     
     // Save the address of the current instruction to save in
@@ -853,7 +852,7 @@ void CPU::oplw(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex t = instruction.t();
     RegisterIndex s = instruction.s();
-
+    
     if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store while cache is isolated!";
         
@@ -861,12 +860,13 @@ void CPU::oplw(Instruction& instruction) {
     }
     
     RegisterIndex addr = wrappingAdd(reg(s), i);
-
+    
     if(addr % 4 == 0) {
         uint32_t v = load32(addr);
         
         // Put the load in the delay slot
-        load = {t, v};
+        //load = {t, v};
+        setLoad(t, v);
         //set_reg(t, v);
     } else
         exception(LoadAddressError);
@@ -910,7 +910,8 @@ void CPU::oplwl(Instruction& instruction) {
     }
     
     // Put the load in the delay slot
-    load = {t, v};
+    //load = {t, v};
+    setLoad(t, v);
 }
 
 void CPU::oplwr(Instruction& instruction) {
@@ -951,7 +952,8 @@ void CPU::oplwr(Instruction& instruction) {
     }
     
     // Put the load in the delay slot
-    load = {t, v};
+    //load = {t, v};
+    setLoad(t, v);
 }
 
 void CPU::oplh(Instruction& instruction) {
@@ -967,13 +969,14 @@ void CPU::oplh(Instruction& instruction) {
     }
     
     uint32_t addr = wrappingAdd(reg(s), i);
-
+    
     if(addr % 2 == 0) {
         // Cast as i16 to force sign extension
-        int16_t v = static_cast<int16_t>(load16(addr));
+        uint32_t v = load16(addr);
         
         // Put the load in the delay slot
-        load = {t, static_cast<uint32_t>(v)};
+        //load = {t, static_cast<uint32_t>(v)};
+        setLoad(t, v);
     } else {
         exception(LoadAddressError);
     }
@@ -990,7 +993,8 @@ void CPU::oplhu(Instruction& instruction) {
     if(addr % 2 == 0) {
         uint16_t v = load16(addr);
         
-        load = {t, static_cast<uint32_t>(v)};
+        //load = {t, static_cast<uint32_t>(v)};
+        setLoad(t, static_cast<uint32_t>(v));
     } else {
         exception(LoadAddressError);
     }
@@ -1006,7 +1010,8 @@ void CPU::oplb(Instruction& instruction) {
     int8_t v = static_cast<int8_t>(load8(addr));
     
     // Put the load in the delay slot
-    load = {t, static_cast<uint32_t>(v)};
+    //load = {t, static_cast<uint32_t>(v)};
+    setLoad(t, static_cast<uint32_t>(v));
 }
 
 void CPU::oplbu(Instruction& instruction) {
@@ -1018,11 +1023,14 @@ void CPU::oplbu(Instruction& instruction) {
     
     uint8_t v = load8(addr);
     
-    load = {t, static_cast<uint32_t>(v)};
+    //load = {t, static_cast<uint32_t>(v)};
+    setLoad(t, static_cast<uint32_t>(v));
 }
 
 // addiu $8, $zero, 0xb88
 void CPU::addiu(Instruction& instruction) {
+    no = true;
+    
     uint32_t i = instruction.imm_se();
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
@@ -1355,7 +1363,8 @@ void CPU::opmfc0(Instruction& instruction) {
         break;
     }
     
-    load = {cpur, v};
+    //load = {cpur, v};
+    setLoad(cpur, v);
 }
 
 void CPU::oprfe(Instruction& instruction) {
@@ -1520,6 +1529,7 @@ void CPU::opbltz(Instruction& instruction) {
     RegisterIndex i = instruction.imm_se();
     RegisterIndex s = instruction.s();
     
+    // TODO; Problem at reg 9..
     int32_t v = static_cast<int32_t>(reg(s));
     
     if(v <= 0) {

@@ -267,7 +267,7 @@ public:
     
     void opillegal(Instruction& instruction);
     
-    bool test = false;
+    bool test = false, no = false;
     
     // Register related functions
     RegisterIndex reg(uint32_t index) {
@@ -275,14 +275,26 @@ public:
     }
     
     void set_reg(uint32_t index, RegisterIndex val) {
-        if(index == 3) {
-            test = true;
+        if(index == 26) {
+            //test = true;
         }
+
+        no = false;
         
         outRegs[index] = val;
         
         // We need to always rest R0 to 0
         outRegs[0] = {0};
+    }
+
+    void setLoad(RegisterIndex index, uint32_t val) {
+        if(index == 9) {
+            test = true;
+        }
+        
+        //no = false;
+        
+        load = {index, val};
     }
     
     // Memory related functions

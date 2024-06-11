@@ -359,6 +359,7 @@ int main(int argc, char* argv[]) {
     
     // TODO; Remove me
     // Used for testing
+    int f = 0;
     int x = 0;
     
     while(true) {
@@ -413,11 +414,25 @@ int main(int argc, char* argv[]) {
                  * subu was the problem..
                  * I had wrappingadd instead of wrappingsub
                  */
+                // 12764079
+                // 12763163
+                if(x == 13176274) {
+                    printf("wee...");
+                }
+                
                 //std::cerr << " - I; " << std::to_string(x) << std::endl;
                 cpu->executeNextInstruction();
-            
+                
+                if(cpu->test) {
+                    cpu->test = false;
+                    f = x;
+                }
+                
                 //printf(" - %x\n", x);
-                //std::cerr << " - " << std::to_string(x) << "\n";
+                
+                if(x > 12974291)
+                    std::cerr << "pc: " << std::to_string(cpu->pc) << " - " << std::to_string(x) << "\n";
+                
                 x++;
             //}
         } catch(std::runtime_error& e) {

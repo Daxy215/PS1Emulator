@@ -110,7 +110,7 @@ public:
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled cache control access (" + std::to_string(sizeof(T)) + ")");
             }
-
+            
             //return 0;
             throw std::runtime_error("Unhandled CACHE_CONTROL load at address 0x" + to_hex(addr));
         }
@@ -245,10 +245,10 @@ public:
     
     /*// Load word
     uint32_t load32(uint32_t addr);
-
+    
     // Load half word
     uint16_t load16(uint32_t addr);
-
+    
     // Load byte
     uint8_t load8(uint32_t addr);
     
