@@ -303,11 +303,33 @@ int main(int argc, char* argv[]) {
     CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma, &gpu, &spu));
     
     SDL_Event event;
-    
+
+    int x = 0;
     while(true) {
         for(int i = 0; i < 1000000; i++) {
+            /**
+             * PC; 2147815804 - 13176543 -> BEN (REG 12 IS WRONG!)
+             * PC; 2147815808 - 13176544
+             * PC; 2147815812 - 13176545
+             *
+             * pc: 2147815804 - 13176543 -> BEN (REG 12 IS WRONG!)
+             * pc: 2147815836 - 13176544
+             * pc: 2147815840 - 13176545
+             */
+            if(x == 13176543) {
+                printf("Weee");
+            }
+            
             cpu->executeNextInstruction();
+            
+            if (x > 12564089) {
+                std::cerr << "pc: " << std::to_string(cpu->pc) << " - " << std::to_string(x) << "\n";
+            }
+            
+            x++;
         }
+
+        //gpu.renderer->display();
         
         if(SDL_PollEvent(&event)) {
             if(event.type == SDL_QUIT)

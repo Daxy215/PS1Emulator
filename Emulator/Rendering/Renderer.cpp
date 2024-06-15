@@ -71,7 +71,7 @@ Emulator::Renderer::Renderer() {
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribIPointer(index, 2, GL_SHORT, 0, nullptr);
+    glVertexAttribIPointer(index, 2, GL_SHORT, 0, (void*)0);
     
     // Color buffer
     colors.create();
@@ -82,7 +82,14 @@ Emulator::Renderer::Renderer() {
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
+    glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, (void*)0);
+    
+    glUseProgram(program);
+    
+    // Set draw offset
+    offsetUni = glGetUniformLocation(program, "offset");
+    
+    glUniform2i(offsetUni, 0, 0);
     
     GLenum ersr = glGetError();
     if (ersr!= GL_NO_ERROR) {
@@ -107,6 +114,11 @@ void Emulator::Renderer::draw() {
     // Make sure all the data is flushed to the buffer
     glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
     
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    glUseProgram(program);
+    //glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
     // Wait for GPU to complete

@@ -197,6 +197,9 @@ namespace Emulator {
             drawingXOffset = static_cast<int16_t>(x << 5) >> 5;
             drawingYOffset = static_cast<int16_t>(y << 5) >> 5;
             
+            // Update rendering offset
+            renderer->setDrawingOffset(drawingXOffset, drawingYOffset);
+            
             // XXX Temporary hack: force display when changing offset,
             // since we don't have proper timings
             renderer->display();
@@ -234,14 +237,10 @@ namespace Emulator {
             
             // A single color repeated 4 times
             Color colors[] = {
-                {255, 0, 0},
-                {0, 255, 0},
-                {255, 0, 255},
-                {255, 0, 0},
-                /*Color::fromGp0(gp0Command.buffer[0]),
                 Color::fromGp0(gp0Command.buffer[0]),
                 Color::fromGp0(gp0Command.buffer[0]),
-                Color::fromGp0(gp0Command.buffer[0]),*/
+                Color::fromGp0(gp0Command.buffer[0]),
+                Color::fromGp0(gp0Command.buffer[0]),
             };
             
             renderer->pushQuad(positions, colors);

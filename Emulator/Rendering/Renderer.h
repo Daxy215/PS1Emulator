@@ -2,6 +2,7 @@
 #include <iostream>
 #include <SDL_video.h>
 #include <GL/glew.h>
+//#include <GL/wglew.h>
 
 #include "Buffer.h"
 
@@ -20,6 +21,12 @@ namespace Emulator {
         
         void pushTriangle(Emulator::Position* positions, Emulator::Color* colors);
         void pushQuad(Emulator::Position* positions, Emulator::Color* colors);
+        
+        void setDrawingOffset(int32_t x, int32_t y) {
+            //draw();
+            
+            glUniform2i(offsetUni, x, y);
+        }
         
         GLuint compileShader(const char* source, GLenum shaderType);
         GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
@@ -42,6 +49,9 @@ namespace Emulator {
         
         // Vertex Array Object
         GLuint VAO;
+        
+        // Uniforms
+        GLuint offsetUni;
         
         // Buffer contains the vertices positions
         Buffer<Position> positions;
