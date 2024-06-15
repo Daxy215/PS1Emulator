@@ -61,7 +61,8 @@ public:
                 case 0:
                     return gpu->read();
                 case 4:
-                    return gpu->status();
+                    return 0x1c000000;
+                    //return gpu->status();
                 default:
                     return 0;
             }

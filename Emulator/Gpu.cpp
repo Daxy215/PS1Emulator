@@ -48,7 +48,7 @@ uint32_t Emulator::Gpu::status() {
     // XXX Temporary hack: If we don't emulate bit 31 correctly,
     // setting 'vres' to 1 locks the BIOS:
     // r |= static_cast<uint32_t>(vmode) << 19;
-     r |= static_cast<uint32_t>(vmode) << 20;
+    //r |= static_cast<uint32_t>(vmode) << 20;
     
     // Not sure about that,
     // I'm guessing that it's the signal

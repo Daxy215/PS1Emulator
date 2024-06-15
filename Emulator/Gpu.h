@@ -267,7 +267,7 @@ namespace Emulator {
         
         // GP0(0xC2): Quad Texture Blend Opqaue
         void gp0QuadTextureBlendOpaque(uint32_t val) {
-            printf("Quad texture blending");
+            printf("Quad texture blending\n");
             
             Position positions[] = {
                 Position::fromGp0P(gp0Command.buffer[1]),

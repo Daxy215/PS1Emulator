@@ -303,8 +303,8 @@ int main(int argc, char* argv[]) {
     CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma, &gpu, &spu));
     
     SDL_Event event;
-
-    int x = 0;
+    
+    int x = 0, f = 0;
     while(true) {
         for(int i = 0; i < 1000000; i++) {
             /**
@@ -322,13 +322,18 @@ int main(int argc, char* argv[]) {
             
             cpu->executeNextInstruction();
             
+            if(cpu->test) {
+                cpu->test = false;
+                f = x;
+            }
+            
             if (x > 12564089) {
-                std::cerr << "pc: " << std::to_string(cpu->pc) << " - " << std::to_string(x) << "\n";
+                //std::cerr << "pc: " << std::to_string(cpu->pc) << " - " << std::to_string(x) << "\n";
             }
             
             x++;
         }
-
+        
         //gpu.renderer->display();
         
         if(SDL_PollEvent(&event)) {
