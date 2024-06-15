@@ -145,99 +145,6 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     //printf("Processing CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
     
     switch (instruction.func()) {
-    case 0b000000:
-        decodeAndExecuteSubFunctions(instruction);
-        break;
-    /*case 0b110010:
-        opcop2(instruction);
-        break;*/
-    case 0b001111:
-        oplui(instruction);
-        break;
-    case 0b001101:
-        opori(instruction);
-        break;
-    case 0b101011:
-        opsw(instruction);
-        break;
-    case 0b001001:
-        addiu(instruction);
-        break;
-    case 0b010000:
-        //decodeAndExecuteCop0(instruction);
-        opcop0(instruction);
-        break;
-    case 0b000010:
-        opj(instruction);
-        break;
-    case 0b000101:
-        opbne(instruction);
-        break;
-    case 0b001000:
-        addi(instruction);
-        break;
-    case 0b100011:
-        oplw(instruction);
-        break;
-    case 0b101001:
-        opsh(instruction);
-        break;
-    case 0b000011:
-        opjal(instruction);
-        break;
-    case 0b001100:
-        opandi(instruction);
-        break;
-    case 0b101000:
-        opsb(instruction);
-        break;
-    case 0b100000:
-        oplb(instruction);
-        break;
-    case 0b000100:
-        opbeq(instruction);
-        break;
-    case 0b000111:
-        opbqtz(instruction);
-        break;
-    case 0b000110:
-        opbltz(instruction);
-        break;
-    case 0b100100:
-        oplbu(instruction);
-        break;
-    case 0b000001:
-        opbxx(instruction);
-        break;
-    case 0b001010:
-        opslti(instruction);
-        break;
-    case 0b001011:
-        opsltiu(instruction);
-        break;
-    case 0b100101:
-        oplhu(instruction);
-        break;
-    case 0b100001:
-        oplh(instruction);
-        break;
-    case 0b100010:
-        oplwl(instruction);
-        break;
-    case 0b100110:
-        oplwr(instruction);
-        break;
-    case 0b101010:
-        opswl(instruction);
-        break;
-    case 0b101110:
-        opswr(instruction);
-        break;
-    default:
-        printf("Unhandled instruction %0x8. Function call was: %s\n", instruction.op, getBinary(instruction.func().reg).c_str());
-    }
-    
-    /*switch (instruction.func()) {
         case 0b000000:
             decodeAndExecuteSubFunctions(instruction); // ALU operations (e.g., add, subtract, shift)
             break;
@@ -353,7 +260,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
             opbeq(instruction); // Branch if equal
             break;
         case 0b000111:
-            opbgtz(instruction); // Branch if greater than zero
+            opbqtz(instruction); // Branch if greater than zero
             break;
         case 0b000110:
             opbltz(instruction); // Branch if less than or equal to zero
@@ -363,7 +270,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
             printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func().reg, instruction.op);
             //std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
             //throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
-    }*/
+    }
 }
 
 void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {

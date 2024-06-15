@@ -13,12 +13,14 @@ public:
         offset &= 0x1fffff;
         
         uint32_t v = 0;
-        for (size_t i = 0; i < sizeof(T); ++i) {
+        for (size_t i = 0; i < sizeof(T); i++) {
             v |= static_cast<uint32_t>(data[offset + i]) << (i * 8);
         }
         
         return v;
     }
+    
+    bool test = false;
     
     template<typename T>
     void store(uint32_t offset, uint32_t val) {
@@ -26,7 +28,11 @@ public:
         // over the first 8MB of address space
         offset &= 0x1fffff;
         
-        for (size_t i = 0; i < sizeof(T); ++i) {
+        if(offset == 964820) {
+            test = true;
+        }
+        
+        for (size_t i = 0; i < sizeof(T); i++) {
             data[offset + i] = static_cast<uint8_t>((val >> (i * 8)));
         }
     }

@@ -11,6 +11,7 @@
 #include "Gpu.h"
 #include "Ram.h"
 #include "Range.h"
+#include "SPU.h"
 
 /**
  * This class is used to allow the BIOS to communicate with the CPU! :D
@@ -21,7 +22,8 @@ class Bios;
 
 class Interconnect {
 public:
-    Interconnect(Ram* ram, Bios* bios, Dma* dma, Emulator::Gpu* gpu) : ram(ram), bios(bios), dma(dma), gpu(gpu) {  }
+    Interconnect(Ram* ram, Bios* bios, Dma* dma, Emulator::Gpu* gpu, Emulator::SPU* spu)
+        : ram(ram), bios(bios), dma(dma), gpu(gpu), spu(spu) {  }
     
     template<typename T>
     T load(uint32_t addr) {
@@ -56,15 +58,17 @@ public:
         if (auto offset = map::GPU.contains(abs_addr)) {
             //printf("GPU read %s\n", std::to_string(offset.value()).c_str());
             switch (offset.value()) {
+                case 0:
+                    return gpu->read();
                 case 4:
-                    return 0x1c000000;
+                    return gpu->status();
                 default:
                     return 0;
             }
         }
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
-            printf("TIMERS control read %s", to_hex(offset.value()).c_str());
+            printf("TIMERS control read %s\n", to_hex(offset.value()).c_str());
             return 0;
         }
         
@@ -78,8 +82,11 @@ public:
             throw std::runtime_error("Unhandled MDEC load at address 0x" + to_hex(addr));
         }
         
-        if (auto _ = map::SPU.contains(abs_addr)) {
-            //printf("Unhandled read from SPU register %s", to_hex(abs_addr).c_str());
+        if (auto offset = map::SPU.contains(abs_addr)) {
+            // https://github.com/psx-spx/psx-spx.github.io/blob/master/docs/soundprocessingunitspu.md
+            //std::cerr << "SPU load register; " << to_hex(addr) << "\n";
+            spu->load(addr, offset.value());
+            
             return 0;
         }
         
@@ -282,4 +289,5 @@ private:
     Bios* bios;
     Dma* dma;
     Emulator::Gpu* gpu;
+    Emulator::SPU* spu;
 };

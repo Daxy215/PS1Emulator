@@ -1,12 +1,14 @@
 // Core.cpp
 
-#include <assert.h>
 #include <iostream>
 #include <fstream>
-#include <iomanip>
+
+#include <SDL.h>
 
 #include "Emulator/Bios.h"
 #include "Emulator/CPU.h"
+#include "Emulator/SPU.h"
+
 //#include "Emulator/interconnect.h"
 //#include "Emulator/Ram.h"
 
@@ -45,6 +47,9 @@
 //
 // Helped a lot with the GPU
 // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/
+// https://github.com/psx-spx/psx-spx.github.io/blob/master/docs/interrupts.md
+// https://github.com/allkern/cdrom/blob/master/cdrom.h
+// https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-05.04.pdf
 
 /* List of problems;
  * Wrapped_add and wrapped_sub were returning the wrong values,
@@ -58,9 +63,9 @@
     
  * checked_add -> caused a problem of returning overflow when it shouldn't
  * instruction -> imm_see returns the wrong value
-    * Can't remember exactly but it was returning the
-    * correct value, however, I had a bug somewhere else
-    
+    * Can't remember exactly why, but after a bunch of debugging,
+    * I found out that I had a bug somewhere else
+     
  * sub instruction -> Was using wrappingadd instead of wrappingsub..
  */
 
@@ -284,160 +289,29 @@
     * Dont get ANY of this. Page 16
  */
 
-// Function to map opcodes to instruction names
-/*std::string getInstructionName(uint32_t instruction) {
-    static const std::unordered_map<uint8_t, std::string> opcodeMap = {
-        {0x00, "SPECIAL"},
-        {0x01, "REGIMM"},
-        {0x02, "J"},
-        {0x03, "JAL"},
-        {0x04, "BEQ"},
-        {0x05, "BNE"},
-        {0x06, "BLEZ"},
-        {0x07, "BGTZ"},
-        {0x08, "ADDI"},
-        {0x09, "ADDIU"},
-        {0x0A, "SLTI"},
-        {0x0B, "SLTIU"},
-        {0x0C, "ANDI"},
-        {0x0D, "ORI"},
-        {0x0E, "XORI"},
-        {0x0F, "LUI"},
-        {0x20, "LB"},
-        {0x21, "LH"},
-        {0x22, "LWL"},
-        {0x23, "LW"},
-        {0x24, "LBU"},
-        {0x25, "LHU"},
-        {0x26, "LWR"},
-        {0x28, "SB"},
-        {0x29, "SH"},
-        {0x2A, "SWL"},
-        {0x2B, "SW"},
-        {0x2E, "SWR"},
-        {0x32, "LWC2"},
-        {0x3A, "SWC2"}
-    };
-
-    uint8_t opcode = (instruction >> 26) & 0x3F;
-    auto it = opcodeMap.find(opcode);
-    if (it != opcodeMap.end()) {
-        return it->second;
-    } else {
-        return "UNKNOWN";
-    }
-}*/
-
-uint32_t decodeInstruction(const std::vector<uint8_t>& buffer, size_t offset) {
-    return buffer[offset] |
-           (buffer[offset + 1] << 8) |
-           (buffer[offset + 2] << 16) |
-           (buffer[offset + 3] << 24);
-}
-
 int main(int argc, char* argv[]) {
-    //ramWriteTest();
-    
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
     Dma dma;
+
+    // TODO; Texture loading
     Emulator::Gpu gpu;
     
-    CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma, &gpu));
+    // TODO;
+    Emulator::SPU spu;
     
-    // Iterate through the buffer and decode instructions
-    //for (size_t i = 0; i < bios->data.size(); i += 4) {
-    //    uint32_t instruction = decodeInstruction(bios->data, i);
-    //    uint32_t op = instruction >> 26;
-    //    std::string instructionName = getInstructionName(instruction);
-    //    
-    //    // Print the instruction address, raw data, and name
-    //    std::cerr << std::hex << std::setw(8) << std::setfill('0') << i << ": "
-    //              << std::setw(8) << std::setfill('0') << instruction << " - "
-    //              << instructionName << "\n";
-    //}
+    CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma, &gpu, &spu));
     
-    // TODO; Remove me
-    // Used for testing
-    int f = 0;
-    int x = 0;
+    SDL_Event event;
     
     while(true) {
-        // TODO; Remove
-        try {
-            //if(x >= Bios::BIOS_SIZE) {
-            //    //printf("Huh??\n");
-            //}
-            //if(x == 1552) {
-            //    printf("here\n");
-            //}
-            /*if(x == 17641) {
-             *                printf("performing GTE");
-            }*/
-            //printf("F; %d\n", x);
-            //std::cerr << x << std::endl;
-            // Unhandled GTE LWC cacacaca??
-            //for (int i = 0; i <= 10000000; i++) {
-                // 95
-                //if(x == 414) { //412
-                //    printf("s");
-                //}
-                /**
-                 * pc: 3217032248 - 34312
-                 * pc: 3217032252Exception: Exception 0x80000003 encountered at address 0x7ffefceb0be0
-                 */
-                //if(x == 121) {
-                //}
-            
-                //if(i != x) {
-                //    //printf("SS ;{");
-                //}
-                
-                //if(x == 2725555) {
-                
-                //if(x == 441438) {
-                //    printf("starting DMA!");
-                //}
-            
-                // 441438???? - 2725555??
-                // So;
-                /**
-                 * pc: 10548 - 86558
-                 * pc: 10572 - 86559
-                 * pc: 10576 - 86560
-                 *
-                 * supposed:
-                 * PC; 10548 - 86558
-                 * PC; 10552 - 86559
-                 * PC; 10556 - 86560
-                 *
-                 * subu was the problem..
-                 * I had wrappingadd instead of wrappingsub
-                 */
-                // 12764079
-                // 12763163
-                if(x == 13176274) {
-                    printf("wee...");
-                }
-                
-                //std::cerr << " - I; " << std::to_string(x) << std::endl;
-                cpu->executeNextInstruction();
-                
-                if(cpu->test) {
-                    cpu->test = false;
-                    f = x;
-                }
-                
-                //printf(" - %x\n", x);
-                
-                if(x > 12974291)
-                    std::cerr << "pc: " << std::to_string(cpu->pc) << " - " << std::to_string(x) << "\n";
-                
-                x++;
-            //}
-        } catch(std::runtime_error& e) {
-            std::cerr << e.what() << '\n';
-            //throw; // Rethrow the error
+        for(int i = 0; i < 1000000; i++) {
+            cpu->executeNextInstruction();
+        }
+        
+        if(SDL_PollEvent(&event)) {
+            if(event.type == SDL_QUIT)
+                break;
         }
     }
     

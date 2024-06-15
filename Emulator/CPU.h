@@ -275,10 +275,10 @@ public:
     }
     
     void set_reg(uint32_t index, RegisterIndex val) {
-        if(index == 26) {
+        if(index == 14) {
             //test = true;
         }
-
+        
         no = false;
         
         outRegs[index] = val;
@@ -288,7 +288,7 @@ public:
     }
 
     void setLoad(RegisterIndex index, uint32_t val) {
-        if(index == 9) {
+        if(index == 14) {
             test = true;
         }
         

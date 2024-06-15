@@ -185,7 +185,7 @@ struct Channel {
     void done() {
         enable = false;
         trigger = false;
-
+        
         // XXX need to set the correct value for the other fields,
         // (in particular interrupts)
         

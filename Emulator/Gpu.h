@@ -7,8 +7,13 @@
 #include <functional>
 #include <stdexcept>
 #include <string>
+#include <GL/glew.h>
+
+#include "Rendering/Renderer.h"
 
 // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/
+
+class Renderer;
 
 namespace Emulator {
     // Depth of the pixel values in a texture page
@@ -92,12 +97,47 @@ namespace Emulator {
             len++;
         }
     };
-
+    
     enum Gp0Mode {
         // Default mode: Handling commands
         Command,
         // Loading an image into VRAM
         ImageLoad,
+    };
+    
+    struct Position {
+        Position() {}
+        
+        Position(GLshort x, GLshort y) : x(x), y(y) {
+            
+        }
+        
+        static Position fromGp0P(uint32_t val) {
+            int16_t x = static_cast<int16_t>(val);
+            int16_t y = static_cast<int16_t>(val >> 16);
+            
+            return {x, y};
+        }
+        
+        GLshort x, y;
+    };
+
+    struct Color {
+        Color() {}
+        
+        Color(GLubyte r, GLubyte g, GLubyte b) : r(r), g(g), b(b) {
+            
+        }
+        
+        static Color fromGp0(uint32_t val) {
+            uint8_t r = static_cast<uint8_t>(val);
+            uint8_t g = static_cast<uint8_t>(val >> 8);
+            uint8_t b = static_cast<uint8_t>(val >> 16);
+            
+            return {r, g, b};
+        }
+        
+        GLubyte r, g, b;
     };
     
     // GPU structure
@@ -121,7 +161,10 @@ namespace Emulator {
               interlaced(false),
               displayDisabled(true),
               interrupt(false),
-              dmaDirection(DmaDirection::Off) {}
+              dmaDirection(DmaDirection::Off),
+              renderer(new Renderer()) {
+            
+        }
         
         uint32_t status();
         
@@ -136,7 +179,7 @@ namespace Emulator {
             drawingAreaTop = static_cast<uint16_t>((val >> 10) & 0x3FF);
             drawingAreaLeft = static_cast<uint16_t>(val & 0x3FF);
         }
-
+        
         // GP0(0xE4): Set Drawing Area bottom right
         void gp0DrawingAreaBottomRight(uint32_t val) {
             drawingAreaBottom = static_cast<uint16_t>((val >> 10) & 0x3FF);
@@ -153,14 +196,18 @@ namespace Emulator {
             // to force sing extension
             drawingXOffset = static_cast<int16_t>(x << 5) >> 5;
             drawingYOffset = static_cast<int16_t>(y << 5) >> 5;
+            
+            // XXX Temporary hack: force display when changing offset,
+            // since we don't have proper timings
+            renderer->display();
         }
         
         // GP0(0xE2): Set Texture Window
         void gp0TextureWindow(uint32_t val) {
-            textureWindowXMask = static_cast<uint8_t>(val & 0x1F);
-            textureWindowYMask = static_cast<uint8_t>((val >> 5) & 0x1F);
-            textureWindowYMask = static_cast<uint8_t>((val >> 10) & 0x1F);
-            textureWindowYMask = static_cast<uint8_t>((val >> 15) & 0x1F);
+            textureWindowXMask   = static_cast<uint8_t>(val & 0x1F);
+            textureWindowYMask   = static_cast<uint8_t>((val >> 5) & 0x1F);
+            textureWindowXOffset = static_cast<uint8_t>((val >> 10) & 0x1F);
+            textureWindowYOffset = static_cast<uint8_t>((val >> 15) & 0x1F);
         }
         
         // GP0(0xE6): Set Mask Bit Setting
@@ -176,22 +223,91 @@ namespace Emulator {
         
         // GP0(0x28): Momochrome Opaque Quadrilateral
         void gp0QuadMonoOpaque(uint32_t val) {
-            printf("DRAWING A QUAD!!");
+            printf("DRAWING A QUAD!!\n");
+            
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.buffer[1]),
+                Position::fromGp0P(gp0Command.buffer[2]),
+                Position::fromGp0P(gp0Command.buffer[3]),
+                Position::fromGp0P(gp0Command.buffer[4]),
+            };
+            
+            // A single color repeated 4 times
+            Color colors[] = {
+                {255, 0, 0},
+                {0, 255, 0},
+                {255, 0, 255},
+                {255, 0, 0},
+                /*Color::fromGp0(gp0Command.buffer[0]),
+                Color::fromGp0(gp0Command.buffer[0]),
+                Color::fromGp0(gp0Command.buffer[0]),
+                Color::fromGp0(gp0Command.buffer[0]),*/
+            };
+            
+            renderer->pushQuad(positions, colors);
         }
         
-        // GP0(0x30): Triangle
+        // GP0(0x30): Shaded Opaque Triangle
         void gp0TriangleShadedOpaque(uint32_t val) {
-            printf("Triangle shaded");
+            printf("DRAWING A TRIANGLE!!\n");
+            
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.buffer[1]),
+                Position::fromGp0P(gp0Command.buffer[3]),
+                Position::fromGp0P(gp0Command.buffer[5]),
+            };
+            
+            Color colors[] = {
+                Color::fromGp0(gp0Command.buffer[0]),
+                Color::fromGp0(gp0Command.buffer[2]),
+                Color::fromGp0(gp0Command.buffer[4]),
+            };
+            
+            renderer->pushTriangle(positions, colors);
         }
-
-        // GP0(0xC2):
+        
+        // GP0(0xC2): Quad Texture Blend Opqaue
         void gp0QuadTextureBlendOpaque(uint32_t val) {
             printf("Quad texture blending");
+            
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.buffer[1]),
+                Position::fromGp0P(gp0Command.buffer[3]),
+                Position::fromGp0P(gp0Command.buffer[5]),
+                Position::fromGp0P(gp0Command.buffer[7]),
+            };
+            
+            // TODO; Textures aren't currently supported
+            Color colors[] = {
+                {0x80, 0x00, 0x00},
+                {0x80, 0x00, 0x00},
+                {0x80, 0x00, 0x00},
+                {0x80, 0x00, 0x00},
+            };
+            
+            renderer->pushQuad(positions, colors);
         }
         
         // GP0(0x38): gp0QuadShadedOpaque
         void gp0QuadShadedOpaque(uint32_t val) {
             printf("Quad shaded");
+            
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.buffer[1]),
+                Position::fromGp0P(gp0Command.buffer[3]),
+                Position::fromGp0P(gp0Command.buffer[5]),
+                Position::fromGp0P(gp0Command.buffer[7]),
+            };
+            
+            // A single color repeated 4 times
+            Color colors[] = {
+                Color::fromGp0(gp0Command.buffer[0]),
+                Color::fromGp0(gp0Command.buffer[2]),
+                Color::fromGp0(gp0Command.buffer[4]),
+                Color::fromGp0(gp0Command.buffer[6]),
+            };
+            
+            renderer->pushQuad(positions, colors);
         }
         
         // GP0(0x01): Clear Cache
@@ -332,6 +448,9 @@ namespace Emulator {
         
         // Pointer to the method implementing the current GP command
         std::function<void(Gpu&, uint32_t)> Gp0CommandMethod;
+    
+    public:
+        Renderer* renderer;
     };
 }
 #endif // GPU_H

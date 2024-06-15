@@ -41,9 +41,9 @@ uint32_t Emulator::Gpu::status() {
     
     // Bit 31 should change depending on the currently drawn line (whether it's even, odd or in the vblank apparently). Let's not bother with it for now.
     r |= 0 << 31;
-
+    
     //TODO;
-    r |= hres.intoStatus();
+    //r |= hres.intoStatus();
     
     // XXX Temporary hack: If we don't emulate bit 31 correctly,
     // setting 'vres' to 1 locks the BIOS:
@@ -140,8 +140,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
             Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
             break;
         default:
-            throw std::runtime_error("Unhandled GP0 command " + std::to_string(opcode));
-            break;
+            //throw std::runtime_error("Unhandled GP0 command " + std::to_string(opcode));
+            return;
         }
         
         gp0Command.clear();

@@ -553,7 +553,8 @@ void Interconnect::doDma(Port port) {
 void Interconnect::dmaBlock(Port port) {
     Channel& channel = dma->getChannel(port);
     
-    uint32_t increment = (channel.step == Increment) ? 4 : -4;
+    int32_t dec = -4;
+    uint32_t increment = (channel.step == Increment) ? 4 : static_cast<uint32_t>(dec);
     uint32_t addr = channel.base;
     
     // Transfer size in words
@@ -594,7 +595,7 @@ void Interconnect::dmaBlock(Port port) {
                         // Pointer to the previous entry
                         // TODO; Wrapped sub
                         //srcWord = (addr - 4) & 0x1FFFFF;
-                        srcWord = CPU::wrappingSub(srcWord, 4) & 0x1FFFFF;
+                        srcWord = CPU::wrappingSub(addr, 4) & 0x1FFFFF;
                     }
                     
                     break;
