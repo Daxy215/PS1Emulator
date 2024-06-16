@@ -3,13 +3,15 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <GL/glew.h>
 #include "SDL.h"
 
 #include "../Gpu.h"
 
-Emulator::Renderer::Renderer() {
+Emulator::Renderer::Renderer()
+        /*: mainFramebuffer(createFrameBuffer(640, 480)),
+            vRamFramebuffer(createFrameBuffer(120, 120))*/ {
+    
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL could not initialize SDL_Error: " << SDL_GetError() << '\n';
         return;
@@ -34,7 +36,7 @@ Emulator::Renderer::Renderer() {
         return;
     }
     
-    //SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
     
     glClearColor(1, 0, 0, 1.0f);
     SDL_GL_SwapWindow(window);
@@ -247,4 +249,27 @@ std::string Emulator::Renderer::getShaderSource(const std::string& path) {
     file.close();
     
     return content;
+}
+
+GLuint Emulator::Renderer::createFrameBuffer(GLsizei width, GLsizei height) {
+    GLuint framebuffer;
+    glGenFramebuffers(1, &framebuffer);
+    
+    GLuint texture;
+    glGenTextures(1, &texture);
+    
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << '\n';
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    return framebuffer;
 }

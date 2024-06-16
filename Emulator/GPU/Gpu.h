@@ -9,11 +9,10 @@
 #include <string>
 #include <GL/glew.h>
 
+#include "VRAM.h"
 #include "Rendering/Renderer.h"
 
 // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/
-
-class Renderer;
 
 namespace Emulator {
     // Depth of the pixel values in a texture page
@@ -102,7 +101,7 @@ namespace Emulator {
         // Default mode: Handling commands
         Command,
         // Loading an image into VRAM
-        ImageLoad,
+        VRam,
     };
     
     struct Position {
@@ -162,7 +161,8 @@ namespace Emulator {
               displayDisabled(true),
               interrupt(false),
               dmaDirection(DmaDirection::Off),
-              renderer(new Renderer()) {
+              renderer(new Renderer()),
+              vram(new VRAM(this)) {
             
         }
         
@@ -226,8 +226,6 @@ namespace Emulator {
         
         // GP0(0x28): Momochrome Opaque Quadrilateral
         void gp0QuadMonoOpaque(uint32_t val) {
-            printf("DRAWING A QUAD!!\n");
-            
             Position positions[] = {
                 Position::fromGp0P(gp0Command.buffer[1]),
                 Position::fromGp0P(gp0Command.buffer[2]),
@@ -248,8 +246,6 @@ namespace Emulator {
         
         // GP0(0x30): Shaded Opaque Triangle
         void gp0TriangleShadedOpaque(uint32_t val) {
-            printf("DRAWING A TRIANGLE!!\n");
-            
             Position positions[] = {
                 Position::fromGp0P(gp0Command.buffer[1]),
                 Position::fromGp0P(gp0Command.buffer[3]),
@@ -267,8 +263,6 @@ namespace Emulator {
         
         // GP0(0xC2): Quad Texture Blend Opqaue
         void gp0QuadTextureBlendOpaque(uint32_t val) {
-            printf("Quad texture blending\n");
-            
             Position positions[] = {
                 Position::fromGp0P(gp0Command.buffer[1]),
                 Position::fromGp0P(gp0Command.buffer[3]),
@@ -289,8 +283,6 @@ namespace Emulator {
         
         // GP0(0x38): gp0QuadShadedOpaque
         void gp0QuadShadedOpaque(uint32_t val) {
-            printf("Quad shaded");
-            
             Position positions[] = {
                 Position::fromGp0P(gp0Command.buffer[1]),
                 Position::fromGp0P(gp0Command.buffer[3]),
@@ -315,6 +307,7 @@ namespace Emulator {
         }
         
         // GP0(0xA0): Load Image
+        // From CPU to VRAM
         void gp0ImageLoad(uint32_t val) {
             // Parameter 2 contains the image resolution
             uint32_t res = gp0Command.buffer[2];
@@ -330,14 +323,24 @@ namespace Emulator {
             // of padding in the last word
             imgSize = (imgSize + 1) & ~1;
             
+            // Signal to VRAM to begin the transfer to the CPU
+            vram->beginTransfer(width, height, imgSize);
+            
             // Store number of words expected for this image
             gp0CommandRemaining = imgSize / 2;
             
-            // Put the GP0 state machine in ImageLoad mode
-            gp0Mode = ImageLoad;
+            //printf("Unhandled image load %d %d %d\n", width, height, imgSize / 2);
+            
+            // Put the GP0 state machine into the VRam mode
+            gp0Mode = VRam;
+            
+            // Update signals
+            canSendVRAMToCPU = true;
+            canSendCPUToVRAM = false;
         }
         
         // GP0(0xC0): Load Store
+        // From VRAM to CPU
         void gp0ImageStore(uint32_t val) {
             // Parameter 2 contains the image resolution
             uint32_t res = gp0Command.buffer[2];
@@ -345,7 +348,11 @@ namespace Emulator {
             uint32_t width = res & 0xFFFF;
             uint32_t height = res >> 16;
             
-            printf("Unhandled image store %x %x", width, height);
+            //printf("Unhandled image store %x %x\n", width, height);
+            
+            // Update signals
+            canSendVRAMToCPU = false;
+            canSendCPUToVRAM = true;
         }
         
         // Handles writes to the GP1 command register
@@ -370,13 +377,13 @@ namespace Emulator {
             displayVramXStart = static_cast<uint16_t>(val & 0x3FE);
             displayVramYStart = static_cast<uint16_t>((val >> 10) & 0x1FF);
         }
-
+        
         // GP1(0x06): Display Horizontal Range
         void gp1DisplayHorizontalRange(uint32_t val) {
             displayHorizStart = static_cast<uint16_t>(val & 0xFFF);
             displayHorizEnd = static_cast<uint16_t>((val >> 12) & 0xFFF);
         }
-
+        
         // GP1(0x07): Display Vertical Range
         void gp1DisplayVerticalRange(uint32_t val) {
             displayLineStart = static_cast<uint16_t>(val & 0x3FF);
@@ -436,6 +443,12 @@ namespace Emulator {
         uint16_t displayLineStart; // Display output first line relative to VSYNC
         uint16_t displayLineEnd; // Display output last line relative to VSYNC
         
+        // Signals
+        // TODO; Rename to isReady instead of can. Would make more sense..
+        bool canSendVRAMToCPU;
+        bool canSendCPUToVRAM;
+        bool canReceiveDMABlock;
+    public:
         // Buffer containing the current GP0 command
         CommandBuffer gp0Command;
         
@@ -447,9 +460,10 @@ namespace Emulator {
         
         // Pointer to the method implementing the current GP command
         std::function<void(Gpu&, uint32_t)> Gp0CommandMethod;
-    
+        
     public:
         Renderer* renderer;
+        VRAM* vram;
     };
 }
 #endif // GPU_H

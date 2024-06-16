@@ -28,20 +28,6 @@ uint32_t Emulator::Gpu::status() {
     r |= static_cast<uint32_t>(displayDisabled) << 23;
     r |= static_cast<uint32_t>(interrupt) << 24;
     
-    // For now we pretend that the GPU is always ready:
-    // Ready to receive command
-    r |= 1 << 26;
-    
-    // Ready to send VRAM to CPU
-    r |= 1 << 27;
-    
-    // Ready to receive DMA block
-    r |= 1 << 28;
-    r |= static_cast<uint32_t>(dmaDirection) << 29;
-    
-    // Bit 31 should change depending on the currently drawn line (whether it's even, odd or in the vblank apparently). Let's not bother with it for now.
-    r |= 0 << 31;
-    
     //TODO;
     //r |= hres.intoStatus();
     
@@ -73,6 +59,22 @@ uint32_t Emulator::Gpu::status() {
     }
     
     r |= dmaRequest << 25;
+
+    // For now we pretend that the GPU is always ready:
+    // Ready to receive command
+    r |= 1 << 26;
+    
+    // Ready to send VRAM to CPU
+    r |= canSendVRAMToCPU << 27;
+    
+    // Ready to receive DMA block
+    r |= canReceiveDMABlock << 28;
+    r |= static_cast<uint32_t>(dmaDirection) << 29;
+    
+    // Bit 31 should change depending on the currently drawn line
+    // (whether it's even, odd or in the vblank apparently).
+    // Let's not bother with it for now.
+    r |= 0 << 31;
     
     return r;
 }
@@ -144,13 +146,29 @@ void Emulator::Gpu::gp0(uint32_t val) {
             return;
         }
         
+        // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#gpu-memory-transfer-commands
+        /*if (opcode >= 0x20 && opcode <= 0x3F) {
+            printf("GP0_RenderPolygon\n");
+        } else if (opcode >= 0x40 && opcode <= 0x5F) {
+            printf("GP0_RenderLine\n");
+        } else if (opcode >= 0x60 && opcode <= 0x7F) {
+            printf("GP0_RenderRectangle\n");
+        } else if (opcode >= 0x80 && opcode <= 0x9F) {
+            printf("GP0_MemCopyRectVRAMtoVRAM\n");
+        } else if (opcode >= 0xA0 && opcode <= 0xBF) {
+            printf("GP0_MemCopyRectCPUtoVRAM\n");
+        } else if (opcode >= 0xC0 && opcode <= 0xDF) {
+            printf("GP0_MemCopyRectVRAMtoCPU\n");
+        } else if ((opcode >= 0x3 && opcode <= 0x1E) || opcode == 0xE0 || (opcode >= 0xE7 && opcode <= 0xEF)) {
+            printf("GP0_00_NOP\n");
+        }*/
+        
         gp0Command.clear();
     }
     
-    gp0CommandRemaining--;
-    
     switch (gp0Mode) {
     case Command:
+        gp0CommandRemaining--;
         gp0Command.pushWord(val);
         
         if(gp0CommandRemaining == 0) {
@@ -158,18 +176,28 @@ void Emulator::Gpu::gp0(uint32_t val) {
             Gp0CommandMethod(*this, val);
         }
         break;
-    case ImageLoad:
-        // XXX Should copy pixel data to VRAM
+    case VRam:
+        // Store pixel data into VRAM
+        
+        // Draws 2 pixels at a time
+        gp0CommandRemaining -= 1;
+        
         if (gp0CommandRemaining == 0) {
+            // Signal VRAM that image has finished loading.
+            vram->endTransfer();
+            
             // Load done, switch back to command mode
             gp0Mode = Gp0Mode::Command;
-        }
+        } else
+            vram->store(val);
         
         break;
     }
 }
 
 void Emulator::Gpu::gp0DrawMode(uint32_t val) {
+    // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#clut-attribute-color-lookup-table-aka-palette
+    
     pageBaseX = static_cast<uint8_t>((val & 0xF));
     pageBaseY = static_cast<uint8_t>((val >> 4) & 1);
     semiTransparency = static_cast<uint8_t>((val >> 5) & 3);
@@ -181,7 +209,8 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
     case 1:
         textureDepth = TextureDepth::T8Bit;
         break;
-    case 2:
+    case 2: case 3:
+        // Texture page colors setting 3 (reserved) is same as setting 2 (15bit).
         textureDepth = TextureDepth::T15Bit;
         break;
     default:
@@ -197,7 +226,7 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
 
 void Emulator::Gpu::gp1(uint32_t val) {
     uint32_t opcode = (val >> 24) & 0xFF;
-
+    
     switch (opcode) {
     case 0x00:
         gp1Reset(val);
@@ -230,59 +259,6 @@ void Emulator::Gpu::gp1(uint32_t val) {
         std::cerr << "ERROR; Unhandled GPU command " << std::to_string(opcode) << '\n'; 
         break;
     }
-    
-    /*if(gp0CommandRemaining == 0) {
-        // Start a new GP0 command
-        uint32_t opcode = (val >> 24) & 0xFF;
-        
-        switch (opcode) {
-        case 0x00:
-            gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0Nop;
-            break;
-        case 0x28:
-            gp0CommandRemaining = 5;
-            Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
-            break;
-        case 0xE1:
-            gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0DrawMode;
-            break;
-        case 0xE2:
-            gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0TextureWindow;
-            break;
-        case 0xE3:
-            gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0DrawingAreaTopLeft;
-            break;
-        case 0xE4:
-            gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0DrawingBottomRight;
-            break;
-        case 0xE5:
-            gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0DrawingOffset;
-            break;
-        case 0xE6:
-            gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0MaskBitSetting;
-            break;
-        default:
-            throw std::runtime_error("Unhandled GP0 command " + std::to_string(val));
-            break;
-        }
-        
-        gp0Command.clear();
-    }
-    
-    gp0Command.pushWord(val);
-    gp0CommandRemaining--;
-    
-    if(gp0CommandRemaining == 0) {
-       // All of the parameters optioned; run the command
-        Gp0CommandMethod(*this, val);
-    }*/
 }
 
 void Emulator::Gpu::gp1Reset(uint32_t val) {
@@ -327,7 +303,7 @@ void Emulator::Gpu::gp1Reset(uint32_t val) {
     displayDepth = DisplayDepth::D15Bits;
     
     // XXX should also clear the command FIFO when we implement it
-    // XXX Should also invalidate GPU chace if we ever implement it
+    // XXX Should also invalidate GPU chance if we ever implement it
 }
 
 void Emulator::Gpu::gp1DisplayMode(uint32_t val) {

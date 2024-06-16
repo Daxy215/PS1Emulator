@@ -317,7 +317,7 @@ int main(int argc, char* argv[]) {
              * pc: 2147815840 - 13176545
              */
             if(x == 13176543) {
-                printf("Weee");
+                //printf("Weee");
             }
             
             cpu->executeNextInstruction();

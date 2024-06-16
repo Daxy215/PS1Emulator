@@ -1,17 +1,16 @@
 ﻿#pragma once
+
 #include <iostream>
+#include <SDL_render.h>
 #include <SDL_video.h>
 #include <GL/glew.h>
-//#include <GL/wglew.h>
 
 #include "Buffer.h"
 
 namespace Emulator {
-    class Position;
-    class Color;
-}
-
-namespace Emulator {
+    struct Position;
+    struct Color;
+    
     class Renderer {
     public:
         Renderer();
@@ -42,10 +41,17 @@ namespace Emulator {
         }
         
         std::string getShaderSource(const std::string& path);
+        
+        GLuint createFrameBuffer(GLsizei width, GLsizei height);
     public:
+        // Shader parameters
         GLuint vertexShader;
         GLuint fragmentShader;
         GLuint program;
+        
+        // Frame buffers
+        GLuint mainFramebuffer;
+        GLuint vRamFramebuffer;
         
         // Vertex Array Object
         GLuint VAO;
@@ -62,7 +68,8 @@ namespace Emulator {
         // Current number of vertices in the buffers
         uint32_t nVertices;
         
-        SDL_GLContext sdl_context;
         SDL_Window* window;
+        SDL_GLContext sdl_context;
+        SDL_Renderer* renderer;
     };
 }

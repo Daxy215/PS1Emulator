@@ -8,7 +8,7 @@
 
 #include "Bios.h"
 #include "Dma.h"
-#include "Gpu.h"
+#include "GPU/Gpu.h"
 #include "Ram.h"
 #include "Range.h"
 #include "SPU.h"
@@ -47,7 +47,7 @@ public:
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
-            printf("IRQ control read %s\n", to_hex(offset.value()).c_str());
+            printf("IRQ control read %s\n", to_hex(abs_addr).c_str());
             return 0;
         }
         
@@ -60,21 +60,30 @@ public:
             switch (offset.value()) {
                 case 0:
                     return gpu->read();
-                case 4:
+                case 4: {
+                    uint32_t r = gpu->status();
+                    if(r != 0x1c000000) {
+                        // TODO;
+                        //std::cerr << "y is it not THE SAME!; " << std::to_string(r) << "\n";
+                    }
+
+                    //return gpu->status();
                     return 0x1c000000;
                     //return gpu->status();
+                }
                 default:
                     return 0;
             }
         }
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
-            printf("TIMERS control read %s\n", to_hex(offset.value()).c_str());
+            //printf("TIMERS control read %s\n", to_hex(abs_addr).c_str());
             return 0;
         }
         
-        if (auto _ = map::CDROM.contains(abs_addr)) {
-            //return 0;
+        if (auto offset = map::CDROM.contains(abs_addr)) {
+            printf("CDROM load %x", abs_addr);
+            
             throw std::runtime_error("Unhandled CDROM load at address 0x" + to_hex(addr));
         }
         
@@ -184,7 +193,12 @@ public:
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled write to CDROM 0x" + to_hex(offset.value()));
+            int8_t index = (int8_t)(val & 0x3);
+            
+            printf("CDROM %x", abs_addr);
+            std::cerr << "F";
+            
+            throw std::runtime_error("Unhandled write to CDROM 0x" + to_hex(abs_addr));
         }
         
         if (auto offset = map::MDEC.contains(abs_addr)) {
