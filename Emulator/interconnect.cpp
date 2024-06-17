@@ -509,7 +509,7 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
         }
         break;
     }
-    // Common DMA registers            
+    // Common DMA registers
     case 7: {
         switch (minor) {
             case 0:
@@ -523,14 +523,6 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
     default:
         throw std::runtime_error("Unhandled DMA read at " + std::to_string(offset));
     }
-    
-    /*switch (offset) {  // NOLINT(hicpp-multiway-paths-covered)
-    case 0x70:
-        return dma->control;
-    default:
-        printf("Unhandled DMA read access %x", offset);
-        break;
-    }*/
     
     return 0;
 }
@@ -672,7 +664,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     uint32_t major = (offset & 0x70) >> 4;
     uint32_t minor = offset & 0xf;
     std::optional<Port> activePort = std::nullopt;
-
+    
     switch (major) {
     case 0: case 1: case 2: case 3: case 4: case 5: case 6: {
             Port port = PortC::fromIndex(major);

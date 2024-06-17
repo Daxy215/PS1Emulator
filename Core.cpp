@@ -109,7 +109,9 @@
  * For now let’s take a few steps back and revisit all the DMA register reads
  * and writes done by the BIOS so that we can emulate them correctly.
  * 
- * There 7 DMA channels: 
+ * https://psx-spx.consoledev.net/dmachannels/#dma-register-summary
+ * 
+ * There 7 DMA channels:
     * Channel 0 -> Is used to connect to the Media Decoder input
     * Channel 1 -> Is used to connect to the Media Decoder output
     * Channel 2 -> Is used to connect to the GPU

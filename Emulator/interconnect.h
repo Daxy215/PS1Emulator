@@ -52,6 +52,10 @@ public:
         }
         
         if (auto offset = map::DMA.contains(abs_addr)) {
+            if(abs_addr == 0x01000200) {
+                printf("Yay\n");
+            }
+            
             return dmaReg(offset.value());
         }
         
@@ -62,11 +66,12 @@ public:
                     return gpu->read();
                 case 4: {
                     uint32_t r = gpu->status();
+                    
                     if(r != 0x1c000000) {
                         // TODO;
                         //std::cerr << "y is it not THE SAME!; " << std::to_string(r) << "\n";
                     }
-
+                    
                     //return gpu->status();
                     return 0x1c000000;
                     //return gpu->status();

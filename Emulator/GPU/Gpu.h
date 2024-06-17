@@ -312,6 +312,8 @@ namespace Emulator {
             // Parameter 2 contains the image resolution
             uint32_t res = gp0Command.buffer[2];
             
+            // 2nd  Source Coord      (YyyyXxxxh) ; write to GP0 port (as usually)
+            
             uint32_t width = res & 0xFFFF;
             uint32_t height = res >> 16;
             

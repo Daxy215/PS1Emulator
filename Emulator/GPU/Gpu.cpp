@@ -6,6 +6,8 @@
 #include <string>
 
 uint32_t Emulator::Gpu::status() {
+    // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#1f801814h-gpustat-gpu-status-register-r
+    
     uint32_t r = 0;
     
     r |= static_cast<uint32_t>(pageBaseX) << 0;
@@ -59,7 +61,7 @@ uint32_t Emulator::Gpu::status() {
     }
     
     r |= dmaRequest << 25;
-
+    
     // For now we pretend that the GPU is always ready:
     // Ready to receive command
     r |= 1 << 26;
@@ -177,8 +179,6 @@ void Emulator::Gpu::gp0(uint32_t val) {
         }
         break;
     case VRam:
-        // Store pixel data into VRAM
-        
         // Draws 2 pixels at a time
         gp0CommandRemaining -= 1;
         
@@ -188,8 +188,10 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             // Load done, switch back to command mode
             gp0Mode = Gp0Mode::Command;
-        } else
+        } else {
+            // Store pixel data into VRAM
             vram->store(val);
+        }
         
         break;
     }
@@ -307,6 +309,8 @@ void Emulator::Gpu::gp1Reset(uint32_t val) {
 }
 
 void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
+    // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#gp108h-display-mode
+    
     uint8_t hr1 = static_cast<uint8_t>(val & 3);
     uint8_t hr2 = static_cast<uint8_t>((val >> 6) & 1);
     
@@ -315,8 +319,8 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     vres = (val & 0x4) != 0 ? VerticalRes::Y480Lines : VerticalRes::Y240Lines;
     vmode = (val & 0x8) != 0 ? VMode::Pal : VMode::Ntsc;
     displayDepth = (val & 0x10) != 0 ? DisplayDepth::D15Bits : DisplayDepth::D24Bits;
-    
-    interlaced = (val & 0x20)!= 0;
+    interlaced = (val & 0x20) != 0;
+    field = static_cast<Field>(interlaced);
     
     if ((val & 0x80) != 0) {
         std::cout << "Unsupported display mode: " << std::hex << val << '\n';
@@ -344,6 +348,6 @@ void Emulator::Gpu::gp1DmaDirection(uint32_t val) {
 }
 
 uint32_t Emulator::Gpu::read() {
-    // Not imeplemented for now
+    // Not implemented for now
     return 0;
 }
