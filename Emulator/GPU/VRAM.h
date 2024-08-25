@@ -28,13 +28,12 @@ namespace Emulator {
         VRAM(Gpu* gpu);
         
         void store(uint32_t val);
-        void beginTransfer(uint32_t width, uint32_t height, uint32_t imgSize);
+        void beginTransfer(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t imgSize);
         void stepTransfer();
         void endTransfer();
-
+        
         // Pixel stuff...
         void drawPixel(uint32_t pixel);
-        
         void setPixel(uint32_t x, uint32_t y, uint32_t color);
         
         uint32_t getPixelRGB888(uint32_t x, uint32_t y);

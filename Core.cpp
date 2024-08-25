@@ -6,7 +6,7 @@
 #include <SDL.h>
 
 #include "Emulator/Bios.h"
-#include "Emulator/CPU.h"
+#include "Emulator/CPU/CPU.h"
 #include "Emulator/SPU.h"
 
 //#include "Emulator/interconnect.h"

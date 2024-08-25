@@ -85,6 +85,11 @@ void Emulator::Gpu::gp0(uint32_t val) {
     if(gp0CommandRemaining == 0) {
         // Start a new GP0 command
         uint32_t opcode = (val >> 24) & 0xFF;
+        uint32_t code = val >> 24;
+
+        if(opcode != code) {
+            printf("Really?\n");
+        }
         
         switch (opcode) {
         case 0x00:
@@ -111,6 +116,14 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp0ImageLoad;
             break;
+        case 0xC0: case 0xCA:
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0ImageStore;
+            break;
+        case 0x2C:
+            gp0CommandRemaining = 9;
+            Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
+            break;
         case 0xE1:
             gp0CommandRemaining = 1;
             Gp0CommandMethod = &Gpu::gp0DrawMode;
@@ -135,22 +148,73 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 1;
             Gp0CommandMethod = &Gpu::gp0MaskBitSetting;
             break;
-        case 0xC0:
-            gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0ImageStore;
-            break;
-        case 0x2C:
-            gp0CommandRemaining = 9;
-            Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
-            break;
         default:
+            printf("Unhandled GP0 command %x\n", opcode);
+            
             //throw std::runtime_error("Unhandled GP0 command " + std::to_string(opcode));
             return;
         }
         
+        uint32_t cmd = (val >> 29) & 0x07;
+        
         // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#gpu-memory-transfer-commands
+        if(cmd == 4) {
+            // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#vram-to-vram-blitting-command-4-100
+            // VRAM to VRAM blitting
+            /**
+            * 1st  Command
+            * 2nd  Source Coord      (YyyyXxxxh)  ;Xpos counted in halfwords
+            * 3rd  Destination Coord (YyyyXxxxh)  ;Xpos counted in halfwords
+            * 4th  Width+Height      (YsizXsizh)  ;Xsiz counted in halfwords
+            */
+            
+        } else if(cmd == 5) {
+            // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#cpu-to-vram-blitting-command-5-101
+            // CPU to VRAM blitting
+            /*uint32_t destinationCoord = gp0Command.buffer[1];
+            uint32_t widthHeight = gp0Command.buffer[2];
+            
+            uint16_t destX = destinationCoord & 0xFFFF;
+            uint16_t destY = (destinationCoord >> 16) & 0xFFFF;
+            
+            uint16_t width = widthHeight & 0xFFFF;
+            uint16_t height = (widthHeight >> 16) & 0xFFFF;
+            
+            destX = destX & 0x3F0;
+            uint32_t data = val & 0xFFFF;
+            
+            for(size_t y = 0; y < height; y++) {
+                for(size_t x = 0; x < width; x++) {
+                    //((val >> 16) + gpu->dithering) / 8;
+                    data = data >> 16;
+                    uint32_t pixel = (data >> 16);
+                    uint32_t color = vram->color1555to8888LUT[pixel];
+                    vram->setPixel(x & 0x3FF, y & 0x1FF, pixel);
+                    
+                    printf("S");
+                }
+            }
+            
+            vram->endTransfer();*/
+        } else if (cmd == 6) {
+            // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#vram-to-cpu-blitting-command-6-110
+            // VRAM to CPU blitting
+
+            /*uint32_t destinationCoord = gp0Command.buffer[1];
+            uint32_t widthHeight = gp0Command.buffer[2];
+            
+            uint16_t srcX = destinationCoord & 0xFFFF;
+            uint16_t srcY = (destinationCoord >> 16) & 0xFFFF;
+            
+            uint16_t width = widthHeight & 0xFFFF;
+            uint16_t height = (widthHeight >> 16) & 0xFFFF;
+            
+            printf("S");*/
+        }
+        
         /*if (opcode >= 0x20 && opcode <= 0x3F) {
             printf("GP0_RenderPolygon\n");
+            //gp0RenderPolygon(val);
         } else if (opcode >= 0x40 && opcode <= 0x5F) {
             printf("GP0_RenderLine\n");
         } else if (opcode >= 0x60 && opcode <= 0x7F) {
@@ -162,7 +226,9 @@ void Emulator::Gpu::gp0(uint32_t val) {
         } else if (opcode >= 0xC0 && opcode <= 0xDF) {
             printf("GP0_MemCopyRectVRAMtoCPU\n");
         } else if ((opcode >= 0x3 && opcode <= 0x1E) || opcode == 0xE0 || (opcode >= 0xE7 && opcode <= 0xEF)) {
-            printf("GP0_00_NOP\n");
+            //printf("GP0_00_NOP\n");
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0Nop;
         }*/
         
         gp0Command.clear();
@@ -219,8 +285,9 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
         throw std::runtime_error("Unhandled texture depth " + std::to_string((val >> 7) & 3));
     }
     
+    // Dither 24bit to 15bit (0=Off/strip LSBs, 1=Dither Enabled) ;GPUSTAT.9
     dithering = ((val >> 9) & 1) != 0;
-    drawToDisplay = ((val >> 10) & 1) != 0;
+    drawToDisplay = ((val >> 10) & 1) != 0; // (0=Prohibited, 1=Allowed)
     textureDisable = ((val >> 11) & 1) != 0;
     rectangleTextureFlipX = ((val >> 12) & 1) != 0;
     rectangleTextureFlipY = ((val >> 13) & 1) != 0;
@@ -320,6 +387,7 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     vmode = (val & 0x8) != 0 ? VMode::Pal : VMode::Ntsc;
     displayDepth = (val & 0x10) != 0 ? DisplayDepth::D15Bits : DisplayDepth::D24Bits;
     interlaced = (val & 0x20) != 0;
+    
     field = static_cast<Field>(interlaced);
     
     if ((val & 0x80) != 0) {
@@ -342,6 +410,8 @@ void Emulator::Gpu::gp1DmaDirection(uint32_t val) {
         dmaDirection = DmaDirection::VRamToCpu;
         break;
     default:
+        dmaDirection = DmaDirection::Off;
+        
         throw std::runtime_error("This shouldn't happen.. GP1 Direction; " + std::to_string(val & 3));
         break;
     }
@@ -349,5 +419,8 @@ void Emulator::Gpu::gp1DmaDirection(uint32_t val) {
 
 uint32_t Emulator::Gpu::read() {
     // Not implemented for now
-    return 0;
+    
+    //printf("Size; %d\n", gp0CommandRemaining);
+    
+    return 0; // 0x1f801810
 }

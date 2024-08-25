@@ -29,10 +29,10 @@ uint32_t Bios::getLittleEndian(std::ifstream& file) {
     uint32_t val;
     char bytes[4];
     file.read(bytes, 4);
-
+    
     // Reorder bytes for little endian
     val = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
-
+    
     return val;
 }
 

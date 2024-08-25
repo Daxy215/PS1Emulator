@@ -3,7 +3,7 @@
 #include <optional>
 
 #include "Instruction.h"
-#include "interconnect.h"
+#include "../interconnect.h"
 
 class Instruction;
 

@@ -53,10 +53,7 @@ void Emulator::VRAM::store(uint32_t val) {
     drawPixel(pixel1);
 }
 
-void Emulator::VRAM::beginTransfer(uint32_t width, uint32_t height, uint32_t imgSize) {
-    // TODO;
-    uint32_t x = width, y = width;
-    
+void Emulator::VRAM::beginTransfer(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t imgSize) {
     transferData = {x, y, width, height, imgSize};
 }
 

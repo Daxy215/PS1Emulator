@@ -224,6 +224,10 @@ namespace Emulator {
             // NOP
         }
         
+        static inline bool get_bit(uint32_t num, int b) {
+            return num & (1 << b);
+        }
+        
         // GP0(0x28): Momochrome Opaque Quadrilateral
         void gp0QuadMonoOpaque(uint32_t val) {
             Position positions[] = {
@@ -242,6 +246,26 @@ namespace Emulator {
             };
             
             renderer->pushQuad(positions, colors);
+        }
+
+        // GP0: Render Polygon
+        void gp0RenderPolygon(uint32_t val) {
+            auto command = gp0Command.buffer[0];
+            uint32_t opcode = command >> 24;
+            
+            bool quad = get_bit(command, 27);
+            bool shaded = get_bit(command, 28);
+            bool textured = get_bit(command, 26);
+            bool mono = opcode == 0x20 || opcode == 0x22 || opcode == 0x28 || opcode == 0x2A;
+            bool semiTransparent = get_bit(command, 25);
+            bool rawTextured = get_bit(command, 28);
+            int numVertices = quad ? 4 : 3;
+            int pointer = (mono || !shaded ? 1 : 0);
+            
+            uint32_t r = (command >> 0) & 0xff;
+            uint32_t g = (command >> 8) & 0xff;
+            uint32_t b = (command >> 16) & 0xff;
+            
         }
         
         // GP0(0x30): Shaded Opaque Triangle
@@ -309,11 +333,13 @@ namespace Emulator {
         // GP0(0xA0): Load Image
         // From CPU to VRAM
         void gp0ImageLoad(uint32_t val) {
-            // Parameter 2 contains the image resolution
+            uint32_t cords = gp0Command.buffer[1];
             uint32_t res = gp0Command.buffer[2];
             
-            // 2nd  Source Coord      (YyyyXxxxh) ; write to GP0 port (as usually)
+            uint32_t x = cords & 0xFFFF;
+            uint32_t y = cords >> 16;
             
+            // 2nd  Source Coord      (YyyyXxxxh) ; write to GP0 port (as usually)
             uint32_t width = res & 0xFFFF;
             uint32_t height = res >> 16;
             
@@ -326,12 +352,10 @@ namespace Emulator {
             imgSize = (imgSize + 1) & ~1;
             
             // Signal to VRAM to begin the transfer to the CPU
-            vram->beginTransfer(width, height, imgSize);
+            vram->beginTransfer(x, y, width, height, imgSize);
             
             // Store number of words expected for this image
             gp0CommandRemaining = imgSize / 2;
-            
-            //printf("Unhandled image load %d %d %d\n", width, height, imgSize / 2);
             
             // Put the GP0 state machine into the VRam mode
             gp0Mode = VRam;
@@ -344,8 +368,11 @@ namespace Emulator {
         // GP0(0xC0): Load Store
         // From VRAM to CPU
         void gp0ImageStore(uint32_t val) {
-            // Parameter 2 contains the image resolution
+            uint32_t cords = gp0Command.buffer[1];
             uint32_t res = gp0Command.buffer[2];
+            
+            uint32_t x = cords & 0xFFFF;
+            uint32_t y = cords >> 16;
             
             uint32_t width = res & 0xFFFF;
             uint32_t height = res >> 16;
