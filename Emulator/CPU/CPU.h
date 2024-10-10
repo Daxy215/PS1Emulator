@@ -266,6 +266,8 @@ public:
     void opbreak(Instruction& instruction);
     
     void opillegal(Instruction& instruction);
+
+    void checkForTTY();
     
     bool test = false, no = false;
     

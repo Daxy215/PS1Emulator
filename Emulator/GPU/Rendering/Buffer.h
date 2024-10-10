@@ -38,10 +38,10 @@ struct Buffer {
         // Write only persistent mapping. Not coherent
         glBufferStorage(GL_ARRAY_BUFFER,
             bufferSize, nullptr,
-            GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT);
+            GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
         
         map = static_cast<T*>(glMapBufferRange(GL_ARRAY_BUFFER, 0,
-            bufferSize, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT));
+            bufferSize, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT));
         
         // Check for errors
         GLenum err = glGetError();
@@ -55,7 +55,7 @@ struct Buffer {
         glBufferStorage(GL_ARRAY_BUFFER, 0, bufferSize, defaultValues.data());*/
     }
     
-    void set(uint32_t index, const T& value) {
+    void set(uint32_t index, const T& value) const {
         if (index >= VERTEX_BUFFER_LEN) {
             throw std::runtime_error("buffer overflow!");
         }

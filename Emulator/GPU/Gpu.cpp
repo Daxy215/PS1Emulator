@@ -85,11 +85,12 @@ void Emulator::Gpu::gp0(uint32_t val) {
     if(gp0CommandRemaining == 0) {
         // Start a new GP0 command
         uint32_t opcode = (val >> 24) & 0xFF;
-        uint32_t code = val >> 24;
-
-        if(opcode != code) {
+        uint32_t code = val >> 29;
+        
+        /*if(opcode != code) {
             printf("Really?\n");
-        }
+            std::cerr << "";
+        }*/
         
         switch (opcode) {
         case 0x00:
@@ -109,15 +110,15 @@ void Emulator::Gpu::gp0(uint32_t val) {
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
             break;
         case 0x38:
-            gp0CommandRemaining = 1;
+            gp0CommandRemaining = 8;
             Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
             break;
         case 0xA0:
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp0ImageLoad;
             break;
-        case 0xC0: case 0xCA:
-            gp0CommandRemaining = 1;
+        case 0xC0:/* case 0xCA:*/
+            gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp0ImageStore;
             break;
         case 0x2C:
@@ -213,7 +214,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         }
         
         /*if (opcode >= 0x20 && opcode <= 0x3F) {
-            printf("GP0_RenderPolygon\n");
+            printf("GP0_RenderPolygon %x\n", val);
+            std::cerr << "";
             //gp0RenderPolygon(val);
         } else if (opcode >= 0x40 && opcode <= 0x5F) {
             printf("GP0_RenderLine\n");

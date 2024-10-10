@@ -70,7 +70,7 @@ namespace Emulator {
     
     // Buffer holding multi-word fixed-length GP0 command parameters
     struct CommandBuffer {
-        // Command buffer: the longuest possible command is GP0(0x3E)
+        // Command buffer: the longest possible command is GP0(0x3E)
         // which takes 12 paramaters
         uint32_t buffer[12];
         
@@ -83,7 +83,7 @@ namespace Emulator {
             if (index >= buffer.len) {
                 throw std::out_of_range("Command buffer index out of range: " + std::to_string(index));
             }
-                
+            
             return &buffer.buffer[index];
         }
         
@@ -112,8 +112,8 @@ namespace Emulator {
         }
         
         static Position fromGp0P(uint32_t val) {
-            int16_t x = static_cast<int16_t>(val);
-            int16_t y = static_cast<int16_t>(val >> 16);
+            int16_t x = static_cast<int16_t>(val & 0xFFFF);
+            int16_t y = static_cast<int16_t>((val >> 16) & 0xFFFF);
             
             return {x, y};
         }
@@ -247,7 +247,7 @@ namespace Emulator {
             
             renderer->pushQuad(positions, colors);
         }
-
+        
         // GP0: Render Polygon
         void gp0RenderPolygon(uint32_t val) {
             auto command = gp0Command.buffer[0];
@@ -268,7 +268,7 @@ namespace Emulator {
             
         }
         
-        // GP0(0x30): Shaded Opaque Triangle
+        // GP0(GP): Shaded Opaque Triangle
         void gp0TriangleShadedOpaque(uint32_t val) {
             Position positions[] = {
                 Position::fromGp0P(gp0Command.buffer[1]),
@@ -282,7 +282,7 @@ namespace Emulator {
                 Color::fromGp0(gp0Command.buffer[4]),
             };
             
-            renderer->pushTriangle(positions, colors);
+            //renderer->pushTriangle(positions, colors);
         }
         
         // GP0(0xC2): Quad Texture Blend Opqaue

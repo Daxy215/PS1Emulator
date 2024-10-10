@@ -7,7 +7,7 @@
 
 #include "Emulator/Bios.h"
 #include "Emulator/CPU/CPU.h"
-#include "Emulator/SPU.h"
+#include "Emulator/SPU/SPU.h"
 
 //#include "Emulator/interconnect.h"
 //#include "Emulator/Ram.h"
@@ -313,7 +313,7 @@ int main(int argc, char* argv[]) {
              * PC; 2147815804 - 13176543 -> BEN (REG 12 IS WRONG!)
              * PC; 2147815808 - 13176544
              * PC; 2147815812 - 13176545
-             *
+             * 
              * pc: 2147815804 - 13176543 -> BEN (REG 12 IS WRONG!)
              * pc: 2147815836 - 13176544
              * pc: 2147815840 - 13176545

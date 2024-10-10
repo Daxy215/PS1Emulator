@@ -11,7 +11,7 @@
 #include "GPU/Gpu.h"
 #include "Ram.h"
 #include "Range.h"
-#include "SPU.h"
+#include "SPU/SPU.h"
 
 /**
  * This class is used to allow the BIOS to communicate with the CPU! :D
@@ -47,7 +47,7 @@ public:
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
-            printf("IRQ control read %s\n", to_hex(abs_addr).c_str());
+            //printf("IRQ control read %s\n", to_hex(abs_addr).c_str());
             return 0;
         }
         
@@ -198,7 +198,7 @@ public:
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-            int8_t index = (int8_t)(val & 0x3);
+            int8_t index = static_cast<int8_t>(val & 0x3);
             
             printf("CDROM %x", abs_addr);
             std::cerr << "F";
@@ -247,7 +247,7 @@ public:
                     
                     break;
                 default:
-                    printf("Unhandled write to MEM_CONTROL register %s: %0x8\n", to_hex(offset.value()).c_str(), to_hex(val));
+                    //printf("Unhandled write to MEM_CONTROL register %s: %0x8\n", to_hex(offset.value()).c_str(), to_hex(val));
                     //throw std::runtime_error("Unhandled write to MEM_CONTROL register 0x" + to_hex(offset.value()) + ": 0x" + to_hex(val));
                     break;
             }

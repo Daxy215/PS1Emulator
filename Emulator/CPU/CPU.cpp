@@ -97,6 +97,8 @@ void CPU::executeNextInstruction() {
      * I was reading the data in big-edian format amazingly..
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
+
+    
     
     //nextInstruction = new Instruction(load32(pc));
     uint32_t pc = this->pc;
@@ -143,6 +145,8 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     
     //std::cerr << "Processing; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.func()) << " PC; " << pc << '\n';
     //printf("Processing CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
+    
+    checkForTTY();
     
     switch (instruction.func()) {
         case 0b000000:
@@ -1317,7 +1321,7 @@ void CPU::exception(Exception cause) {
     pc = handler;
     nextpc = wrappingAdd(pc, 4);
     
-    std::cerr << "EXCEPTION OCCURRED!!" << cause << "\n";
+    //std::cerr << "EXCEPTION OCCURRED!!" << cause << "\n";
 }
 
 void CPU::opSyscall(Instruction& instruction) {
@@ -1332,6 +1336,24 @@ void CPU::opillegal(Instruction& instruction) {
     printf("Illegal instruction %d %d PC; %d\n", instruction.func().reg, instruction.subfunction().reg, currentpc);
     //std::cerr << "Illegal instruction " << instruction.op << " PC; " << currentpc << "\n";
     exception(IllegalInstruction);
+}
+
+void CPU::checkForTTY() {
+    uint32_t pc_physical = pc & 0x1FFFFFFF;
+    
+    if ((pc_physical == 0x000000A0 || pc_physical == 0x000000B0 || pc_physical == 0x000000C0)) {
+        //uint32_t r9 = regs[9];
+        
+        //if (r9 == 0x3C || r9 == 0x3D) {
+            //char ch = static_cast<char>(regs[4] & 0xFF);
+        
+        char ch = static_cast<char>(regs[4] & 0xFF);
+        
+        if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r') {
+            std::cerr << ch;
+        }
+        //}
+    }
 }
 
 void CPU::opj(Instruction& instruction) {

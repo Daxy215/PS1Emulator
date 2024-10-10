@@ -35,7 +35,7 @@ void Dma::setInterrupt(uint32_t val) {
 bool Dma::irq() {
     auto channelIrq = this->channelIraqFlags & this->channelIrqEn;
     
-    return forceIrq || (this->irqEn && channelIrq != 0); 
+    return forceIrq || (this->irqEn && channelIrq != 0);
 }
 
 void Dma::setControl(uint32_t val) {

@@ -11,7 +11,7 @@
 Emulator::Renderer::Renderer()
         /*: mainFramebuffer(createFrameBuffer(640, 480)),
             vRamFramebuffer(createFrameBuffer(120, 120))*/ {
-    
+     
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL could not initialize SDL_Error: " << SDL_GetError() << '\n';
         return;
@@ -141,6 +141,7 @@ void Emulator::Renderer::draw() {
 void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
         printf("Vertex attribute buffers full forcing draw\n");
+        std::cerr << "";
         draw();
     }
     
@@ -157,7 +158,7 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
         draw();
     }
     
-    // First triangle
+    /*// First triangle
     // [2, 3, 0]
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
@@ -182,9 +183,9 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
-    nVertices++;
+    nVertices++;*/
     
-    /*for(int i = 0; i < 3; i++) {
+    for(int i = 0; i < 3; i++) {
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
         nVertices++;
@@ -195,7 +196,7 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
         nVertices++;
-    }*/
+    }
 }
 
 GLuint Emulator::Renderer::compileShader(const char* source, GLenum shaderType) {
