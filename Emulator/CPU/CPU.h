@@ -178,13 +178,13 @@ public:
     // Same as addiu but generates an exception if it overflows
     void addi(Instruction& instruction);
     
-    // Substract Unsigned
+    // Subtract Unsigned
     void opsubu(Instruction& instruction);
     
-    // Substract and check for signed overflow
+    // Subtract and check for signed overflow
     void opsub(Instruction& instruction);
     
-    // Mlutiply Unsigned
+    // Multiply Unsigned
     void opmultu(Instruction& instruction);
     
     // Multiply signed
@@ -303,6 +303,7 @@ public:
     uint32_t load32(uint32_t addr);
     uint16_t load16(uint32_t addr);
     uint8_t  load8(uint32_t addr);
+    
     void store32(uint32_t addr, uint32_t val);
     void store16(uint32_t addr, uint16_t val);
     void store8(uint32_t addr, uint8_t val);
@@ -356,7 +357,8 @@ public:
     // General purpose registers
     // First entry must always contain a 0.
     RegisterIndex regs[32];
-private:
+    
+public:
     //Instruction* nextInstruction = new Instruction(0x0); //NOP
     
     Interconnect* interconnect;

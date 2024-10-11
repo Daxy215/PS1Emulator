@@ -88,6 +88,7 @@ public:
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
             printf("CDROM load %x", abs_addr);
+            std::cerr << "";
             
             throw std::runtime_error("Unhandled CDROM load at address 0x" + to_hex(addr));
         }
@@ -142,9 +143,9 @@ public:
             throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
-        std::cerr << "Wee; 0x" << to_hex(addr) << "\n";
+        //std::cerr << "Wee; 0x" << to_hex(addr) << "\n";
         //throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
-        //return 0;
+        return 0;
     }
     
     template<typename T>
@@ -200,8 +201,14 @@ public:
         if (auto offset = map::CDROM.contains(abs_addr)) {
             int8_t index = static_cast<int8_t>(val & 0x3);
             
-            printf("CDROM %x", abs_addr);
-            std::cerr << "F";
+            printf("CDROM %x - %x", abs_addr, offset.value());
+            std::cerr << "";
+
+            if(abs_addr == 0x1f801800) {
+                // https://psx-spx.consoledev.net/cdromdrive/#1f801800h-indexstatus-register-bit0-1-rw-bit2-7-read-only
+                // READ-ONLY
+                return;
+            }
             
             throw std::runtime_error("Unhandled write to CDROM 0x" + to_hex(abs_addr));
         }
@@ -304,7 +311,7 @@ public:
         return ss.str();
     }
     
-private:
+public:
     Ram* ram;
     Bios* bios;
     Dma* dma;

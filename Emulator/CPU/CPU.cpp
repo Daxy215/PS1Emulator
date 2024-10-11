@@ -733,7 +733,7 @@ void CPU::opsh(Instruction& instruction) {
     uint32_t addr = wrappingAdd(reg(s), i);
     
     if(addr % 2 == 0) {
-        uint32_t v    = reg(t);
+        uint32_t v = reg(t);
         
         store16(addr, v);
     } else {
@@ -1184,8 +1184,6 @@ void CPU::opcop0(Instruction& instruction) {
     default:
         std::cout << "Unhandled COP0 instruction: " + getDetails(instruction.copOpcode()) << "\n";
         throw std::runtime_error("Unhandled COP instruction: " + getDetails(instruction.copOpcode()));
-        
-        break;        
     }
 }
 
@@ -1245,8 +1243,6 @@ void CPU::opmtc0(Instruction& instruction) {
     default:
         std::cout << "Unhandled cop0 register " << copr << "\n";
         throw std::runtime_error("Unhandled cop0 register " + std::to_string(copr));
-        
-        break;
     }
     
     //load = {cpur, v};
@@ -1269,9 +1265,7 @@ void CPU::opmfc0(Instruction& instruction) {
         v = epc;
         break;
     default:
-        throw std::runtime_error("Unhandled read from cop0r " + copr);
-        
-        break;
+        throw std::runtime_error("Unhandled read from cop0r " + std::to_string(copr));
     }
     
     //load = {cpur, v};
