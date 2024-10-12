@@ -73,7 +73,7 @@ Emulator::Renderer::Renderer()
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribIPointer(index, 2, GL_SHORT, 0, (void*)0);
+    glVertexAttribIPointer(index, 2, GL_SHORT, 0, nullptr);
     
     // Color buffer
     colors.create();
@@ -84,7 +84,7 @@ Emulator::Renderer::Renderer()
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, (void*)0);
+    glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
     
     glUseProgram(program);
     
@@ -146,6 +146,9 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
     }
     
     for(int i = 0; i < 3; i++) {
+        //positions[i].x /= 2;
+        //positions[i].y /= 2;
+        
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
         nVertices++;

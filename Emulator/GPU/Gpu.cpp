@@ -151,6 +151,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             break;
         default:
             printf("Unhandled GP0 command %x\n", opcode);
+            std::cerr << "";
             
             //throw std::runtime_error("Unhandled GP0 command " + std::to_string(opcode));
             return;

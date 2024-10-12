@@ -13,12 +13,10 @@
 //#include "Emulator/interconnect.h"
 //#include "Emulator/Ram.h"
 
-// Page 83
-
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // ! Please note most of the stuff here isn't really written by me,    !
-// ! I mean the comments of course.. I am only using it as a reminder, !
-// ! or a quick lookup table or of the sorts.                          !
+// ! I mean the comments, of course.. I am only using it as a reminder !
+// ! or a quick lookup table or of sorts.                              !
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 // References
@@ -73,19 +71,19 @@
 /**
  * Where I got the BIOS from:
  * https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%20-%20BIOS%20Images/
- *
+ * 
  * Needed the ps-22a which is the SCPH-1001 version.
  */
 
 /** IMPORTANT INFORMATION
  * PS1 uses the MIPS instruction set.
  * Each instruction is exactly 32 bits long or 4 bytes.
- 
+ * 
  * Initial value of PC is 0xbfc00000(The beginning of the BIOS)
- 
+ * 
  * ONLY one DEVICE can access the BUS at a time! (TODO; Research why future me)
  * The DMA can only copy data between the RAM and a device!!
- *
+ * 
  * COPIED!!
  * Implementing complete and accurate DMA support can be quite tricky. The
  * main problem is that in certain modes the DMA sporadically gives back the
@@ -165,16 +163,16 @@
     
  * $cop0 7 is DCIC, used to enable and disable the various hardware breakpoints.
  * $cop0 9 is BDAM, it’s a bitmask applied when testing for BDA above.
-    * That way we could trigger on a range of address instead of a single one.
+    * That way we could trigger on a range of addresses instead of a single one.
     
  * $cop0 11 is BPCM, like BDAM but for masking the BPC breakpoint.
  * $cop0 12 we’ve already encountered: it’s SR, the status register.
  * $cop0 13 is CAUSE, which contains mostly read-only data describing the
-    * cause of an exception. Apparently only bits [9:8] are writable to force an exception.
+    * cause of an exception. Apparently, only bits [9:8] are writable to force an exception.
  */
 
 // Tables; THEY AREN'T MADE BY ME!  ¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?
-// I mostly obtained them through the guide.
+// I mostly got them through the guide.
 
 // PS1 Memory Map
 // KUSEG        KSEG0        KSEG1        Length  Description
@@ -292,6 +290,33 @@
     * Dont get ANY of this. Page 16
  */
 
+struct Exe {
+	char header[8];
+	
+	uint32_t text;
+	uint32_t data;
+	
+	uint32_t pc0;
+	uint32_t gp0;
+	
+	uint32_t tAddr;
+	uint32_t tSize;
+	
+	// Both of those are unnkown
+	uint32_t dAddr;
+	uint32_t dSize;
+	
+	uint32_t bAddr;
+	uint32_t bSize;
+	
+	uint32_t sAddr;
+	uint32_t sSize;
+	
+	uint32_t sp, fp, gp, ret, base;
+	
+	char license[60];
+};
+
 int main(int argc, char* argv[]) {
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
@@ -308,48 +333,51 @@ int main(int argc, char* argv[]) {
     
     SDL_Event event;
 	
+	/*std::cerr << "Loading test EXE file\n";
+	
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADD/CPUADD.exe");
+	
+	Exe exe;
+	memcpy(&exe, data.data(), sizeof(exe));
+	
+	if(exe.tSize > data.size() - 0x800) {
+		std::cerr << "Invalid exe size";
+		exe.tSize = data.size() - 0x800;
+	}
+	
+	for(uint32_t j = 0; j < exe.tSize; j++) {
+		cpu->interconnect->store<uint8_t>(exe.tAddr + j, data[0x800 + j]);
+	}
+	
+	cpu->pc = exe.pc0;
+	cpu->nextpc = exe.pc0 + 4;
+	//cpu->currentpc = cpu->pc;
+	
+	cpu->set_reg(28, exe.gp0);
+	
+	if(exe.sAddr != 0) {
+		cpu->set_reg(29, exe.sAddr + exe.sSize);
+		cpu->set_reg(30, exe.sAddr + exe.sSize);
+	}
+	
+	cpu->branchSlot = false;
+	*/
+	
     int x = 0;
     while(true) {
-        for(int i = 0; i < 1000000; i++) {
-        	// Wait for the BIOS to jump to the shell
-        	//if(cpu->pc != 0x80030000) {
-        		cpu->executeNextInstruction();
-        	//} else {
-        		/*std::cerr << "Loading test EXE file\n";
-				
-        		std::vector<uint8_t> exe = FileManager::loadFile("ROMS/Tests/psxtest_cpx.exe");
-        		
-        		// Parse EXE header
-        		uint32_t initialPc = *reinterpret_cast<uint32_t*>(&exe[0x10]);
-        		uint32_t initialR28 = *reinterpret_cast<uint32_t*>(&exe[0x14]); // r28 is typically global pointer
-        		uint32_t exe_ram_addr = *reinterpret_cast<uint32_t*>(&exe[0x18]) & 0x1FFFFF;
-        		uint32_t exe_size_2kb = *reinterpret_cast<uint32_t*>(&exe[0x1C]);
-        		uint32_t initialSp = *reinterpret_cast<uint32_t*>(&exe[0x30]); // Stack pointer
-				
-        		// Copy EXE code/data into PS1 RAM
-        		uint32_t exe_size = exe_size_2kb * 2048;
-        		//std::copy(exe.begin() + 2048, exe.begin() + 2048 + exe_size, cpu->interconnect->ram->data.begin() + exe_ram_addr);
-				
-        		std::cerr << "EXE size: 0x" << std::hex << (exe_ram_addr + exe_size) << "\n";
-        		std::cerr << "EXE RAM address: 0x" << std::hex << cpu->interconnect->ram->data.size() << "\n";
-				
-        		// Set r28 (global pointer)
-        		cpu->regs[28] = initialR28;
-        		if (initialSp != 0) {
-        			cpu->regs[29] = initialSp; // Set stack pointer (sp)
-        			cpu->regs[30] = initialSp; // Set frame pointer (fp)
-        		}
-				
-        		// Jump to the EXE entry point
-        		cpu->pc = initialPc;*/
-        	//}
-        	
-            if(cpu->test) {
-                cpu->test = false;
-            }
-        	
-            x++;
-        }
+	    // Wait for the BIOS to jump to the shell
+	    //if (cpu->pc != 0x80030000) {
+		    cpu->executeNextInstruction();
+	    /*} else {
+	    	
+	    }
+	    */
+		
+	    if (cpu->test) {
+		    cpu->test = false;
+	    }
+		
+	    x++;
         
         if(SDL_PollEvent(&event)) {
             if(event.type == SDL_QUIT)

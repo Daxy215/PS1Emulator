@@ -97,8 +97,6 @@ void CPU::executeNextInstruction() {
      * I was reading the data in big-edian format amazingly..
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
-
-    
     
     //nextInstruction = new Instruction(load32(pc));
     uint32_t pc = this->pc;
@@ -233,18 +231,18 @@ void CPU::decodeAndExecute(Instruction& instruction) {
         case 0b010011:
             opcop3(instruction); // Coprocessor 3 instructions
             break;
-        //case 0b110000:
-        //    oplwc0(instruction); // Load word coprocessor 0
-        //    break;
-        //case 0b110001:
-        //    oplwc1(instruction); // Load word coprocessor 1
-        //    break;
-        //case 0b110010:
-        //    oplwc2(instruction); // Load word coprocessor 2 (Unhandled)
-        //    break;
-        //case 0b110011:
-        //    oplwc3(instruction); // Load word coprocessor 3
-        //    break;
+        case 0b110000:
+            oplwc0(instruction); // Load word coprocessor 0
+            break;
+        case 0b110001:
+            oplwc1(instruction); // Load word coprocessor 1
+            break;
+        case 0b110010:
+            oplwc2(instruction); // Load word coprocessor 2 (Unhandled)
+            break;
+        case 0b110011:
+            oplwc3(instruction); // Load word coprocessor 3
+            break;
         case 0b111000:
             opswc0(instruction); // Store word coprocessor 0
             break;
@@ -270,10 +268,13 @@ void CPU::decodeAndExecute(Instruction& instruction) {
             opbltz(instruction); // Branch if less than or equal to zero
             break;
         default:
-            //opillegal(instruction); // Illegal instruction
+            opillegal(instruction); // Illegal instruction
             printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func().reg, instruction.op);
+            std::cerr << "";
             //std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
             //throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
+            
+            break;
     }
 }
 
@@ -286,6 +287,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     case 0b100101:
         opor(instruction);
+        break;
+    case 0b000111:
+        opsrav(instruction);
         break;
     case 0b100111:
         opnor(instruction);
@@ -353,11 +357,17 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b000110:
         opsrlv(instruction);
         break;
+    case 0b011000:
+        opmult(instruction);
+        break;
     case 0b100010:
         opsub(instruction);
         break;
     default:
+        opillegal(instruction); // Illegal instruction
         printf("Unhandled sub instruction %0x8. Function call was: %s\n", instruction.op, getBinary(instruction.subfunction().reg).c_str());
+        std::cerr << "";
+        break;
     }
     
     /*switch (instruction.subfunction()) {
@@ -1314,7 +1324,7 @@ void CPU::exception(Exception cause) {
     pc = handler;
     nextpc = wrappingAdd(pc, 4);
     
-    //std::cerr << "EXCEPTION OCCURRED!!" << cause << "\n";
+    std::cerr << "EXCEPTION OCCURRED!!" << cause << "\n";
 }
 
 void CPU::opSyscall(Instruction& instruction) {
@@ -1466,6 +1476,8 @@ void CPU::branch(uint32_t offset) {
     
     //pc = wrappingAdd(pc, offset);
     nextpc = wrappingAdd(pc, offset);
+    
+    branchSlot = true;
     
     // We need to compensate for the hardcoded
     // 'pc.wrapping_add(4)' in 'executeNextInstruction'

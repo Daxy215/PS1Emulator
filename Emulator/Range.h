@@ -20,8 +20,8 @@ namespace map {
         uint32_t length;
     };
     
-    /// Main RAM: 2MB mirrored four times over the first 8MB (probably
-    /// in case they decided to use a bigger RAM later on?)
+    // Main RAM: 2MB mirrored four times over the first 8MB (probably
+    // in case they decided to use a bigger RAM later on?)
     static const Range RAM      = {0x00000000, 8 * 1024 * 1024}; // 0xa0000000
     static const Range RAM_SIZE = {0x1f801060, 4}; // 0x1f801060
     

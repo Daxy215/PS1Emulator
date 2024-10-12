@@ -57,7 +57,7 @@ namespace Emulator {
         GLuint VAO;
         
         // Uniforms
-        GLuint offsetUni;
+        GLint offsetUni;
         
         // Buffer contains the vertices positions
         Buffer<Position> positions;

@@ -112,8 +112,8 @@ namespace Emulator {
         }
         
         static Position fromGp0P(uint32_t val) {
-            int16_t x = static_cast<int16_t>(val & 0xFFFF);
-            int16_t y = static_cast<int16_t>((val >> 16) & 0xFFFF);
+            int16_t x = static_cast<int16_t>(val);
+            int16_t y = static_cast<int16_t>((val >> 16));
             
             return {x, y};
         }
