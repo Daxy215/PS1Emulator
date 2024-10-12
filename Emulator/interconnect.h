@@ -87,10 +87,11 @@ public:
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-            printf("CDROM load %x", abs_addr);
+            printf("CDROM load %x\n", abs_addr);
             std::cerr << "";
             
-            throw std::runtime_error("Unhandled CDROM load at address 0x" + to_hex(addr));
+            return 0b11111111;
+            //throw std::runtime_error("Unhandled CDROM load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::MDEC.contains(abs_addr)) {
@@ -201,16 +202,17 @@ public:
         if (auto offset = map::CDROM.contains(abs_addr)) {
             int8_t index = static_cast<int8_t>(val & 0x3);
             
-            printf("CDROM %x - %x", abs_addr, offset.value());
+            printf("CDROM %x - %x\n", abs_addr, offset.value());
             std::cerr << "";
-
+            
             if(abs_addr == 0x1f801800) {
                 // https://psx-spx.consoledev.net/cdromdrive/#1f801800h-indexstatus-register-bit0-1-rw-bit2-7-read-only
                 // READ-ONLY
                 return;
             }
             
-            throw std::runtime_error("Unhandled write to CDROM 0x" + to_hex(abs_addr));
+            return;
+            //throw std::runtime_error("Unhandled write to CDROM 0x" + to_hex(abs_addr));
         }
         
         if (auto offset = map::MDEC.contains(abs_addr)) {

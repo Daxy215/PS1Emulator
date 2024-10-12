@@ -1004,12 +1004,12 @@ void CPU::opmultu(Instruction& instruction) {
 void CPU::opmult(Instruction& instruction) {
     auto s = instruction.s();
     auto t = instruction.t();
-
+    
     int64_t a = static_cast<int64_t>(static_cast<int32_t>(reg(s)));
     int64_t b = static_cast<int64_t>(static_cast<int32_t>(reg(t)));
-
+    
     uint64_t v = static_cast<uint64_t>((a * b));
-
+    
     hi = static_cast<uint32_t>(v >> 32);
     lo = static_cast<uint32_t>(v);
 }
@@ -1034,7 +1034,7 @@ void CPU::opdiv(Instruction& instruction) {
         hi = 0;
         lo = 0x80000000;
     } else {
-        hi = static_cast<uint32_t>((n % d));
+        hi = static_cast<uint32_t>(n % d);
         lo = static_cast<uint32_t>(n / d);
     }
 }
@@ -1064,8 +1064,7 @@ void CPU::opmfhi(Instruction& instruction) {
 
 void CPU::opmthi(Instruction& instruction) {
     auto s = instruction.s();
-
-    //TODO; Check if this is meant to be "lo" or "hi"
+    
     hi = reg(s);
 }
 

@@ -467,6 +467,7 @@
       <AdditionalIncludeDirectories>..\libs\glew-2.2.0\include;..\libs\SDL2-2.30.3\include</AdditionalIncludeDirectories>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
+    <ClCompile Include="Utility\FileSystem\FileManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\libs\SDL2-2.30.3\include\SDL.h" />
@@ -482,6 +483,7 @@
     <ClInclude Include="Emulator\Ram.h" />
     <ClInclude Include="Emulator\Range.h" />
     <ClInclude Include="Emulator\SPU\SPU.h" />
+    <ClInclude Include="Utility\FileSystem\FileManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

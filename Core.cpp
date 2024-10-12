@@ -8,6 +8,7 @@
 #include "Emulator/Bios.h"
 #include "Emulator/CPU/CPU.h"
 #include "Emulator/SPU/SPU.h"
+#include "Utility/FileSystem/FileManager.h"
 
 //#include "Emulator/interconnect.h"
 //#include "Emulator/Ram.h"
@@ -307,92 +308,46 @@ int main(int argc, char* argv[]) {
     
     SDL_Event event;
 	
-	// Load EXE
-	std::string filename = "ROMS/Tests/psxtest_cpx.exe";
-	
-    std::ifstream stream(filename.c_str(), std::ios::binary | std::ios::ate);
-    
-	if (!stream.good()) {
-		std::cerr << "Cannot read from file: " << filename << '\n';
-	}
-    
-	auto fileSize = stream.tellg();
-	stream.seekg(0, std::ios::beg);
-    
-	std::vector<uint8_t> exe(fileSize);
-    
-	if (!stream.read(reinterpret_cast<char*>(exe.data()), fileSize)) {
-		std::cerr << "Error reading file!" << '\n';
-        
-		return 1;
-	}
-    
     int x = 0;
     while(true) {
         for(int i = 0; i < 1000000; i++) {
-            /**
-             * PC; 2147815804 - 13176543 -> BEN (REG 12 IS WRONG!)
-             * PC; 2147815808 - 13176544
-             * PC; 2147815812 - 13176545
-             * 
-             * pc: 2147815804 - 13176543 -> BEN (REG 12 IS WRONG!)
-             * pc: 2147815836 - 13176544
-             * pc: 2147815840 - 13176545
-             */
-            if(x == 13176543) {
-                //printf("Weee");
-            }
-			
         	// Wait for the BIOS to jump to the shell
         	//if(cpu->pc != 0x80030000) {
         		cpu->executeNextInstruction();
-        	/*} else {
-        		printf("");
+        	//} else {
+        		/*std::cerr << "Loading test EXE file\n";
 				
+        		std::vector<uint8_t> exe = FileManager::loadFile("ROMS/Tests/psxtest_cpx.exe");
+        		
         		// Parse EXE header
-        		uint32_t initial_pc = *reinterpret_cast<uint32_t*>(&exe[0x10]); // Little-endian to host
-        		uint32_t initial_r28 = *reinterpret_cast<uint32_t*>(&exe[0x14]); // r28 is typically global pointer
-        		uint32_t exe_ram_addr = *reinterpret_cast<uint32_t*>(&exe[0x18]) & 0x1FFFFF; // Masked RAM address
-        		uint32_t exe_size_2kb = *reinterpret_cast<uint32_t*>(&exe[0x1C]); // EXE size in 2KB blocks
-        		uint32_t initial_sp = *reinterpret_cast<uint32_t*>(&exe[0x30]); // Stack pointer
+        		uint32_t initialPc = *reinterpret_cast<uint32_t*>(&exe[0x10]);
+        		uint32_t initialR28 = *reinterpret_cast<uint32_t*>(&exe[0x14]); // r28 is typically global pointer
+        		uint32_t exe_ram_addr = *reinterpret_cast<uint32_t*>(&exe[0x18]) & 0x1FFFFF;
+        		uint32_t exe_size_2kb = *reinterpret_cast<uint32_t*>(&exe[0x1C]);
+        		uint32_t initialSp = *reinterpret_cast<uint32_t*>(&exe[0x30]); // Stack pointer
 				
         		// Copy EXE code/data into PS1 RAM
-        		uint32_t exe_size = exe_size_2kb * 2048; // Calculate size in bytes
+        		uint32_t exe_size = exe_size_2kb * 2048;
         		//std::copy(exe.begin() + 2048, exe.begin() + 2048 + exe_size, cpu->interconnect->ram->data.begin() + exe_ram_addr);
 				
         		std::cerr << "EXE size: 0x" << std::hex << (exe_ram_addr + exe_size) << "\n";
         		std::cerr << "EXE RAM address: 0x" << std::hex << cpu->interconnect->ram->data.size() << "\n";
 				
-        		if ((/*exe_ram_addr + #1#exe_ram_addr) > cpu->interconnect->ram->data.size()) {
-        			// Handle out of bounds error, such as:
-        			std::cerr << "EXE data exceeds available RAM!" << '\n';
-        		}
-				
-        		// Copy EXE code/data into PS1 RAM starting from exe_ram_addr
-        		for (uint32_t j = 0; j < exe_size_2kb; j++) {
-        			uint8_t d = exe[/*2048 + #1#j];
-        			cpu->interconnect->ram->data[/*exe_ram_addr + #1#j] = d;
-        		}
-        		
-        		// Set initial register values
-        		cpu->regs[28] = initial_r28; // Set r28 (global pointer)
-        		if (initial_sp != 0) {
-        			cpu->regs[29] = initial_sp; // Set stack pointer (sp)
-        			cpu->regs[30] = initial_sp; // Set frame pointer (fp)
+        		// Set r28 (global pointer)
+        		cpu->regs[28] = initialR28;
+        		if (initialSp != 0) {
+        			cpu->regs[29] = initialSp; // Set stack pointer (sp)
+        			cpu->regs[30] = initialSp; // Set frame pointer (fp)
         		}
 				
         		// Jump to the EXE entry point
-        		cpu->pc = initial_pc;
-        	}*/
+        		cpu->pc = initialPc;*/
+        	//}
         	
             if(cpu->test) {
                 cpu->test = false;
             }
-            
-            if (x > 12564089) {
-                //std::cerr << "pc: " << std::to_string(cpu->pc) << " - " << std::to_string(x) << "\n";
-            }
-            
+        	
             x++;
         }
         

@@ -7,14 +7,14 @@ public:
     Ram();
     
     template<typename T>
-    uint32_t load(uint32_t offset) const {
+    T load(uint32_t offset) const {
         // The two MSB are ignored, the 2MB RAM is mirrored four times
         // over the first 8MB of address space
         offset &= 0x1fffff;
         
-        uint32_t v = 0;
+        T v = 0;
         for (size_t i = 0; i < sizeof(T); i++) {
-            v |= static_cast<uint32_t>(data[offset + i]) << (i * 8);
+            v |= static_cast<T>(data[offset + i]) << (i * 8);
         }
         
         return v;

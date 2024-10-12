@@ -249,9 +249,69 @@ namespace Emulator {
         }
         
         // GP0: Render Polygon
-        void gp0RenderPolygon(uint32_t val) {
-            auto command = gp0Command.buffer[0];
-            uint32_t opcode = command >> 24;
+        /*void gp0RenderPolygon(uint32_t val) {
+            auto command = val;//gp0Command.buffer[0];
+
+            // Gouraud / flat shading
+            bool shading = get_bit(val, 28);
+            uint8_t numVerts = (get_bit(val, 27)) ? 4 : 3;
+            bool useTextures = get_bit(val, 26);
+            
+            /**
+             * 1 - Semi-transparent
+             * 0 - Modulation 
+             #1#
+            bool transparent = get_bit(val, 25);
+            
+            /**
+             * 1 - Raw texture
+             * 0 - Modulation
+             #1#
+            bool texture = get_bit(val, 24);
+            
+            // Bits 23-0 - RGB First color values
+            /*uint32_t r = (command >> 0) & 0xff;
+            uint32_t g = (command >> 8) & 0xff;
+            uint32_t b = (command >> 16) & 0xff;#1#
+            
+            Emulator::Color baseColor = Color::fromGp0(val);  // Base color for flat shading
+            
+            Emulator::Position positions[4];  // Array for positions
+            Emulator::Color colors[4];        // Array for colors (if Gouraud shading)
+            Emulator::Color uvCoords[4];         // Array for UV (if textured)
+            
+            for (int i = 0; i < numVerts; i++) {
+                uint32_t vertexData = gp0Command.buffer[i + 1]; // Vertex data starts from buffer[1]
+                
+                // Parse vertex positions (YYYYXXXX)
+                int16_t x = vertexData & 0xFFFF;
+                int16_t y = (vertexData >> 16) & 0xFFFF;
+                positions[i] = {x, y};
+                
+                if (shading) {
+                    uint32_t colorData = gp0Command.buffer[i + 1 + numVerts];
+                    colors[i].r = (colorData >> 0) & 0xFF;
+                    colors[i].g = (colorData >> 8) & 0xFF;
+                    colors[i].b = (colorData >> 16) & 0xFF;
+                } else {
+                    colors[i] = baseColor;  // Flat shading uses the same color for all vertices
+                }
+                
+                if (useTextures) {
+                    uint32_t uvData = gp0Command.buffer[i + 1 + 2 * numVerts];
+                    uint16_t u = uvData & 0xFF;
+                    uint16_t v = (uvData >> 8) & 0xFF;
+                    //uvCoords[i] = {u, v};
+                }
+            }
+            
+            if (numVerts == 3) {
+                renderer->pushTriangle(positions, colors);
+            } else {
+                renderer->pushQuad(positions, colors);
+            }
+            
+            /*uint32_t opcode = command >> 24;
             
             bool quad = get_bit(command, 27);
             bool shaded = get_bit(command, 28);
@@ -264,9 +324,10 @@ namespace Emulator {
             
             uint32_t r = (command >> 0) & 0xff;
             uint32_t g = (command >> 8) & 0xff;
-            uint32_t b = (command >> 16) & 0xff;
+            uint32_t b = (command >> 16) & 0xff;#1#
             
         }
+        */
         
         // GP0(GP): Shaded Opaque Triangle
         void gp0TriangleShadedOpaque(uint32_t val) {
@@ -282,7 +343,8 @@ namespace Emulator {
                 Color::fromGp0(gp0Command.buffer[4]),
             };
             
-            //renderer->pushTriangle(positions, colors);
+            renderer->pushTriangle(positions, colors);
+            //renderer->display();
         }
         
         // GP0(0xC2): Quad Texture Blend Opqaue
