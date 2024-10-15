@@ -3,6 +3,7 @@
 #include <iostream>
 #include <SDL_render.h>
 #include <SDL_video.h>
+#include <vector>
 #include <GL/glew.h>
 
 #include "Buffer.h"
@@ -22,8 +23,6 @@ namespace Emulator {
         void pushQuad(Emulator::Position* positions, Emulator::Color* colors);
         
         void setDrawingOffset(int32_t x, int32_t y) {
-            //draw();
-            
             glUniform2i(offsetUni, x, y);
         }
         

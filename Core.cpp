@@ -333,48 +333,40 @@ int main(int argc, char* argv[]) {
     
     SDL_Event event;
 	
-	/*std::cerr << "Loading test EXE file\n";
-	
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADD/CPUADD.exe");
-	
-	Exe exe;
-	memcpy(&exe, data.data(), sizeof(exe));
-	
-	if(exe.tSize > data.size() - 0x800) {
-		std::cerr << "Invalid exe size";
-		exe.tSize = data.size() - 0x800;
-	}
-	
-	for(uint32_t j = 0; j < exe.tSize; j++) {
-		cpu->interconnect->store<uint8_t>(exe.tAddr + j, data[0x800 + j]);
-	}
-	
-	cpu->pc = exe.pc0;
-	cpu->nextpc = exe.pc0 + 4;
-	//cpu->currentpc = cpu->pc;
-	
-	cpu->set_reg(28, exe.gp0);
-	
-	if(exe.sAddr != 0) {
-		cpu->set_reg(29, exe.sAddr + exe.sSize);
-		cpu->set_reg(30, exe.sAddr + exe.sSize);
-	}
-	
-	cpu->branchSlot = false;
-	*/
-	
     int x = 0;
     while(true) {
 	    // Wait for the BIOS to jump to the shell
-	    //if (cpu->pc != 0x80030000) {
+	    if (cpu->pc != 0x80030000) {
 		    cpu->executeNextInstruction();
-	    /*} else {
-	    	
-	    }
-	    */
-		
-	    if (cpu->test) {
-		    cpu->test = false;
+	    } else {
+	    	std::cerr << "Loading test EXE file\n";
+			
+	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADD/CPUADD.exe");
+	
+	    	Exe exe;
+	    	memcpy(&exe, data.data(), sizeof(exe));
+	
+	    	if(exe.tSize > data.size() - 0x800) {
+	    		std::cerr << "Invalid exe size";
+	    		exe.tSize = data.size() - 0x800;
+	    	}
+	
+	    	for(uint32_t j = 0; j < exe.tSize; j++) {
+	    		cpu->interconnect->store<uint8_t>(exe.tAddr + j, data[0x800 + j]);
+	    	}
+	
+	    	cpu->pc = exe.pc0;
+	    	cpu->nextpc = exe.pc0 + 4;
+	    	//cpu->currentpc = cpu->pc;
+	
+	    	cpu->set_reg(28, exe.gp0);
+	
+	    	if(exe.sAddr != 0) {
+	    		cpu->set_reg(29, exe.sAddr + exe.sSize);
+	    		cpu->set_reg(30, exe.sAddr + exe.sSize);
+	    	}
+	
+	    	cpu->branchSlot = false;	
 	    }
 		
 	    x++;

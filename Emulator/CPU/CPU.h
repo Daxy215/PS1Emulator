@@ -269,20 +269,12 @@ public:
 
     void checkForTTY();
     
-    bool test = false, no = false;
-    
     // Register related functions
     RegisterIndex reg(uint32_t index) {
         return regs[static_cast<size_t>(index)];
     }
     
     void set_reg(uint32_t index, RegisterIndex val) {
-        if(index == 11) {
-            //test = true;
-        }
-        
-        no = false;
-        
         outRegs[index] = val;
         
         // We need to always rest R0 to 0
@@ -290,12 +282,6 @@ public:
     }
     
     void setLoad(RegisterIndex index, uint32_t val) {
-        if(index == 11) {
-            test = true;
-        }
-        
-        //no = false;
-        
         load = {index, val};
     }
     

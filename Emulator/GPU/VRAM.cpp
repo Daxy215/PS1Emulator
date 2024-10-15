@@ -68,10 +68,10 @@ void Emulator::VRAM::endTransfer() {
     // Draw the texture
     SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)width, (int)height };
     SDL_Rect srcrect = { 0, 0, (int)width, (int)height};
-    //SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
+    SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
     
     //Update the screen
-    //SDL_RenderPresent(gpu->renderer->renderer);
+    SDL_RenderPresent(gpu->renderer->renderer);
 }
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {

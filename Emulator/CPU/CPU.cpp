@@ -950,8 +950,6 @@ void CPU::oplbu(Instruction& instruction) {
 
 // addiu $8, $zero, 0xb88
 void CPU::addiu(Instruction& instruction) {
-    no = true;
-    
     uint32_t i = instruction.imm_se();
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
@@ -1102,7 +1100,7 @@ void CPU::oplwc1(Instruction& instruction) {
 
 void CPU::oplwc2(Instruction& instruction) {
     // Geometry Transformation Engine
-    printf("Unhandled GTE LWC %s\n", std::to_string(instruction.op).c_str());
+    //printf("Unhandled GTE LWC %s\n", std::to_string(instruction.op).c_str());
 }
 
 void CPU::oplwc3(Instruction& instruction) {
@@ -1408,7 +1406,7 @@ void CPU::opbxx(Instruction& instruction) {
     int32_t v = static_cast<int32_t>(reg(s));
     
     // Test "less than zero"
-    bool test (static_cast<uint32_t>(v < 0));
+    bool test = (static_cast<uint32_t>(v < 0));
     
     // If the test is "greater than or equal to zero" we need
     // to negate the comparison above since

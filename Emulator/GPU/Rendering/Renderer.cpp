@@ -73,7 +73,7 @@ Emulator::Renderer::Renderer()
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribIPointer(index, 2, GL_SHORT, 0, nullptr);
+    glVertexAttribIPointer(index, 2, GL_SHORT, GL_FALSE, nullptr);
     
     // Color buffer
     colors.create();
@@ -135,7 +135,7 @@ void Emulator::Renderer::draw() {
     }
     
     // Reset the buffers
-    nVertices = 0;
+    //nVertices = 0;
 }
 
 void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors) {
@@ -146,9 +146,6 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
     }
     
     for(int i = 0; i < 3; i++) {
-        //positions[i].x /= 2;
-        //positions[i].y /= 2;
-        
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
         nVertices++;
@@ -161,7 +158,7 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
         draw();
     }
     
-    /*// First triangle
+    // First triangle
     // [2, 3, 0]
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
@@ -186,9 +183,9 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
-    nVertices++;*/
+    nVertices++;
     
-    for(int i = 0; i < 3; i++) {
+    /*for(int i = 0; i < 3; i++) {
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
         nVertices++;
@@ -199,7 +196,7 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
         nVertices++;
-    }
+    }*/
 }
 
 GLuint Emulator::Renderer::compileShader(const char* source, GLenum shaderType) {

@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
 #include <GL/glew.h>
 
@@ -35,24 +36,12 @@ struct Buffer {
         size_t elementSize = sizeof(T);
         GLsizeiptr bufferSize = elementSize * VERTEX_BUFFER_LEN;
         
-        // Write only persistent mapping. Not coherent
-        glBufferStorage(GL_ARRAY_BUFFER,
-            bufferSize, nullptr,
-            GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+        GLbitfield access = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
         
-        map = static_cast<T*>(glMapBufferRange(GL_ARRAY_BUFFER, 0,
-            bufferSize, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT));
+        glBufferStorage(GL_ARRAY_BUFFER, bufferSize, nullptr, access);
+        map = static_cast<T*>(glMapBufferRange(GL_ARRAY_BUFFER, 0, bufferSize, access));
         
-        // Check for errors
-        GLenum err = glGetError();
-        if (err!= GL_NO_ERROR) {
-            std::cerr << "OpenGL Error: " << err << std::endl;
-        }
-        
-        // Rest the buffer to avoid bugs if uninitialized  memory is accessed
-        memset(map, 0, bufferSize);
-        /*std::vector<T> defaultValues(VERTEX_BUFFER_LEN, T());
-        glBufferStorage(GL_ARRAY_BUFFER, 0, bufferSize, defaultValues.data());*/
+        std::memset(map, 0, bufferSize);
     }
     
     void set(uint32_t index, const T& value) const {
@@ -65,5 +54,7 @@ struct Buffer {
         }
         
         map[index] = value;
+        auto var = map[index];
+        printf("");
     }
 };

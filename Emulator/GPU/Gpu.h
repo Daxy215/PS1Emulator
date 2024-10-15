@@ -21,13 +21,13 @@ namespace Emulator {
         T8Bit = 1,
         T15Bit = 2,
     };
-
+    
     // Interlaced output splits each frame in two fields
     enum class Field {
         Top = 1,
         Bottom = 0,
     };
-
+    
     // Video output horizontal resolution
     struct HorizontalRes {
         uint8_t value;
@@ -105,17 +105,16 @@ namespace Emulator {
     };
     
     struct Position {
-        Position() {}
-        
+        Position() = default;
         Position(GLshort x, GLshort y) : x(x), y(y) {
             
         }
         
         static Position fromGp0P(uint32_t val) {
             int16_t x = static_cast<int16_t>(val);
-            int16_t y = static_cast<int16_t>((val >> 16));
+            int16_t y = static_cast<int16_t>(val >> 16);
             
-            return {x, y};
+            return {static_cast<GLshort>(x), static_cast<GLshort>(y)};
         }
         
         GLshort x, y;
@@ -328,6 +327,15 @@ namespace Emulator {
             
         }
         */
+        
+        // Test
+        void vertexOrder(Position* p) {
+            auto crossZ = (p[1].x - p[0].x) * (p[2].y - p[0].y) - (p[1].y - p[0].y) * (p[2].x - p[0].x);
+            
+            if(crossZ < 0) {
+                std::swap(p[0], p[1]);
+            }
+        }
         
         // GP0(GP): Shaded Opaque Triangle
         void gp0TriangleShadedOpaque(uint32_t val) {

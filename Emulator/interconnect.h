@@ -72,7 +72,6 @@ public:
                         //std::cerr << "y is it not THE SAME!; " << std::to_string(r) << "\n";
                     }
                     
-                    //return gpu->status();
                     return 0x1c000000;
                     //return gpu->status();
                 }

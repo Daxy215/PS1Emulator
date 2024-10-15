@@ -30,13 +30,12 @@ uint32_t Emulator::Gpu::status() {
     r |= static_cast<uint32_t>(displayDisabled) << 23;
     r |= static_cast<uint32_t>(interrupt) << 24;
     
-    //TODO;
     //r |= hres.intoStatus();
     
     // XXX Temporary hack: If we don't emulate bit 31 correctly,
     // setting 'vres' to 1 locks the BIOS:
-    // r |= static_cast<uint32_t>(vmode) << 19;
-    //r |= static_cast<uint32_t>(vmode) << 20;
+    r |= static_cast<uint32_t>(vmode) << 19;
+    r |= static_cast<uint32_t>(vmode) << 20;
     
     // Not sure about that,
     // I'm guessing that it's the signal
@@ -67,10 +66,10 @@ uint32_t Emulator::Gpu::status() {
     r |= 1 << 26;
     
     // Ready to send VRAM to CPU
-    r |= canSendVRAMToCPU << 27;
+    r |= /*canSendVRAMToCPU*/1 << 27;
     
     // Ready to receive DMA block
-    r |= canReceiveDMABlock << 28;
+    r |= /*canReceiveDMABlock*/1 << 28;
     r |= static_cast<uint32_t>(dmaDirection) << 29;
     
     // Bit 31 should change depending on the currently drawn line
@@ -85,7 +84,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
     if(gp0CommandRemaining == 0) {
         // Start a new GP0 command
         uint32_t opcode = (val >> 24) & 0xFF;
-        uint32_t code = val >> 29;
+        //uint32_t code = val >> 29;
         
         /*if(opcode != code) {
             printf("Really?\n");
@@ -106,6 +105,10 @@ void Emulator::Gpu::gp0(uint32_t val) {
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
             break;
         case 0x30:
+            gp0CommandRemaining = 6;
+            Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
+            break;
+        case 0x32:
             gp0CommandRemaining = 6;
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
             break;
