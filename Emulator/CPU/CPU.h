@@ -300,6 +300,9 @@ public:
     
     template<typename T>
     static std::optional<T> check_add(T a, T b);
+
+    template<typename T>
+    static std::optional<T> check_sub(T a, T b);
     
 public:
     // Sets by the current instruction; if a branch occured,

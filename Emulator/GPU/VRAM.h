@@ -43,14 +43,16 @@ namespace Emulator {
         TransferData transferData = {};
         
         // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#vram-overview-vram-addressing
-        const int32_t width  = 1024;
-        const int32_t height = 512;
+        const int32_t MAX_WIDTH  = 1024;
+        const int32_t MAX_HEIGHT = 512;
         
         SDL_Texture* texture;
         
         Gpu* gpu;
     public:
         uint32_t* pixels;
+        int pitch;
+        
         std::pmr::vector<uint32_t> color1555to8888LUT;
     };
 }

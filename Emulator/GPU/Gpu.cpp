@@ -8,88 +8,103 @@
 uint32_t Emulator::Gpu::status() {
     // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#1f801814h-gpustat-gpu-status-register-r
     
-    uint32_t r = 0;
+    uint32_t status = 0;
     
-    r |= static_cast<uint32_t>(pageBaseX) << 0;
-    r |= static_cast<uint32_t>(pageBaseY) << 4;
-    r |= static_cast<uint32_t>(semiTransparency) << 5;
-    r |= static_cast<uint32_t>(textureDepth) << 7;
-    r |= static_cast<uint32_t>(dithering) << 9;
-    r |= static_cast<uint32_t>(drawToDisplay) << 10;
-    r |= static_cast<uint32_t>(forceSetMaskBit) << 11;
-    r |= static_cast<uint32_t>(preserveMaskedPixels) << 12;
-    r |= static_cast<uint32_t>(field) << 13;
+    // Bits 0-3: Texture page X base (N * 64)
+    status |= (pageBaseX/* & 0xF*/); // Mask to 4 bits
     
-    // Bit 14: not supported
-    r |= static_cast<uint32_t>(textureDisable) << 15;
-    r |= hres.intoStatus();
-    r |= static_cast<uint32_t>(vres) << 19;
-    r |= static_cast<uint32_t>(vmode) << 20;
-    r |= static_cast<uint32_t>(displayDepth) << 21;
-    r |= static_cast<uint32_t>(interlaced) << 22;
-    r |= static_cast<uint32_t>(displayDisabled) << 23;
-    r |= static_cast<uint32_t>(interrupt) << 24;
+    // Bit 4: Texture page Y base 1 (N * 256)
+    status |= (pageBaseY/* & 0x1*/) << 4; // Bit 4
     
-    //r |= hres.intoStatus();
+    // Bits 5-6: Semi-transparency mode
+    status |= (semiTransparency & 0x3) << 5; // Mask to 2 bits
     
-    // XXX Temporary hack: If we don't emulate bit 31 correctly,
-    // setting 'vres' to 1 locks the BIOS:
-    r |= static_cast<uint32_t>(vmode) << 19;
-    r |= static_cast<uint32_t>(vmode) << 20;
+    // Bits 7-8: Texture page color depth
+    status |= (static_cast<uint32_t>(textureDepth) & 0x3) << 7; // Mask to 2 bits
     
-    // Not sure about that,
-    // I'm guessing that it's the signal
-    // checked by the DMA in when sending
-    // data in Request synchronization mode.
-    // For now I blindly follow the Nocash spec.
-    uint32_t dmaRequest = 0;
+    // Bit 9: Dither 24bit to 15bit (0=Off, 1=Enabled)
+    status |= (dithering ? 1 : 0) << 9;
     
-    switch (dmaDirection) {
-    case DmaDirection::Off:
-        dmaRequest = 0;
-        break;
-    case DmaDirection::Fifo:
-        dmaRequest = 1;
-        break;
-    case DmaDirection::CpuToGp0:
-        dmaRequest = (r >> 28) & 1;
-        break;
-    case DmaDirection::VRamToCpu:
-        dmaRequest = (r >> 27) & 1;
-        break;
+    // Bit 10: Drawing to display area (0=Prohibited, 1=Allowed)
+    status |= (/*drawToDisplay*/true ? 1 : 0) << 10;
+    
+    // Bit 11: Set Mask-bit when drawing (0=No, 1=Yes)
+    status |= (forceSetMaskBit ? 1 : 0) << 11;
+    
+    // Bit 12: Don't draw to masked areas (0=Always, 1=Not to masked areas)
+    status |= (preserveMaskedPixels ? 1 : 0) << 12;
+    
+    // Bit 13: Interlace Field (0 = Top, 1 = Bottom)
+    status |= (field == Field::Bottom ? 1 : 0) << 13;
+    
+    // Bit 14: Flip screen horizontally (0 = Off, 1 = On)
+    // This would be tied to any horizontal flip logic you have in GP1 commands
+    // Assuming no current implementation for screen flip, leave as 0:
+    status |= 0 << 14; // No horizontal flip yet
+    
+    // Bit 15: Texture page Y base 2 (N * 512) for 2MB VRAM
+    status |= (pageBaseY & 0x2) << 14; // Extract bit 1 of pageBaseY for bit 15
+    
+    // Bit 16: Horizontal resolution 2 (0 = 256/320/512/640, 1 = 368)
+    //status |= (true/*hres == HorizontalRes::HR368*/ ? 1 : 0) << 16;
+    status |= hres.intoStatus();
+    
+    // Bits 17-18: Horizontal resolution 1 (0=256, 1=320, 2=512, 3=640)
+    status |= (static_cast<uint32_t>(hres.value) & 0x3) << 17; // Mask to 2 bits
+
+    // Bit 19: Vertical resolution (0=240, 1=480)
+    status |= (vres == VerticalRes::Y480Lines ? 1 : 0) << 19;
+
+    // Bit 20: Video mode (0=NTSC, 1=PAL)
+    status |= (vmode == VMode::Pal ? 1 : 0) << 20;
+    
+    // Bit 21: Display area color depth (0=15bit, 1=24bit)
+    status |= (displayDepth == DisplayDepth::D24Bits ? 1 : 0) << 21;
+    
+    // Bit 22: Vertical Interlace (0=Off, 1=On)
+    status |= (interlaced ? 1 : 0) << 22;
+    
+    // Bit 23: Display enable (0=Enabled, 1=Disabled)
+    status |= /*(displayEnabled ? 0 : 1)*/0 << 23;
+    
+    // Bit 24: Interrupt request (0=Off, 1=IRQ)
+    status |= (/*interrupt*/false ? 1 : 0) << 24;
+    
+    // Bit 25-28: DMA state and readiness flags
+    // Bit 25: DMA / Data request meaning depends on DMA direction
+    if (dmaDirection == DmaDirection::Off) {
+        status |= 0 << 25; // Always zero if DMA direction is off
+    } else if (dmaDirection == DmaDirection::Fifo) {
+        status |= (canSendCPUToVRAM ? 1 : 0) << 25; // FIFO state
+    } else if (dmaDirection == DmaDirection::CpuToGp0) {
+        status |= (canSendVRAMToCPU ? 1 : 0) << 25;
+    } else if (dmaDirection == DmaDirection::VRamToCpu) {
+        status |= (canReceiveDMABlock ? 1 : 0) << 25;
     }
     
-    r |= dmaRequest << 25;
+    // Bit 26: Ready to receive command word (0=No, 1=Ready)
+    status |= (/*gp0CommandRemaining == 0 ? 1 : 0*/true) << 26;
     
-    // For now we pretend that the GPU is always ready:
-    // Ready to receive command
-    r |= 1 << 26;
+    // Bit 27: Ready to send VRAM to CPU (0=No, 1=Ready)
+    status |= (/*canSendVRAMToCPU*/true ? 1 : 0) << 27;
     
-    // Ready to send VRAM to CPU
-    r |= /*canSendVRAMToCPU*/1 << 27;
+    // Bit 28: Ready to receive DMA block (0=No, 1=Ready)
+    status |= (/*canReceiveDMABlock*/true ? 1 : 0) << 28;
     
-    // Ready to receive DMA block
-    r |= /*canReceiveDMABlock*/1 << 28;
-    r |= static_cast<uint32_t>(dmaDirection) << 29;
+    // Bits 29-30: DMA Direction (0=Off, 1=?, 2=CPUtoGP0, 3=GPUREADtoCPU)
+    status |= (static_cast<uint32_t>(0/*dmaDirection*/) & 0x3) << 29;
     
-    // Bit 31 should change depending on the currently drawn line
-    // (whether it's even, odd or in the vblank apparently).
-    // Let's not bother with it for now.
-    r |= 0 << 31;
+    // Bit 31: Drawing even/odd lines in interlace mode (0=Even, 1=Odd)
+    status |= (false ? 1 : 0) << 31;
     
-    return r;
+    //return status;
+    return 0x1c000000;
 }
 
 void Emulator::Gpu::gp0(uint32_t val) {
     if(gp0CommandRemaining == 0) {
-        // Start a new GP0 command
-        uint32_t opcode = (val >> 24) & 0xFF;
+        uint8_t opcode = (val >> 24) & 0xFF;
         //uint32_t code = val >> 29;
-        
-        /*if(opcode != code) {
-            printf("Really?\n");
-            std::cerr << "";
-        }*/
         
         switch (opcode) {
         case 0x00:
@@ -104,7 +119,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 5;
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
             break;
-        case 0x30:
+        case 0x30:/* case 0x68:*/
             gp0CommandRemaining = 6;
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
             break;
@@ -116,12 +131,22 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 8;
             Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
             break;
+        case 0x68: {
+            gp0CommandRemaining = 2;
+            Gp0CommandMethod = &Gpu::gp0Rectangle;
+            break;
+        }
+        case 0x80: {
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp0VramToVram;
+            break;
+        }
         case 0xA0:
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp0ImageLoad;
             break;
         case 0xC0:/* case 0xCA:*/
-            gp0CommandRemaining = 3;
+            gp0CommandRemaining = 2;
             Gp0CommandMethod = &Gpu::gp0ImageStore;
             break;
         case 0x2C:
@@ -253,6 +278,39 @@ void Emulator::Gpu::gp1(uint32_t val) {
     case 0x08:
         gp1DisplayMode(val);
         break;
+    case 0x10: {
+        switch (val % 8) {
+            case 2: {
+                _read = textureWindowXMask | (textureWindowYMask << 5)
+                    | (textureWindowXOffset << 10) | (textureWindowYOffset << 15);
+                
+                break;
+            }
+            case 3: {
+                _read = drawingAreaLeft | (drawingAreaTop << 10);
+                
+                break;
+            }
+            case 4: {
+                _read = drawingAreaRight | (drawingAreaBottom << 10);
+                
+                break;
+            }
+            case 5: {
+                _read = (static_cast<uint32_t>(drawingXOffset) & 0x7FF)
+                    | ((static_cast<uint32_t>(drawingYOffset) & 0x7F) << 1);
+                
+                break;
+            }
+            default: {
+                /*printf("%d", (val % 8));
+                std::cerr << "";*/
+                break;
+            }
+        }
+        
+        break;
+    }
     default:
         std::cerr << "ERROR; Unhandled GPU command " << std::to_string(opcode) << '\n'; 
         break;
@@ -284,9 +342,11 @@ void Emulator::Gpu::gp1Reset(uint32_t val) {
     forceSetMaskBit = false;
     preserveMaskedPixels = false;
     
+    _read = 0;
+    
     dmaDirection = DmaDirection::Off;
     
-    displayDisabled = false;
+    displayEnabled = false;
     displayVramXStart = 0;
     displayVramYStart = 0;
     hres = HorizontalRes::fromFields(0, 0);
@@ -346,10 +406,11 @@ void Emulator::Gpu::gp1DmaDirection(uint32_t val) {
     }
 }
 
-uint32_t Emulator::Gpu::read() {
-    // Not implemented for now
+uint32_t Emulator::Gpu::read(uint32_t addr) {
+    if(gp0Mode != VRam)
+        return _read;
     
-    //printf("Size; %d\n", gp0CommandRemaining);
     
-    return 0; // 0x1f801810
+    
+    return 0x1f801810;
 }

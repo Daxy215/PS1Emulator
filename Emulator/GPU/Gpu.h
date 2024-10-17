@@ -12,6 +12,8 @@
 #include "VRAM.h"
 #include "Rendering/Renderer.h"
 
+// TODO; Please redo this shitty code WTF IS THIS ;-;
+
 // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/
 
 namespace Emulator {
@@ -30,10 +32,10 @@ namespace Emulator {
     
     // Video output horizontal resolution
     struct HorizontalRes {
-        uint8_t value;
+        uint32_t value;
         
-        static HorizontalRes fromFields(uint8_t hr1, uint8_t hr2) {
-            uint8_t hr = (hr2 & 1) | ((hr1 & 3) << 1);
+        static HorizontalRes fromFields(uint32_t hr1, uint32_t hr2) {
+            uint32_t hr = (hr2 & 1) | ((hr1 & 3) << 1);
             return HorizontalRes{hr};
         }
         
@@ -152,12 +154,12 @@ namespace Emulator {
               preserveMaskedPixels(false),
               field(Field::Top),
               textureDisable(false),
-              hres(HorizontalRes::fromFields(0, 0)),
+              hres(HorizontalRes::fromFields(320, 240)),
               vres(VerticalRes::Y240Lines),
               vmode(VMode::Ntsc),
               displayDepth(DisplayDepth::D15Bits),
               interlaced(false),
-              displayDisabled(true),
+              displayEnabled(false),
               interrupt(false),
               dmaDirection(DmaDirection::Off),
               renderer(new Renderer()),
@@ -384,7 +386,6 @@ namespace Emulator {
                 Position::fromGp0P(gp0Command.buffer[7]),
             };
             
-            // A single color repeated 4 times
             Color colors[] = {
                 Color::fromGp0(gp0Command.buffer[0]),
                 Color::fromGp0(gp0Command.buffer[2]),
@@ -393,6 +394,21 @@ namespace Emulator {
             };
             
             renderer->pushQuad(positions, colors);
+        }
+        
+        // TODO; Testing
+        void gp0Rectangle(uint32_t val) {
+            uint32_t color = gp0Command.buffer[0] & 0xffffff;
+            
+            if(color != 0) {
+                printf("");
+            }
+            
+            uint32_t cmd = gp0Command.buffer[1];
+            uint32_t x = (cmd & 0xffff) + drawingXOffset;
+            uint32_t y = (cmd >> 16) + drawingYOffset;
+            
+            vram->setPixel(x, y, color);
         }
         
         // GP0(0x01): Clear Cache
@@ -406,15 +422,20 @@ namespace Emulator {
             uint32_t cords = gp0Command.buffer[1];
             uint32_t res = gp0Command.buffer[2];
             
-            uint32_t x = cords & 0xFFFF;
+            /*uint32_t x = cords & 0xFFFF;
             uint32_t y = cords >> 16;
             
-            // 2nd  Source Coord      (YyyyXxxxh) ; write to GP0 port (as usually)
             uint32_t width = res & 0xFFFF;
-            uint32_t height = res >> 16;
+            uint32_t height = res >> 16;*/
             
-            // Size of the image in 16bit pixels
-            uint32_t imgSize = width * height;
+            uint32_t x = (cords & 0xFFFF) & 0x3FF;
+            uint32_t y = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
+            
+            // 2nd  Source Coord      (YyyyXxxxh) ; write to GP0 port (as usual?)
+            uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
+            uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
+            
+            uint32_t imgSize = (width * height);
             
             // If we have an odd number of pixels we must round up
             // since we transfer 32bits at a time. There'll be 16bits
@@ -425,7 +446,7 @@ namespace Emulator {
             vram->beginTransfer(x, y, width, height, imgSize);
             
             // Store number of words expected for this image
-            gp0CommandRemaining = imgSize / 2;
+            gp0CommandRemaining = (imgSize / 2);
             
             // Put the GP0 state machine into the VRam mode
             gp0Mode = VRam;
@@ -447,11 +468,38 @@ namespace Emulator {
             uint32_t width = res & 0xFFFF;
             uint32_t height = res >> 16;
             
-            //printf("Unhandled image store %x %x\n", width, height);
+            printf("Unhandled image store %x %x\n", width, height);
+            std::cerr << "";
             
             // Update signals
             canSendVRAMToCPU = false;
             canSendCPUToVRAM = true;
+        }
+        
+        void gp0VramToVram(uint32_t val) {
+            uint32_t cords = gp0Command.buffer[0];
+            uint32_t dests = gp0Command.buffer[1];
+            uint32_t res = gp0Command.buffer[2];
+            
+            uint32_t srcX = (cords & 0xFFFF) & 0x3FF;
+            uint32_t srcY = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
+            
+            uint32_t dstX = (dests & 0xFFFF) & 0x3FF;
+            uint32_t dstY = ((dests & 0xFFFF0000) >> 16) & 0x1FF;
+            
+            uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
+            uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
+            
+            bool dir = srcX < dstX;
+            
+            for(uint32_t y = 0; y < height; y++) {
+                for(uint32_t x = 0; x < width; x++) {
+                    uint32_t posX = (!dir) ? x : width - 1 - x;
+                    
+                    uint32_t color = vram->getPixelRGB888((srcX + posX) % 1024, (srcY + y) % 512);
+                    vram->setPixel(dstX + posX, dstY + y, color);
+                }
+            }
         }
         
         // Handles writes to the GP1 command register
@@ -465,7 +513,7 @@ namespace Emulator {
         
         // GP1(0x03): Display Enable
         void gp1DisplayEnable(uint32_t val) {
-            displayDisabled = (val & 1) != 0;
+            displayEnabled = (val & 1) == 0;
         }
         
         // GP1(0x04): DMA Direction
@@ -492,7 +540,7 @@ namespace Emulator {
         // GP1(0x01): Reset Command Buffer
         void gp1ResetCommandBuffer(uint32_t val) {
             gp0Command.clear();
-            gp0CommandRemaining = 0;
+            //gp0CommandRemaining = 0;
             gp0Mode = Command; 
         }
         
@@ -502,7 +550,8 @@ namespace Emulator {
         }
         
         // Retrieve value of the "read" register
-        uint32_t read();
+        uint32_t read(uint32_t addr);
+        
     public:
         uint8_t pageBaseX;           // Texture page base X coordinate (4 bits, 64 byte increment)
         uint8_t pageBaseY;           // Texture page base Y coordinate (1 bit, 256 line increment)
@@ -519,7 +568,7 @@ namespace Emulator {
         VMode vmode;                 // Video mode
         DisplayDepth displayDepth;   // Display depth
         bool interlaced;             // Output interlaced video signal instead of progressive
-        bool displayDisabled;        // Disable the display
+        bool displayEnabled;         // Whether the display is on or not
         bool interrupt;              // True when the interrupt is active
         DmaDirection dmaDirection;   // DMA request direction
         bool rectangleTextureFlipX;  // Mirror textured rectangles along the x axis
@@ -547,6 +596,9 @@ namespace Emulator {
         bool canSendVRAMToCPU;
         bool canSendCPUToVRAM;
         bool canReceiveDMABlock;
+        
+        uint32_t _read = 0;
+        
     public:
         // Buffer containing the current GP0 command
         CommandBuffer gp0Command;

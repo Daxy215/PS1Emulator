@@ -44,7 +44,7 @@ std::string getInstructionName(uint32_t instruction) {
         {0x32, "LWC2"},
         {0x3A, "SWC2"}
     };
-
+    
     uint8_t opcode = (instruction >> 26) & 0x3F;
     auto it = opcodeMap.find(opcode);
     if (it != opcodeMap.end()) {
@@ -369,95 +369,6 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         std::cerr << "";
         break;
     }
-    
-    /*switch (instruction.subfunction()) {
-    case 0b000000:
-        opsll(instruction);
-        break;
-    case 0b000100:
-        opsllv(instruction);
-        break;
-    case 0b000011:
-        opsra(instruction);
-        break;
-    case 0b000111:
-        opsrav(instruction);
-        break;
-    case 0b000010:
-        opsrl(instruction);
-        break;
-    case 0b000110:
-        opsrlv(instruction);
-        break;
-    case 0b100101:
-        opor(instruction);
-        break;
-    case 0b100111:
-        opnor(instruction);
-        break;
-    case 0b100110:
-        opxor(instruction);
-        break;
-    case 0b101011:
-        opsltu(instruction);
-        break;
-    case 0b101010:
-        opslt(instruction);
-        break;
-    case 0b001000:
-        opjr(instruction);
-        break;
-    case 0b001001:
-        opjalr(instruction);
-        break;
-    case 0b100000:
-        add(instruction);
-        break;
-    case 0b100001:
-        addu(instruction);
-        break;
-    case 0b100010:
-        opsub(instruction);
-        break;
-    case 0b011001:
-        opmultu(instruction);
-        break;
-    case 0b011000:
-        opmult(instruction);
-        break;
-    case 0b011010:
-        opdiv(instruction);
-        break;
-    case 0b011011:
-        opdivu(instruction);
-        break;
-    case 0b010000:
-        opmfhi(instruction);
-        break;
-    case 0b010001:
-        opmthi(instruction);
-        break;
-    case 0b010010:
-        opmflo(instruction);
-        break;
-    case 0b010011:
-        opmtlo(instruction);
-        break;
-    case 0b100011:
-        opsubu(instruction);
-        break;
-    case 0b100100:
-        opand(instruction);
-        break;
-    case 0b001100:
-        opSyscall(instruction);
-        break;
-    default:
-        //opillegal(instruction); // Illegal instruction
-        //printf("Unhandled sub instruction: %s\n", getDetails(instruction.op).c_str());
-        
-        break;
-    }*/
 }
 
 void CPU::opsll(Instruction& instruction) {
@@ -497,7 +408,8 @@ void CPU::opsrav(Instruction& instruction) {
     auto t = instruction.t();
     
     // Shift amount is truncated to 5 bits
-    auto v = static_cast<int32_t>(reg(t) >> (reg(s) & 0x1f));
+    // I just... Another issue here was that I was converting the entire result into an int32_t
+    auto v = static_cast<int32_t>(reg(t)) >> (reg(s) & 0x1F);
     
     set_reg(d, static_cast<uint32_t>(v));
 }
@@ -567,9 +479,10 @@ void CPU::opnor(Instruction& instruction) {
     RegisterIndex d = instruction.d();
     RegisterIndex s = instruction.s();
     RegisterIndex t = instruction.t();
-
-    RegisterIndex v = !(reg(s) | reg(t));
-
+    
+    // Was doing '!' instead of '~' :)
+    RegisterIndex v = ~(reg(s) | reg(t));
+    
     set_reg(d, v);
 }
 
@@ -1147,7 +1060,8 @@ void CPU::opsub(Instruction& instruction) {
     int32_t s = static_cast<int32_t>(reg(sReg));
     int32_t t = static_cast<int32_t>(reg(tReg));
     
-    if(std::optional<int32_t> v = check_add<int32_t>(s, t)) {
+    // Ain't no way I'm doing check_add instead of check_sub xDD
+    if(std::optional<int32_t> v = check_sub<int32_t>(s, t)) {
         set_reg(d, static_cast<uint32_t>(v.value()));
     } else {
         exception(Overflow);
@@ -1240,19 +1154,26 @@ void CPU::opmtc0(Instruction& instruction) {
     case 12:
         sr = v;
         break;
-    case 13:
+    case 13: {
         // cause register
-        if(v != 0) {
+        /*if(v != 0) {
             throw std::runtime_error("Unhandled write to cop0 register " + std::to_string(copr));
         }
+        */
         
+        // https://hitmen.c02.at/files/docs/psx/system.txt
+        // Bits 8-9 (Interrupt pending field) are writable
+        uint32_t mask = 0x00000300;  // Only bits 8 and 9 are writable
+        cause = (cause & ~mask) | (v & mask);
+       
         break;
+    }
     default:
         std::cout << "Unhandled cop0 register " << copr << "\n";
         throw std::runtime_error("Unhandled cop0 register " + std::to_string(copr));
     }
     
-    //load = {cpur, v};
+    //setLoad(cpur, v);
 }
 
 void CPU::opmfc0(Instruction& instruction) {
@@ -1270,6 +1191,9 @@ void CPU::opmfc0(Instruction& instruction) {
         break;
     case 14:
         v = epc;
+        break;
+    case 15:
+        v = pc;
         break;
     default:
         throw std::runtime_error("Unhandled read from cop0r " + std::to_string(copr));
@@ -1350,9 +1274,9 @@ void CPU::checkForTTY() {
         
         char ch = static_cast<char>(regs[4] & 0xFF);
         
-        if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r') {
+        //if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r') {
             std::cerr << ch;
-        }
+        //}
         //}
     }
 }
@@ -1363,8 +1287,6 @@ void CPU::opj(Instruction& instruction) {
     nextpc = (pc & 0xf0000000) | (i << 2);
 }
 
-// TODO; Instruction; SPECIAL - 17384
-// which is this, I guess this is giving me the wrong results??
 void CPU::opjr(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     
@@ -1376,8 +1298,6 @@ void CPU::opjal(Instruction& instruction) {
     uint32_t ra = nextpc;
     
     opj(instruction);
-    //uint32_t i = instruction.imm_jump();
-    //nextpc = (pc & 0xf0000000) | (i << 2);
     
     set_reg(31, ra);
 }
@@ -1584,7 +1504,7 @@ uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
     // I had to get a Rust IDE and learn it's basics to make sure
     // that they are both are outputting the same results,
     // and they were somehow after crying for days.
-    return a + b;
+    return (a + b) & 0xFFFFFFFF;
     
     /*uint64_t temp = static_cast<uint64_t>(a) + b;
     
@@ -1639,12 +1559,19 @@ std::optional<T> CPU::check_add(T lhs, T rhs) {
     }
     
     return lhs + rhs;
-    
-    /*if (b > std::numeric_limits<T>::max() - a) {
-        // Overflow occurred
-        return std::nullopt;
+}
+
+template <typename T>
+std::optional<T> CPU::check_sub(T a, T b) {
+    if (b >= 0) {
+        if (a < std::numeric_limits<T>::min() + b) {
+            return std::nullopt;
+        }
+    } else {
+        if (a > std::numeric_limits<T>::max() + b) {
+            return std::nullopt;
+        }
     }
     
-    // No overflow, perform addition
-    return a + b;*/
+    return a - b;
 }

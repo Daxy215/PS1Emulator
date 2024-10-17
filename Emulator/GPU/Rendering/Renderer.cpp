@@ -135,14 +135,14 @@ void Emulator::Renderer::draw() {
     }
     
     // Reset the buffers
-    //nVertices = 0;
+    nVertices = 0;
 }
 
 void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
         printf("Vertex attribute buffers full forcing draw\n");
         std::cerr << "";
-        draw();
+        display();
     }
     
     for(int i = 0; i < 3; i++) {
@@ -154,8 +154,8 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
 
 void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color* colors) {
     if(nVertices + 6 > VERTEX_BUFFER_LEN) {
-        printf("Vertex attribute buffers full forcing draw\n");
-        draw();
+        //printf("Vertex attribute buffers full forcing draw\n");
+        display();
     }
     
     // First triangle

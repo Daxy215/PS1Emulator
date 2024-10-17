@@ -4,12 +4,12 @@
 #include <iostream>
 
 std::vector<uint8_t> FileManager::loadFile(const std::string& path) {
-	std::string filename = "ROMS/Tests/psxtest_cpx.exe";
+	//std::string filename = "ROMS/Tests/psxtest_cpx.exe";
 	
-	std::ifstream stream(filename.c_str(), std::ios::binary | std::ios::ate);
+	std::ifstream stream(path.c_str(), std::ios::binary | std::ios::ate);
     
 	if (!stream.good()) {
-		std::cerr << "Cannot read from file: " << filename << '\n';
+		std::cerr << "Cannot read from file: " << path << '\n';
 		return {};
 	}
     

@@ -330,43 +330,93 @@ int main(int argc, char* argv[]) {
     Emulator::SPU spu;
     
     CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma, &gpu, &spu));
-    
+	
     SDL_Event event;
 	
     int x = 0;
+	uint32_t counter = 0;
+	
     while(true) {
+    	// TODO; Testing
+    	if(counter++ > 25600) {
+    		counter = 0;
+    		//gpu.vram->endTransfer();
+			
+    		cpu->interconnect->_joypad.update();
+    	}
+    	
 	    // Wait for the BIOS to jump to the shell
 	    if (cpu->pc != 0x80030000) {
 		    cpu->executeNextInstruction();
 	    } else {
 	    	std::cerr << "Loading test EXE file\n";
+	    	
+	    	// Tests
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADD/CPUADD.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDI/CPUADDI.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDIU/CPUADDIU.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/AND/CPUAND.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ANDI/CPUANDI.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/DIV/CPUDIV.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/DIVU/CPUDIVU.exe"); // Passed
 			
-	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADD/CPUADD.exe");
-	
+	    	// Load Tests
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LB/CPULB.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LH/CPULH.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LW/CPULW.exe"); // Passed
+			
+	    	// Store Tests
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SB/CPUSB.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SH/CPUSH.exe"); // Passed
+	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SW/CPUSW.exe"); // TODO; Fails some tests
+	    	
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/MULT/CPUMULT.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/MULTU/CPUMULTU.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/NOR/CPUNOR.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/OR/CPUOR.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ORI/CPUORI.exe"); // Passed
+			
+	    	// Shift tests
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/Sll/CPUSlL.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SllV/CPUSlLV.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRA/CPUSRA.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRAV/CPUSRAV.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRL/CPUSRL.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRLV/CPUSRLV.exe"); // Passed
+			
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SUB/CPUSUB.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SUBU/CPUSUBU.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XOR/CPUXOR.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XORI/CPUXORI.exe"); // Passed
+			
+	    	// Other stuff
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpx.exe");
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
+			
 	    	Exe exe;
 	    	memcpy(&exe, data.data(), sizeof(exe));
-	
+			
 	    	if(exe.tSize > data.size() - 0x800) {
 	    		std::cerr << "Invalid exe size";
 	    		exe.tSize = data.size() - 0x800;
 	    	}
-	
+			
 	    	for(uint32_t j = 0; j < exe.tSize; j++) {
 	    		cpu->interconnect->store<uint8_t>(exe.tAddr + j, data[0x800 + j]);
 	    	}
-	
+			
 	    	cpu->pc = exe.pc0;
 	    	cpu->nextpc = exe.pc0 + 4;
 	    	//cpu->currentpc = cpu->pc;
-	
+			
 	    	cpu->set_reg(28, exe.gp0);
-	
+			
 	    	if(exe.sAddr != 0) {
 	    		cpu->set_reg(29, exe.sAddr + exe.sSize);
 	    		cpu->set_reg(30, exe.sAddr + exe.sSize);
 	    	}
-	
-	    	cpu->branchSlot = false;	
+			
+	    	cpu->branchSlot = false;
 	    }
 		
 	    x++;
@@ -374,8 +424,27 @@ int main(int argc, char* argv[]) {
         if(SDL_PollEvent(&event)) {
             if(event.type == SDL_QUIT)
                 break;
+			
+        	switch(event.type) {
+        	case SDL_CONTROLLERBUTTONDOWN:
+			case SDL_CONTROLLERBUTTONUP:
+				cpu->interconnect->_joypad.handleButtonEvent(event.cbutton);
+				
+        		break;
+        	case SDL_CONTROLLERAXISMOTION:
+        		cpu->interconnect->_joypad.handleAxisEvent(event.caxis);
+				
+        		break;
+        	case SDL_JOYDEVICEADDED:
+        	case SDL_JOYDEVICEREMOVED:
+				cpu->interconnect->_joypad.updateConnectedControllers();
+        		
+        		break;
+        	}
         }
     }
+	
+	SDL_Quit();
     
     return 0;
 }

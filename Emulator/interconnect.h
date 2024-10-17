@@ -11,6 +11,8 @@
 #include "GPU/Gpu.h"
 #include "Ram.h"
 #include "Range.h"
+#include "Memory/IO/Joypad.h"
+#include "Memory/ScratchPad/ScratchPad.h"
 #include "SPU/SPU.h"
 
 /**
@@ -23,7 +25,7 @@ class Bios;
 class Interconnect {
 public:
     Interconnect(Ram* ram, Bios* bios, Dma* dma, Emulator::Gpu* gpu, Emulator::SPU* spu)
-        : ram(ram), bios(bios), dma(dma), gpu(gpu), spu(spu) {  }
+        : ram(ram), _scratchPad(), bios(bios), dma(dma), gpu(gpu), spu(spu) {  }
     
     template<typename T>
     T load(uint32_t addr) {
@@ -33,16 +35,16 @@ public:
             return ram->load<T>(offset.value());
         }
         
-        if (auto _ = map::SCRATCHPAD.contains(abs_addr)) {
+        if (auto offset = map::SCRATCHPAD.contains(abs_addr)) {
             if (addr > 0xa0000000) {
                 throw std::runtime_error("ScratchPad access through uncached memory");
             }
             
-            throw std::runtime_error("Unhandled SCRATCH_PAD load at address 0x" + to_hex(addr));
+            return _scratchPad.load<T>(offset.value());
+            //throw std::runtime_error("Unhandled SCRATCH_PAD load at address 0x" + to_hex(addr));
         }
         
         if (auto offset = map::BIOS.contains(abs_addr)) {
-            //std::cerr << "Offset; " + std::to_string(offset.value());
             return bios->load<T>(offset.value());
         }
         
@@ -60,20 +62,11 @@ public:
         }
         
         if (auto offset = map::GPU.contains(abs_addr)) {
-            //printf("GPU read %s\n", std::to_string(offset.value()).c_str());
             switch (offset.value()) {
                 case 0:
-                    return gpu->read();
+                    return gpu->read(offset.value());
                 case 4: {
-                    uint32_t r = gpu->status();
-                    
-                    if(r != 0x1c000000) {
-                        // TODO;
-                        //std::cerr << "y is it not THE SAME!; " << std::to_string(r) << "\n";
-                    }
-                    
-                    return 0x1c000000;
-                    //return gpu->status();
+                    return gpu->status();
                 }
                 default:
                     return 0;
@@ -107,12 +100,11 @@ public:
         }
         
         if (auto _ = map::PADMEMCARD.contains(abs_addr)) {
-            //return 0;
-            throw std::runtime_error("Unhandled PAD_MEMCARD load at address 0x" + to_hex(addr));
+            return _joypad.load(abs_addr);
         }
         
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
-            return 0xff;
+            return 0xFF;
         }
         
         if (auto _ = map::RAM_SIZE.contains(abs_addr)) {
@@ -164,7 +156,10 @@ public:
                 throw std::runtime_error("ScratchPad access through uncached memory");
             }
             
-            throw std::runtime_error(" to SCRATCH_PAD 0x" + to_hex(offset.value()));
+            _scratchPad.store<T>(offset.value(), val);
+            
+            return;
+            //throw std::runtime_error(" to SCRATCH_PAD 0x" + to_hex(offset.value()));
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
@@ -224,8 +219,12 @@ public:
             //throw std::runtime_error(": 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
         
+        // Peripheral I/O Ports
         if (auto offset = map::PADMEMCARD.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled write to PAD_MEMCARD 0x" + to_hex(offset.value()));
+            _joypad.store(abs_addr, val);
+            
+            return;
+            //throw std::runtime_error("Unhandled write to PAD_MEMCARD 0x" + to_hex(offset.value()));
         }
         
         if (auto _ = map::CACHECONTROL.contains(abs_addr)) {
@@ -314,6 +313,9 @@ public:
     
 public:
     Ram* ram;
+    ScratchPad _scratchPad;
+    Joypad _joypad;
+    
     Bios* bios;
     Dma* dma;
     Emulator::Gpu* gpu;

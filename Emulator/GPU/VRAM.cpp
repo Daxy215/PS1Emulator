@@ -6,8 +6,8 @@
 
 Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu), color1555to8888LUT(2 * 32 * 32 * 32) {
     // Create a texture with the desired dimensions
-    texture = SDL_CreateTexture(gpu->renderer->renderer, SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_STREAMING, width, height);
+    texture = SDL_CreateTexture(gpu->renderer->renderer, SDL_PIXELFORMAT_ARGB8888,
+        SDL_TEXTUREACCESS_STREAMING, MAX_WIDTH, MAX_HEIGHT);
     
     if (!texture) {
         std::cerr << "Failed to create texture: " << SDL_GetError() << '\n';
@@ -16,7 +16,7 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu), color1555to8888LUT(2 * 32 * 32 * 32) 
     
     // Lock the texture to get a pointer to its raw pixel data
     pixels = nullptr;
-    int pitch;
+    pitch = 0;
     
     if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
         std::cerr << "Failed to lock texture: " << SDL_GetError() << '\n';
@@ -65,13 +65,32 @@ void Emulator::VRAM::stepTransfer() {
 }
 
 void Emulator::VRAM::endTransfer() {
+    // Lock the texture before drawing
+    if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
+        std::cerr << "Failed to lock texture: " << SDL_GetError() << '\n';
+        return; // Handle the error appropriately
+    }
+    
     // Draw the texture
-    SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)width, (int)height };
-    SDL_Rect srcrect = { 0, 0, (int)width, (int)height};
+    SDL_Rect srcrect = { 0, 0, (int)transferData.width, (int)transferData.height };
+    SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)transferData.width, (int)transferData.height };
+    //SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
+    SDL_RenderCopy(gpu->renderer->renderer, texture, nullptr, nullptr);
+    
+    // Unlock the texture after drawing
+    SDL_UnlockTexture(texture);
+    
+    // Update the screen
+    SDL_RenderPresent(gpu->renderer->renderer);
+    
+    /*
+    // Draw the texture
+    SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)transferData.width, (int)transferData.height };
+    SDL_Rect srcrect = { 0, 0, (int)transferData.width, (int)transferData.height};
     SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
     
     //Update the screen
-    SDL_RenderPresent(gpu->renderer->renderer);
+    SDL_RenderPresent(gpu->renderer->renderer);*/
 }
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {
@@ -86,17 +105,20 @@ void Emulator::VRAM::drawPixel(uint32_t pixel) {
 }
 
 void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
-    size_t index = y * width + x;
+    x %= MAX_WIDTH;
+    y %= MAX_HEIGHT;
+    
+    size_t index = y * MAX_WIDTH + x;
     pixels[index] = color;
 }
 
 uint32_t Emulator::VRAM::getPixelRGB888(uint32_t x, uint32_t y) {
-    size_t index = y * width + x;
+    size_t index = y * MAX_WIDTH + x;
     return pixels[index];
 }
 
 uint32_t Emulator::VRAM::getPixelBGR555(uint32_t x, uint32_t y) {
-    size_t index = y * width + x;
+    size_t index = y * MAX_WIDTH + x;
     uint32_t color = pixels[index];
     
     uint8_t m = static_cast<uint8_t>((color & 0xFF000000) >> 24);
