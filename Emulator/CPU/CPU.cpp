@@ -576,7 +576,7 @@ void CPU::opswl(Instruction& instruction) {
     auto t = instruction.t();
     auto s = instruction.s();
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = reg(s) + i;
     uint32_t v    = reg(t);
     
     uint32_t alignedAddr = addr & ~3;
@@ -603,7 +603,7 @@ void CPU::opswl(Instruction& instruction) {
         throw std::runtime_error("Unreachable code!");
     }
     
-    store32(addr, mem);
+    store32(alignedAddr, mem);
 }
 
 void CPU::opswr(Instruction& instruction) {
@@ -638,7 +638,7 @@ void CPU::opswr(Instruction& instruction) {
         throw std::runtime_error("Unreachable code!");
     }
     
-    store32(addr, mem);
+    store32(alignedAddr, mem);
 }
 
 // Store halfword
