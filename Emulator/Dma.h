@@ -23,10 +23,10 @@ enum Sync {
     // Transfer starts when the CPU writes to the Trigger bit,
     // and transfers everything at once
     Manual,
-
+    
     // Sync blocks to DMA requests
     Request,
-
+    
     // Used to transfer GPU command lists
     LinkedList
 };
@@ -35,22 +35,22 @@ enum Sync {
 enum Port {
     // Macroblock decoder input
     MdecIn = 0,
-
+    
     // Macroblock decoder output
     MdecOut = 1,
-
+    
     // Graphics Processing Unit
     Gpu = 2,
-
+    
     // CD-ROM drive
     CdRom = 3,
-
+    
     // Sound Processing Unity
     Spu = 4,
-
+    
     // Extension port
     Pio = 5,
-
+    
     // Used to clear the ordering table
     Otc = 6
 };
@@ -162,7 +162,7 @@ struct Channel {
     std::optional<uint32_t> transferSize() {
         uint32_t bs = static_cast<uint32_t>(blockSize);
         uint32_t bc = static_cast<uint32_t>(blockCount);
-
+        
         switch (sync) {
         case Manual:
             // For manual mode only the block size is used

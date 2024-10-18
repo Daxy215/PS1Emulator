@@ -29,7 +29,6 @@ void Dma::setInterrupt(uint32_t val) {
     // Writing 1 to a flag rests it
     uint8_t ack = ((val >> 24) & 0x3F);
     channelIraqFlags &= ~ack;
-    
 }
 
 bool Dma::irq() {

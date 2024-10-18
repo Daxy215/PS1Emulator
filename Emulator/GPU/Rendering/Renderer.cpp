@@ -8,10 +8,7 @@
 
 #include "../Gpu.h"
 
-Emulator::Renderer::Renderer()
-        /*: mainFramebuffer(createFrameBuffer(640, 480)),
-            vRamFramebuffer(createFrameBuffer(120, 120))*/ {
-     
+Emulator::Renderer::Renderer() {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL could not initialize SDL_Error: " << SDL_GetError() << '\n';
         return;
@@ -21,7 +18,7 @@ Emulator::Renderer::Renderer()
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     
     window = SDL_CreateWindow("PSX", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        1024, 512, SDL_WINDOW_OPENGL);
+        1024 * 1.5f, 512 * 1.5f, SDL_WINDOW_OPENGL);
     
     if (window == nullptr) {
         std::cerr << "Window could not be created SDL_Error: " << SDL_GetError() << '\n';

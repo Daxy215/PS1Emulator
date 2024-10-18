@@ -545,9 +545,6 @@ void CPU::opslt(Instruction& instruction) {
 }
 
 // Store word
-// 10 -> 11 = Problem
-// Between 87 -> 93 Instructions
-// it wasn't :}
 void CPU::opsw(Instruction& instruction) {
     uint32_t i = instruction.imm_se();
     uint32_t t = instruction.t();
@@ -699,9 +696,7 @@ void CPU::oplw(Instruction& instruction) {
         uint32_t v = load32(addr);
         
         // Put the load in the delay slot
-        //load = {t, v};
         setLoad(t, v);
-        //set_reg(t, v);
     } else
         exception(LoadAddressError);
 }
@@ -884,29 +879,6 @@ void CPU::addi(Instruction& instruction) {
     } else {
         exception(Overflow);
     }
-    
-    /*int32_t i = static_cast<int32_t>(instruction.imm_se());
-    RegisterIndex t = instruction.t();
-    RegisterIndex sreg = instruction.s();
-    
-    int32_t s = static_cast<int32_t>(reg(sreg));
-    
-    // Check if an overflow occurs
-    if ((i > 0 && s > std::numeric_limits<int32_t>::max() - i) ||
-        (i < 0 && s < std::numeric_limits<int32_t>::min() - i)) {
-        exception(Overflow);
-    } else {
-        int32_t v = s + i;
-        set_reg(t, static_cast<uint32_t>(v));
-    }*/
-    
-    /*std::optional<int32_t> v = check_add<int32_t>(s, i);
-    if(!v.has_value()) {
-        // Overflow!
-        std::cout << "ADDi overflow\n";
-        exception(Overflow);
-    } else
-        set_reg(t, static_cast<uint32_t>(v.value()));*/
 }
 
 void CPU::opmultu(Instruction& instruction) {
@@ -1013,7 +985,8 @@ void CPU::oplwc1(Instruction& instruction) {
 
 void CPU::oplwc2(Instruction& instruction) {
     // Geometry Transformation Engine
-    //printf("Unhandled GTE LWC %s\n", std::to_string(instruction.op).c_str());
+    printf("Unhandled GTE LWC %s\n", std::to_string(instruction.op).c_str());
+    std::cerr << "";
 }
 
 void CPU::oplwc3(Instruction& instruction) {
@@ -1033,6 +1006,7 @@ void CPU::opswc1(Instruction& instruction) {
 
 void CPU::opswc2(Instruction& instruction) {
     printf("Unhandled GTE SWC %x", instruction.op);
+    std::cerr << "";
 }
 
 void CPU::opswc3(Instruction& instruction) {
@@ -1060,7 +1034,7 @@ void CPU::opsub(Instruction& instruction) {
     int32_t s = static_cast<int32_t>(reg(sReg));
     int32_t t = static_cast<int32_t>(reg(tReg));
     
-    // Ain't no way I'm doing check_add instead of check_sub xDD
+    // Ain't no way I'm doing check_add instead of check_sub
     if(std::optional<int32_t> v = check_sub<int32_t>(s, t)) {
         set_reg(d, static_cast<uint32_t>(v.value()));
     } else {
@@ -1113,6 +1087,8 @@ void CPU::opcop1(Instruction& instruction) {
 }
 
 void CPU::opcop2(Instruction& instruction) {
+    exception(Exception::CoprocessorError);
+    
     //printf("Code; %d\n", instruction.func().reg);
     //
     //uint32_t offset = instruction.imm_se();
@@ -1396,32 +1372,6 @@ void CPU::branch(uint32_t offset) {
     nextpc = wrappingAdd(pc, offset);
     
     branchSlot = true;
-    
-    // We need to compensate for the hardcoded
-    // 'pc.wrapping_add(4)' in 'executeNextInstruction'
-    
-    // This was causing an error,
-    // apparently swapping the values fixed it?
-    // pc = wrappingSub(4, pc);
-    // So.. This was causing another error,
-    // after A LOT of debugging I noticed that,
-    // pc was being rest back to '0' after BNE,
-    // so I double-checked what the output was meant to be,
-    // and it was supposed to be 4294967256.
-    
-    /**
-     * So I did some digging on why wrappingSub wouldn't return 0 in this case;
-        * 4294967260 is 0xFFFFFFEC in HEX, and when you perform the subraction,
-        * so it'd be; 0xFFFFFFEC - 0x00000004 = 0xFFFFFFE8..
-        * which isn't an overflow.
-        
-        * Another thing;
-            * It seems that the wrapping subraction function only results in 0,
-            * IF the subraction crosses the boundary of the minimum value(0)..
-     */
-    
-    // In the end.. It's removed after searching for hours of this stupid problem..
-    //pc -= 4;
 }
 
 void CPU::add(Instruction& instruction) {
@@ -1436,21 +1386,6 @@ void CPU::add(Instruction& instruction) {
         set_reg(d, static_cast<uint32_t>(v.value()));
     } else
         exception(Overflow);
-
-    /*
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
-    RegisterIndex d = instruction.d();
-    uint32_t s_val = static_cast<uint32_t>(this->reg(s));
-    uint32_t t_val = static_cast<uint32_t>(this->reg(t));
-    uint32_t v;
-    try {
-        v = s_val + t_val;
-    } catch (std::overflow_error& e) {
-        throw std::runtime_error("ADD overflow");
-    }
-    this->set_reg(d, v);
-     */
 }
 
 //TODO; reg 3 is wrong? 1562 at 86552

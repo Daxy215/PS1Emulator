@@ -392,7 +392,8 @@ int main(int argc, char* argv[]) {
 	    	// Other stuff
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpx.exe");
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
-			
+	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+						
 	    	Exe exe;
 	    	memcpy(&exe, data.data(), sizeof(exe));
 			

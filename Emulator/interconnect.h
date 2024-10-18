@@ -54,10 +54,6 @@ public:
         }
         
         if (auto offset = map::DMA.contains(abs_addr)) {
-            if(abs_addr == 0x01000200) {
-                printf("Yay\n");
-            }
-            
             return dmaReg(offset.value());
         }
         
@@ -104,11 +100,10 @@ public:
         }
         
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
-            return 0xFF;
+            throw std::runtime_error("Unhandled EXPANSION1 load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::RAM_SIZE.contains(abs_addr)) {
-            //return 0;
             throw std::runtime_error("Unhandled RAM_SIZE load at address 0x" + to_hex(addr));
         }
         
@@ -117,8 +112,7 @@ public:
                 throw std::runtime_error("Unhandled MEM_CONTROL access (" + std::to_string(sizeof(T)) + ")");
             }
             
-            return 0;
-            //throw std::runtime_error("Unhandled MEM_CONTROL load at address 0x" + to_hex(addr));
+            throw std::runtime_error("Unhandled MEM_CONTROL load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::CACHECONTROL.contains(abs_addr)) {
@@ -126,18 +120,14 @@ public:
                 throw std::runtime_error("Unhandled cache control access (" + std::to_string(sizeof(T)) + ")");
             }
             
-            //return 0;
             throw std::runtime_error("Unhandled CACHE_CONTROL load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
-            //return 0;
             throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
-        //std::cerr << "Wee; 0x" << to_hex(addr) << "\n";
-        //throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
-        return 0;
+        throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
     }
     
     template<typename T>
@@ -146,7 +136,6 @@ public:
         
         if (auto offset = map::RAM.contains(abs_addr)) {
             ram->store<T>(offset.value(), val);
-            //ram->store32(offset.value(), val);
             
             return;
         }
@@ -159,13 +148,10 @@ public:
             _scratchPad.store<T>(offset.value(), val);
             
             return;
-            //throw std::runtime_error(" to SCRATCH_PAD 0x" + to_hex(offset.value()));
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
-            //throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
-            //printf("IRQ control unhandled..\n");
-            return;
+            throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
         
         if (auto offset = map::DMA.contains(abs_addr)) {
@@ -189,8 +175,7 @@ public:
         }
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
-            //throw std::runtime_error("Unhandled TIMERS control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
-            return;
+            throw std::runtime_error("Unhandled TIMERS control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
@@ -214,7 +199,6 @@ public:
         }
         
         if (auto offset = map::SPU.contains(abs_addr)) {
-            //printf("hex error spu\n");
             return;
             //throw std::runtime_error(": 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
@@ -224,7 +208,6 @@ public:
             _joypad.store(abs_addr, val);
             
             return;
-            //throw std::runtime_error("Unhandled write to PAD_MEMCARD 0x" + to_hex(offset.value()));
         }
         
         if (auto _ = map::CACHECONTROL.contains(abs_addr)) {
@@ -232,7 +215,7 @@ public:
                 throw std::runtime_error("Unhandled cache control access");
             }
             
-            return;
+            throw std::runtime_error("Unhandled cache control access");
         }
         
         if (auto offset = map::MEMCONTROL.contains(abs_addr)) {
@@ -254,7 +237,6 @@ public:
                     
                     break;
                 default:
-                    //printf("Unhandled write to MEM_CONTROL register %s: %0x8\n", to_hex(offset.value()).c_str(), to_hex(val));
                     //throw std::runtime_error("Unhandled write to MEM_CONTROL register 0x" + to_hex(offset.value()) + ": 0x" + to_hex(val));
                     break;
             }
@@ -271,7 +253,7 @@ public:
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
-            return;
+            throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
         }
         
         throw std::runtime_error("Unhandled store into address 0x" + to_hex(addr) + ": 0x" + to_hex(val));
