@@ -6,7 +6,7 @@
 
 Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu), color1555to8888LUT(2 * 32 * 32 * 32) {
     // Create a texture with the desired dimensions
-    texture = SDL_CreateTexture(gpu->renderer->renderer, SDL_PIXELFORMAT_ARGB8888,
+    texture = SDL_CreateTexture(gpu->renderer->renderer, SDL_PIXELFORMAT_BGR555,
         SDL_TEXTUREACCESS_STREAMING, MAX_WIDTH, MAX_HEIGHT);
     
     if (!texture) {
@@ -28,7 +28,7 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu), color1555to8888LUT(2 * 32 * 32 * 32) 
     SDL_UnlockTexture(texture);
     
     // Init color 1555 to 8888 LUT
-    for (int m = 0; m < 2; m++) {
+    /*for (int m = 0; m < 2; m++) {
         for (int r = 0; r < 32; r++) {
             for (int g = 0; g < 32; g++) {
                 for (int b = 0; b < 32; b++) {
@@ -36,12 +36,12 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu), color1555to8888LUT(2 * 32 * 32 * 32) 
                 }
             }
         }
-    }
+    }*/
 }
 
 void Emulator::VRAM::store(uint32_t val) {
-    uint32_t pixel1 = ((val >> 16) + gpu->dithering) / 8;
-    uint32_t pixel0 = ((val & 0xFFFF) + gpu->dithering) / 8;
+    uint32_t pixel1 = ((val >> 16)/* + gpu->dithering*/)/* / 8*/;
+    uint32_t pixel0 = ((val & 0xFFFF)/* + gpu->dithering*/)/* / 8*/;
     
     pixel0 |= (gpu->forceSetMaskBit << 15);
     pixel1 |= (gpu->forceSetMaskBit << 15);
@@ -55,6 +55,8 @@ void Emulator::VRAM::store(uint32_t val) {
 
 void Emulator::VRAM::beginTransfer(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t imgSize) {
     transferData = {x, y, width, height, imgSize};
+    /*printf("Started drawing at x=%d y=%d - w=%d h=%d\n", x, y, width, height);
+    std::cerr << "";*/
 }
 
 void Emulator::VRAM::stepTransfer() {
@@ -72,8 +74,12 @@ void Emulator::VRAM::endTransfer() {
     }
     
     // Draw the texture
-    SDL_Rect srcrect = { 0, 0, (int)transferData.width, (int)transferData.height };
-    SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)transferData.width, (int)transferData.height };
+    SDL_Rect srcrect = { 0, 0,
+        static_cast<int>(transferData.width), static_cast<int>(transferData.height) };
+    
+    SDL_Rect dstrect = { static_cast<int>(transferData.x), static_cast<int>(transferData.y),
+        static_cast<int>(transferData.width), static_cast<int>(transferData.height) };
+    
     //SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
     SDL_RenderCopy(gpu->renderer->renderer, texture, nullptr, nullptr);
     
@@ -81,13 +87,13 @@ void Emulator::VRAM::endTransfer() {
     SDL_UnlockTexture(texture);
     
     // Update the screen
-    SDL_RenderPresent(gpu->renderer->renderer);
+    SDL_RenderPresent(gpu->renderer->renderer);    
     
-    /*
     // Draw the texture
-    SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)transferData.width, (int)transferData.height };
+    /*SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)transferData.width, (int)transferData.height };
     SDL_Rect srcrect = { 0, 0, (int)transferData.width, (int)transferData.height};
-    SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
+    //SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
+    SDL_RenderCopy(gpu->renderer->renderer, texture, nullptr, nullptr);
     
     //Update the screen
     SDL_RenderPresent(gpu->renderer->renderer);*/
@@ -95,10 +101,10 @@ void Emulator::VRAM::endTransfer() {
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {
     if(!gpu->preserveMaskedPixels || (getPixelRGB888(transferData.x, transferData.y) >> 24) == 0) {
-        uint32_t color = color1555to8888LUT[pixel];
+        //uint32_t color = color1555to8888LUT[pixel];
         
-        setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, color);
-        //setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, pixel);
+        //setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, color);
+        setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, pixel);
     }
     
     stepTransfer();
@@ -109,10 +115,10 @@ void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
     y %= MAX_HEIGHT;
     
     size_t index = y * MAX_WIDTH + x;
-    pixels[index] = color;
+    pixels[index] = static_cast<uint16_t>(color);
 }
 
-uint32_t Emulator::VRAM::getPixelRGB888(uint32_t x, uint32_t y) {
+int16_t Emulator::VRAM::getPixelRGB888(uint32_t x, uint32_t y) {
     size_t index = y * MAX_WIDTH + x;
     return pixels[index];
 }

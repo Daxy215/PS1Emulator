@@ -108,18 +108,18 @@ namespace Emulator {
     
     struct Position {
         Position() = default;
-        Position(GLshort x, GLshort y) : x(x), y(y) {
+        Position(float x, float y) : x(x), y(y) {
             
         }
         
         static Position fromGp0P(uint32_t val) {
-            int16_t x = static_cast<int16_t>(val);
-            int16_t y = static_cast<int16_t>(val >> 16);
+            float x = static_cast<float>(static_cast<int16_t>(val));
+            float y = static_cast<float>(static_cast<int16_t>(val >> 16));
             
-            return {static_cast<GLshort>(x), static_cast<GLshort>(y)};
+            return {x, y};
         }
         
-        GLshort x, y;
+        float x, y;
     };
 
     struct Color {
@@ -192,9 +192,9 @@ namespace Emulator {
             uint16_t x = (static_cast<uint16_t>(val) & 0x7FF);
             uint16_t y = (static_cast<uint16_t>(val >> 11) & 0x7FF);
             
-            // Values are 11bit two's complement signed values,
-            // we need to shift the value to 16bits,
-            // to force sing extension
+            // Values are 11bit two's complement-signed values,
+            // we need to shift the value to 16 bits,
+            // to force a sign extension
             drawingXOffset = static_cast<int16_t>(x << 5) >> 5;
             drawingYOffset = static_cast<int16_t>(y << 5) >> 5;
             
@@ -341,10 +341,41 @@ namespace Emulator {
         
         // GP0(GP): Shaded Opaque Triangle
         void gp0TriangleShadedOpaque(uint32_t val) {
+            /*Position p[3];
+            Color c[3];
+            
+            int ptr = 1;
+            */
+            
+            /*for(int i = 0; i < getVertexCount(); i++) {
+                p[i].x = static_cast<float>((gp0Command.buffer[ptr] & 0xffff));
+                p[i].y = static_cast<float>(gp0Command.buffer[ptr++] & 0xffff0000) >> 16));
+                
+                if (i == 0)
+                    c[i] = Color::fromGp0(gp0Command.buffer[0] & 0xffffff);
+                
+                if (i < args.getVertexCount() - 1)
+                    c[i + 1] = Color::fromGp0(gp0Command.buffer[ptr++] & 0xffffff);
+                
+                /*if (isTextureMapped) {
+                    if (i == 0) {
+                        tex.palette = gp0Command.buffer[ptr];
+                    }
+                    
+                    if (i == 1) {
+                        tex.texpage = gp0Command.buffer[ptr];
+                    }
+                    
+                    p[i].uv.x = gp0Command.buffer[ptr] & 0xff;
+                    p[i].uv.y = (gp0Command.buffer[ptr] >> 8) & 0xff;
+                    ptr++;
+                }#1#
+            }*/
+            
             Position positions[] = {
-                Position::fromGp0P(gp0Command.buffer[1]),
-                Position::fromGp0P(gp0Command.buffer[3]),
-                Position::fromGp0P(gp0Command.buffer[5]),
+                Position::fromGp0P((gp0Command.buffer[1])),
+                Position::fromGp0P((gp0Command.buffer[3])),
+                Position::fromGp0P((gp0Command.buffer[5])),
             };
             
             Color colors[] = {
@@ -353,6 +384,8 @@ namespace Emulator {
                 Color::fromGp0(gp0Command.buffer[4]),
             };
             
+            //renderer->pushQuad()
+            //renderer->pushTriangle(p, c);
             renderer->pushTriangle(positions, colors);
             //renderer->display();
         }
@@ -422,12 +455,6 @@ namespace Emulator {
             uint32_t cords = gp0Command.buffer[1];
             uint32_t res = gp0Command.buffer[2];
             
-            /*uint32_t x = cords & 0xFFFF;
-            uint32_t y = cords >> 16;
-            
-            uint32_t width = res & 0xFFFF;
-            uint32_t height = res >> 16;*/
-            
             uint32_t x = (cords & 0xFFFF) & 0x3FF;
             uint32_t y = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
             
@@ -456,20 +483,34 @@ namespace Emulator {
             canSendCPUToVRAM = false;
         }
         
+        // TODO; Remove
+        uint32_t startX, startY, curX, curY, endX, endY;
+        bool startVram = true;
+        
         // GP0(0xC0): Load Store
         // From VRAM to CPU
         void gp0ImageStore(uint32_t val) {
             uint32_t cords = gp0Command.buffer[1];
             uint32_t res = gp0Command.buffer[2];
             
-            uint32_t x = cords & 0xFFFF;
-            uint32_t y = cords >> 16;
+            uint32_t x = (cords & 0xFFFF) & 0x3FF;
+            uint32_t y = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
             
-            uint32_t width = res & 0xFFFF;
-            uint32_t height = res >> 16;
+            uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
+            uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
             
-            printf("Unhandled image store %x %x\n", width, height);
-            std::cerr << "";
+            //uint32_t imgSize = (width * height);
+            
+            startX = curX = x;
+            startY = curY = y;
+            
+            endX = startX + width;
+            endY = startY + height;
+            
+            readMode = VRam;
+            
+            /*printf("Unhandled image store %x %x\n", width, height);
+            std::cerr << "";*/
             
             // Update signals
             canSendVRAMToCPU = false;
@@ -608,7 +649,8 @@ namespace Emulator {
         
         // Current mode for GP0
         Gp0Mode gp0Mode = Command;
-        
+        Gp0Mode readMode = Command;
+                
         // Pointer to the method implementing the current GP command
         std::function<void(Gpu&, uint32_t)> Gp0CommandMethod;
         

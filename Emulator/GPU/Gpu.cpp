@@ -11,79 +11,58 @@ uint32_t Emulator::Gpu::status() {
     uint32_t status = 0;
     
     // Bits 0-3: Texture page X base (N * 64)
-    status |= (pageBaseX/* & 0xF*/); // Mask to 4 bits
+    status |= static_cast<uint32_t>(pageBaseX) << 0;
     
     // Bit 4: Texture page Y base 1 (N * 256)
-    status |= (pageBaseY/* & 0x1*/) << 4; // Bit 4
+    status |= static_cast<uint32_t>(pageBaseY) << 4;
     
     // Bits 5-6: Semi-transparency mode
-    status |= (semiTransparency & 0x3) << 5; // Mask to 2 bits
+    status |= static_cast<uint32_t>(semiTransparency) << 5; // Mask to 2 bits
     
     // Bits 7-8: Texture page color depth
-    status |= (static_cast<uint32_t>(textureDepth) & 0x3) << 7; // Mask to 2 bits
+    status |= (static_cast<uint32_t>(textureDepth)) << 7; // Mask to 2 bits
     
     // Bit 9: Dither 24bit to 15bit (0=Off, 1=Enabled)
-    status |= (dithering ? 1 : 0) << 9;
+    status |= static_cast<uint32_t>(dithering) << 9;
     
     // Bit 10: Drawing to display area (0=Prohibited, 1=Allowed)
-    status |= (/*drawToDisplay*/true ? 1 : 0) << 10;
+    status |= static_cast<uint32_t>(drawToDisplay) << 10;
     
     // Bit 11: Set Mask-bit when drawing (0=No, 1=Yes)
     status |= (forceSetMaskBit ? 1 : 0) << 11;
     
     // Bit 12: Don't draw to masked areas (0=Always, 1=Not to masked areas)
-    status |= (preserveMaskedPixels ? 1 : 0) << 12;
+    status |= static_cast<uint32_t>(preserveMaskedPixels) << 12;
     
     // Bit 13: Interlace Field (0 = Top, 1 = Bottom)
-    status |= (field == Field::Bottom ? 1 : 0) << 13;
+    status |= static_cast<uint32_t>(field) << 13;
     
-    // Bit 14: Flip screen horizontally (0 = Off, 1 = On)
-    // This would be tied to any horizontal flip logic you have in GP1 commands
-    // Assuming no current implementation for screen flip, leave as 0:
-    status |= 0 << 14; // No horizontal flip yet
+    // Bit 14: ?
     
-    // Bit 15: Texture page Y base 2 (N * 512) for 2MB VRAM
-    status |= (pageBaseY & 0x2) << 14; // Extract bit 1 of pageBaseY for bit 15
-    
-    // Bit 16: Horizontal resolution 2 (0 = 256/320/512/640, 1 = 368)
-    //status |= (true/*hres == HorizontalRes::HR368*/ ? 1 : 0) << 16;
+    status |= static_cast<uint32_t>(textureDisable) << 15;
     status |= hres.intoStatus();
     
-    // Bits 17-18: Horizontal resolution 1 (0=256, 1=320, 2=512, 3=640)
-    status |= (static_cast<uint32_t>(hres.value) & 0x3) << 17; // Mask to 2 bits
-
     // Bit 19: Vertical resolution (0=240, 1=480)
-    status |= (vres == VerticalRes::Y480Lines ? 1 : 0) << 19;
-
+    // Setting this to 1 locks the bios
+    status |= (static_cast<uint32_t>(0/*vres*/)) << 19;
+    
     // Bit 20: Video mode (0=NTSC, 1=PAL)
-    status |= (vmode == VMode::Pal ? 1 : 0) << 20;
+    status |= static_cast<uint32_t>(vmode) << 20;
     
     // Bit 21: Display area color depth (0=15bit, 1=24bit)
-    status |= (displayDepth == DisplayDepth::D24Bits ? 1 : 0) << 21;
+    status |= static_cast<uint32_t>(displayDepth) << 21;
     
     // Bit 22: Vertical Interlace (0=Off, 1=On)
-    status |= (interlaced ? 1 : 0) << 22;
+    status |= static_cast<uint32_t>(interlaced) << 22;
     
     // Bit 23: Display enable (0=Enabled, 1=Disabled)
-    status |= /*(displayEnabled ? 0 : 1)*/0 << 23;
+    status |= static_cast<uint32_t>(!displayEnabled) << 23;
     
     // Bit 24: Interrupt request (0=Off, 1=IRQ)
-    status |= (/*interrupt*/false ? 1 : 0) << 24;
-    
-    // Bit 25-28: DMA state and readiness flags
-    // Bit 25: DMA / Data request meaning depends on DMA direction
-    if (dmaDirection == DmaDirection::Off) {
-        status |= 0 << 25; // Always zero if DMA direction is off
-    } else if (dmaDirection == DmaDirection::Fifo) {
-        status |= (canSendCPUToVRAM ? 1 : 0) << 25; // FIFO state
-    } else if (dmaDirection == DmaDirection::CpuToGp0) {
-        status |= (canSendVRAMToCPU ? 1 : 0) << 25;
-    } else if (dmaDirection == DmaDirection::VRamToCpu) {
-        status |= (canReceiveDMABlock ? 1 : 0) << 25;
-    }
+    status |= static_cast<uint32_t>(interrupt) << 24;
     
     // Bit 26: Ready to receive command word (0=No, 1=Ready)
-    status |= (/*gp0CommandRemaining == 0 ? 1 : 0*/true) << 26;
+    status |= (/*gp0CommandRemaining == 0 ? 1 : 0*/1) << 26;
     
     // Bit 27: Ready to send VRAM to CPU (0=No, 1=Ready)
     status |= (/*canSendVRAMToCPU*/true ? 1 : 0) << 27;
@@ -92,19 +71,31 @@ uint32_t Emulator::Gpu::status() {
     status |= (/*canReceiveDMABlock*/true ? 1 : 0) << 28;
     
     // Bits 29-30: DMA Direction (0=Off, 1=?, 2=CPUtoGP0, 3=GPUREADtoCPU)
-    status |= (static_cast<uint32_t>(0/*dmaDirection*/) & 0x3) << 29;
+    status |= (static_cast<uint32_t>(dmaDirection)) << 29;
     
     // Bit 31: Drawing even/odd lines in interlace mode (0=Even, 1=Odd)
     status |= (false ? 1 : 0) << 31;
+
+    uint32_t dma = 0;
+    if (dmaDirection == DmaDirection::Off) {
+        dma = 0;
+    } else if (dmaDirection == DmaDirection::Fifo) {
+        dma = (gp0CommandRemaining == 0 ? 1 : 0);
+    } else if (dmaDirection == DmaDirection::CpuToGp0) {
+        dma = (status >> 28) & 1;
+    } else if (dmaDirection == DmaDirection::VRamToCpu) {
+        dma = (status >> 27) & 1;
+    }
     
-    //return status;
-    return 0x1c000000;
+    status |= dma << 25;
+    
+    return status;
+    //return 0x1c000000;
 }
 
 void Emulator::Gpu::gp0(uint32_t val) {
     if(gp0CommandRemaining == 0) {
         uint8_t opcode = (val >> 24) & 0xFF;
-        //uint32_t code = val >> 29;
         
         switch (opcode) {
         case 0x00:
@@ -119,14 +110,15 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 5;
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
             break;
-        case 0x30:/* case 0x68:*/
+        case 0x30:/* case 0x68:*/ {
             gp0CommandRemaining = 6;
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
             break;
-        case 0x32:
-            gp0CommandRemaining = 6;
-            Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
+            /*case 0x32:
+                gp0CommandRemaining = 6;
+                Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;*/
             break;
+        }
         case 0x38:
             gp0CommandRemaining = 8;
             Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
@@ -279,6 +271,8 @@ void Emulator::Gpu::gp1(uint32_t val) {
         gp1DisplayMode(val);
         break;
     case 0x10: {
+        readMode = Command;
+        
         switch (val % 8) {
             case 2: {
                 _read = textureWindowXMask | (textureWindowYMask << 5)
@@ -298,13 +292,24 @@ void Emulator::Gpu::gp1(uint32_t val) {
             }
             case 5: {
                 _read = (static_cast<uint32_t>(drawingXOffset) & 0x7FF)
-                    | ((static_cast<uint32_t>(drawingYOffset) & 0x7F) << 1);
+                    | ((static_cast<uint32_t>(drawingYOffset) & 0x7F) << 11);
+                
+                break;
+            }
+            case 7: {
+                _read = 2; // GPU VERSION
+                
+                break;
+            }
+            case 8: {
+                _read = 0;
                 
                 break;
             }
             default: {
-                /*printf("%d", (val % 8));
-                std::cerr << "";*/
+                printf("Unknown GP1 read value %d", (val % 8));
+                std::cerr << "";
+                
                 break;
             }
         }
@@ -407,10 +412,25 @@ void Emulator::Gpu::gp1DmaDirection(uint32_t val) {
 }
 
 uint32_t Emulator::Gpu::read(uint32_t addr) {
-    if(gp0Mode != VRam)
+    if(readMode == Command)
         return _read;
     
+    const auto step = [&]() {
+        if (++curX >= endX) {
+            curX = startX;
+            
+            if (++curY >= endY) {
+                readMode = Command;
+            }
+        }
+    };
     
+    uint32_t data = 0;
     
-    return 0x1f801810;
+    data |= vram->getPixelRGB888(curX % vram->MAX_WIDTH, curY % vram->MAX_HEIGHT);
+    step();
+    data |= vram->getPixelRGB888(curX % vram->MAX_WIDTH, curY % vram->MAX_HEIGHT) << 16;
+    step();
+    
+    return data;
 }

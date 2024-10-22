@@ -9,7 +9,7 @@ out vec3 color;
 uniform ivec2 offset;
 
 void main() {
-    ivec2 position = vertexPosition;
+    ivec2 position = vertexPosition + offset;
     
     /*
     * Converts VRAM coordinates (0;1023, 0;511)

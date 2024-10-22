@@ -250,6 +250,7 @@ public:
     // Coprocessor 3 opcode (Also doesn't exist on the PS1)
     void opcop3(Instruction& instruction);
     
+    // Opcodes for coprocessor 0 - System Control
     // Also Coprocessor handling but only for COP0
     void opmtc0(Instruction& instruction);
     
@@ -258,6 +259,11 @@ public:
     
     // Return from exception
     void oprfe(Instruction& instruction);
+    
+    // Opcodes for coprocessor 2 - GTE
+    void opmtc2(Instruction& instruction);
+    void opmfc2(Instruction& instruction);
+    void opgte(Instruction& instruction);
     
     void exception(Exception cause);
     
@@ -346,6 +352,7 @@ public:
     // General purpose registers
     // First entry must always contain a 0.
     RegisterIndex regs[32];
+    RegisterIndex gte[32];
     
 public:
     //Instruction* nextInstruction = new Instruction(0x0); //NOP

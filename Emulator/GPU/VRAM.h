@@ -36,7 +36,7 @@ namespace Emulator {
         void drawPixel(uint32_t pixel);
         void setPixel(uint32_t x, uint32_t y, uint32_t color);
         
-        uint32_t getPixelRGB888(uint32_t x, uint32_t y);
+        int16_t getPixelRGB888(uint32_t x, uint32_t y);
         uint32_t getPixelBGR555(uint32_t x, uint32_t y);
         
     public:
@@ -50,7 +50,7 @@ namespace Emulator {
         
         Gpu* gpu;
     public:
-        uint32_t* pixels;
+        uint16_t* pixels;
         int pitch;
         
         std::pmr::vector<uint32_t> color1555to8888LUT;

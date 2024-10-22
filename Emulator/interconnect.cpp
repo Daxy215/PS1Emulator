@@ -87,7 +87,7 @@ void Interconnect::dmaBlock(Port port) {
                 break;
             }
         case ToRam: {
-                uint32_t srcWord = 0;
+                uint32_t srcWord;
                 
                 switch(port) {
                 case Otc:

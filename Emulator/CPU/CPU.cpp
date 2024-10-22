@@ -101,7 +101,7 @@ void CPU::executeNextInstruction() {
     //nextInstruction = new Instruction(load32(pc));
     uint32_t pc = this->pc;
     Instruction* instruction = new Instruction(load32(pc));
-    //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str());
+    //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str()) << "\n";
     
     // Save the address of the current instruction to save in
     // 'EPC' in case of an exception.
@@ -238,7 +238,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
             oplwc1(instruction); // Load word coprocessor 1
             break;
         case 0b110010:
-            oplwc2(instruction); // Load word coprocessor 2 (Unhandled)
+            oplwc2(instruction); // Load word coprocessor 2
             break;
         case 0b110011:
             oplwc3(instruction); // Load word coprocessor 3
@@ -801,11 +801,9 @@ void CPU::oplh(Instruction& instruction) {
     
     if(addr % 2 == 0) {
         // Cast as i16 to force sign extension
-        uint32_t v = load16(addr);
+        int16_t v = static_cast<int16_t>(load16(addr));
         
-        // Put the load in the delay slot
-        //load = {t, static_cast<uint32_t>(v)};
-        setLoad(t, v);
+        setLoad(t, static_cast<uint32_t>(v));
     } else {
         exception(LoadAddressError);
     }
@@ -984,9 +982,37 @@ void CPU::oplwc1(Instruction& instruction) {
 }
 
 void CPU::oplwc2(Instruction& instruction) {
-    // Geometry Transformation Engine
-    printf("Unhandled GTE LWC %s\n", std::to_string(instruction.op).c_str());
-    std::cerr << "";
+    RegisterIndex i = instruction.imm_se();
+    RegisterIndex t = instruction.t();
+    RegisterIndex s = instruction.s();
+    
+    if((sr & 0x10000) != 0) {
+        std::cout << "Ignoring store while cache is isolated!";
+        
+        return;
+    }
+    
+    RegisterIndex addr = wrappingAdd(gte[s], i);
+    
+    if(addr % 4 == 0) {
+        uint32_t v = load32(addr);
+        
+        // Put the load in the delay slot
+        gte[t] = v;
+        //setLoad(t, v);
+    } else
+        exception(LoadAddressError);
+    
+    /*// Geometry Transformation Engine
+    auto s = instruction.s();
+    auto t = instruction.t();
+    auto i = instruction.imm();
+    
+    uint32_t addr = gte[s] + i;
+    
+    uint32_t data = load32(addr);
+    gte[t] = data;
+    //set_reg(t, data);*/
 }
 
 void CPU::oplwc3(Instruction& instruction) {
@@ -1005,8 +1031,13 @@ void CPU::opswc1(Instruction& instruction) {
 }
 
 void CPU::opswc2(Instruction& instruction) {
-    printf("Unhandled GTE SWC %x", instruction.op);
-    std::cerr << "";
+    auto s = instruction.s();
+    auto t = instruction.t();
+    auto i = instruction.imm();
+    
+    uint32_t addr = gte[s] + i;
+    
+    store32(addr, gte[t]);
 }
 
 void CPU::opswc3(Instruction& instruction) {
@@ -1082,32 +1113,21 @@ void CPU::opcop0(Instruction& instruction) {
     }
 }
 
+// TODO; Implement
 void CPU::opcop1(Instruction& instruction) {
-    exception(Exception::CoprocessorError);
+    throw std::runtime_error("Unhandled coprocessor 1 instructions\n");
 }
 
 void CPU::opcop2(Instruction& instruction) {
-    exception(Exception::CoprocessorError);
-    
-    //printf("Code; %d\n", instruction.func().reg);
-    //
-    //uint32_t offset = instruction.imm_se();
-    //uint32_t s = instruction.s();
-    //uint32_t t = instruction.t();
-    //
-    //// Calculate the effective memory address
-    //uint32_t baseAddress = reg(s);
-    //uint32_t effectiveAddress = baseAddress + offset;
-    //
-    //// Load the word from memory (assuming a readMemory function)
-    //uint32_t loadedWord = load32(effectiveAddress);
-    //
-    //// Store the loaded word in the coprocessor 2 register
-    //set_reg(t, loadedWord);
+    switch (instruction.copOpcode()) {
+    default:
+        std::cerr << "Unhandled COP2 instruction: " + getDetails(instruction.copOpcode()) << "\n";
+        throw std::runtime_error("Unhandled COP instruction: " + getDetails(instruction.copOpcode()));
+    }
 }
 
 void CPU::opcop3(Instruction& instruction) {
-    exception(Exception::CoprocessorError);
+    throw std::runtime_error("Unhandled coprocessor 3 instructions\n");
 }
 
 void CPU::opmtc0(Instruction& instruction) {
@@ -1148,8 +1168,6 @@ void CPU::opmtc0(Instruction& instruction) {
         std::cout << "Unhandled cop0 register " << copr << "\n";
         throw std::runtime_error("Unhandled cop0 register " + std::to_string(copr));
     }
-    
-    //setLoad(cpur, v);
 }
 
 void CPU::opmfc0(Instruction& instruction) {
@@ -1175,7 +1193,6 @@ void CPU::opmfc0(Instruction& instruction) {
         throw std::runtime_error("Unhandled read from cop0r " + std::to_string(copr));
     }
     
-    //load = {cpur, v};
     setLoad(cpur, v);
 }
 
@@ -1191,6 +1208,18 @@ void CPU::oprfe(Instruction& instruction) {
     uint32_t mode = sr & 0x3f;
     sr &= ~0x3f;
     sr |= mode >> 2;
+}
+
+void CPU::opmtc2(Instruction& instruction) {
+    throw std::runtime_error("Unhandled MTC2 operator\n");
+}
+
+void CPU::opmfc2(Instruction& instruction) {
+    throw std::runtime_error("Unhandled MFC2 operator\n");
+}
+
+void CPU::opgte(Instruction& instruction) {
+    throw std::runtime_error("Unhandled GTE operator\n");
 }
 
 void CPU::exception(Exception cause) {

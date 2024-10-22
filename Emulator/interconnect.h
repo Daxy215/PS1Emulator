@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <cstdint>
+#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <sstream>
@@ -100,7 +101,8 @@ public:
         }
         
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled EXPANSION1 load at address 0x" + to_hex(addr));
+            
+            //throw std::runtime_error("Unhandled EXPANSION1 load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::RAM_SIZE.contains(abs_addr)) {
@@ -124,10 +126,12 @@ public:
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
+            return 0xFF;
+            //throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
-        throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
+        return 0;
+        //throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
     }
     
     template<typename T>
@@ -151,7 +155,8 @@ public:
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            //throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            return;
         }
         
         if (auto offset = map::DMA.contains(abs_addr)) {
@@ -175,7 +180,8 @@ public:
         }
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled TIMERS control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            return;
+            //throw std::runtime_error("Unhandled TIMERS control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
@@ -215,6 +221,7 @@ public:
                 throw std::runtime_error("Unhandled cache control access");
             }
             
+            return;
             throw std::runtime_error("Unhandled cache control access");
         }
         
@@ -253,31 +260,38 @@ public:
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
+            switch (abs_addr) {
+            case 0x1F802041:
+                // Cyan
+                /*std::cout << "\033[36m";
+                std::cout << "[EXP2] PSX: POST [" << std::hex << std::setw(1) << static_cast<char>(val) << "]" << std::endl;
+                std::cout << "\033[0m";*/
+                
+                break;
+            
+            case 0x1F802023:
+            case 0x1F802080:
+                // Cyan
+                /*std::cout << "\033[36m";
+                std::cout << static_cast<char>(val);
+                std::cout << "\033[0m";*/
+                
+                break;
+            
+            default:
+                std::cout << "[BUS] Write Unsupported to EXP2: " << std::hex << std::setw(8) << addr 
+                          << " Value: " << std::hex << std::setw(8) << val << std::endl;
+                
+                break;
+            }
+            
+            return;
+            //throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
         }
         
         throw std::runtime_error("Unhandled store into address 0x" + to_hex(addr) + ": 0x" + to_hex(val));
     }
     
-    /*// Load word
-    uint32_t load32(uint32_t addr);
-    
-    // Load half word
-    uint16_t load16(uint32_t addr);
-    
-    // Load byte
-    uint8_t load8(uint32_t addr);
-    
-    // Store word
-    void store32(uint32_t addr, uint32_t val);
-    
-    // Store half word
-    void store16(uint32_t addr, uint16_t val);
-    
-    // Store byte
-    void store8(uint32_t addr, uint8_t val);*/
-    
-    // DMA
     // DMA register read
     uint32_t dmaReg(uint32_t offset);
     

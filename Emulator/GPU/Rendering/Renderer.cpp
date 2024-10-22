@@ -70,7 +70,7 @@ Emulator::Renderer::Renderer() {
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribIPointer(index, 2, GL_SHORT, GL_FALSE, nullptr);
+    glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Position), nullptr);
     
     // Color buffer
     colors.create();

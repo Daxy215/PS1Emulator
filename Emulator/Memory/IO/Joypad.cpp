@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-Joypad::Joypad()
-	: controllers{} {
+Joypad::Joypad() : controllers{} {
+	
 }
 
 void Joypad::update() {
