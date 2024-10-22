@@ -627,6 +627,7 @@
     <ClInclude Include="Emulator\CPU\CPU.h" />
     <ClInclude Include="Emulator\CPU\Instruction.h" />
     <ClInclude Include="Emulator\Dma.h" />
+    <ClInclude Include="Emulator\GPU\CommandArgs\Command.h" />
     <ClInclude Include="Emulator\GPU\Gpu.h" />
     <ClInclude Include="Emulator\GPU\Rendering\Buffer.h" />
     <ClInclude Include="Emulator\GPU\Rendering\Renderer.h" />

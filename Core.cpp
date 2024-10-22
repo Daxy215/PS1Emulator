@@ -323,10 +323,9 @@ int main(int argc, char* argv[]) {
     Dma dma;
 	
     // TODO; Texture loading
-	// TODO; Wrong triangle rendering
     Emulator::Gpu gpu;
     
-    // TODO;
+    // TODO; Implement
     Emulator::SPU spu;
     
     CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma, &gpu, &spu));
@@ -340,13 +339,12 @@ int main(int argc, char* argv[]) {
     	// TODO; Testing
     	if(counter++ > 25600) {
     		counter = 0;
-    		//gpu.vram->endTransfer();
-			
+    		
     		cpu->interconnect->_joypad.update();
     	}
     	
 	    // Wait for the BIOS to jump to the shell
-	    if (true/*cpu->pc != 0x80030000*/) {
+	    if (/*cpu->pc != 0x80030000*/true) {
 		    cpu->executeNextInstruction();
 	    } else {
 	    	std::cerr << "Loading test EXE file\n";
@@ -387,7 +385,7 @@ int main(int argc, char* argv[]) {
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SUB/CPUSUB.exe"); // Passed
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SUBU/CPUSUBU.exe"); // Passed
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XOR/CPUXOR.exe"); // Passed
-	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XORI/CPUXORI.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XORI/CPUXORI.exe"); // Passed
 	    	
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/AVSZ/GTEAVSZ.exe"); // TODO; Failed
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/NCLIP/GTENCLIP.exe"); // TODO; Failed
@@ -397,13 +395,13 @@ int main(int argc, char* argv[]) {
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO;
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // TODO;
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // TODO;
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // TODO;
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // TODO;
+	    	///std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // TODO;
+	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // TODO;
 	    	
 	    	// Other stuff
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpx.exe");
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
-
+			
 	    	// Requires controller
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
 	    	

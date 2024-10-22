@@ -10,6 +10,7 @@
 #include <GL/glew.h>
 
 #include "VRAM.h"
+#include "CommandArgs/Command.h"
 #include "Rendering/Renderer.h"
 
 // TODO; Please redo this shitty code WTF IS THIS ;-;
@@ -73,7 +74,7 @@ namespace Emulator {
     // Buffer holding multi-word fixed-length GP0 command parameters
     struct CommandBuffer {
         // Command buffer: the longest possible command is GP0(0x3E)
-        // which takes 12 paramaters
+        // which takes 12 parameters
         uint32_t buffer[12];
         
         // Number of words queued in buffer
@@ -81,12 +82,12 @@ namespace Emulator {
         
         CommandBuffer() : buffer(), len(0) {}
         
-        uint32_t* index(CommandBuffer& buffer, size_t index) const {
-            if (index >= buffer.len) {
+        uint32_t index(size_t index) const {
+            if (index >= len) {
                 throw std::out_of_range("Command buffer index out of range: " + std::to_string(index));
             }
             
-            return &buffer.buffer[index];
+            return buffer[index];
         }
         
         void clear() {
@@ -340,22 +341,37 @@ namespace Emulator {
         }
         
         // GP0(GP): Shaded Opaque Triangle
+        //TODO; Rename to polygon
         void gp0TriangleShadedOpaque(uint32_t val) {
-            /*Position p[3];
+            Position p[3];
             Color c[3];
             
             int ptr = 1;
-            */
+
+            Position positions[] = {
+                Position::fromGp0P((gp0Command.index(1))),
+                Position::fromGp0P((gp0Command.index(3))),
+                Position::fromGp0P((gp0Command.index(5))),
+            };
             
-            /*for(int i = 0; i < getVertexCount(); i++) {
-                p[i].x = static_cast<float>((gp0Command.buffer[ptr] & 0xffff));
-                p[i].y = static_cast<float>(gp0Command.buffer[ptr++] & 0xffff0000) >> 16));
+            for(int i = 0; i < Commands::polygon.getVerticesCount(); i++) {
+                p[i].x = (gp0Command.index(ptr) & 0xffff);
+                p[i].y = (gp0Command.index(ptr++) & 0xffff0000) >> 16;
                 
-                if (i == 0)
-                    c[i] = Color::fromGp0(gp0Command.buffer[0] & 0xffffff);
+                if(p[i].x != positions[i].x || p[i].y != positions[i].y) {
+                    printf("");
+                }
                 
-                if (i < args.getVertexCount() - 1)
-                    c[i + 1] = Color::fromGp0(gp0Command.buffer[ptr++] & 0xffffff);
+                // Ignore colors if is gouraud
+                if (Commands::polygon.isGouraud && i == 0)
+                    c[i] = Color::fromGp0(gp0Command.index(0) & 0xffffff);
+                
+                if (Commands::polygon.isGouraud && i < Commands::polygon.getVerticesCount() - 1)
+                    c[i + 1] = Color::fromGp0(gp0Command.index(ptr++) & 0xffffff);
+                
+                if(Commands::polygon.isTextured) {
+                    throw std::runtime_error("ERROR Textures aren't supported!");
+                }
                 
                 /*if (isTextureMapped) {
                     if (i == 0) {
@@ -369,9 +385,10 @@ namespace Emulator {
                     p[i].uv.x = gp0Command.buffer[ptr] & 0xff;
                     p[i].uv.y = (gp0Command.buffer[ptr] >> 8) & 0xff;
                     ptr++;
-                }#1#
-            }*/
+                }*/
+            }
             
+            /*
             Position positions[] = {
                 Position::fromGp0P((gp0Command.buffer[1])),
                 Position::fromGp0P((gp0Command.buffer[3])),
@@ -382,11 +399,11 @@ namespace Emulator {
                 Color::fromGp0(gp0Command.buffer[0]),
                 Color::fromGp0(gp0Command.buffer[2]),
                 Color::fromGp0(gp0Command.buffer[4]),
-            };
+            };*/
             
             //renderer->pushQuad()
-            //renderer->pushTriangle(p, c);
-            renderer->pushTriangle(positions, colors);
+            renderer->pushTriangle(p, c);
+            //renderer->pushTriangle(positions, colors);
             //renderer->display();
         }
         

@@ -110,13 +110,11 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 5;
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
             break;
-        case 0x30:/* case 0x68:*/ {
-            gp0CommandRemaining = 6;
+        case 0x30: {
+            Commands::polygon = Commands::Polygon(opcode);
+            
+            gp0CommandRemaining = Commands::polygon.getLength();
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
-            break;
-            /*case 0x32:
-                gp0CommandRemaining = 6;
-                Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;*/
             break;
         }
         case 0x38:

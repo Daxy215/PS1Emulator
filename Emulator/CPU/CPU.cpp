@@ -801,6 +801,7 @@ void CPU::oplh(Instruction& instruction) {
     
     if(addr % 2 == 0) {
         // Cast as i16 to force sign extension
+        // Had an issue here; I was making this as a uint32_t rather than int16_t
         int16_t v = static_cast<int16_t>(load16(addr));
         
         setLoad(t, static_cast<uint32_t>(v));
@@ -820,7 +821,6 @@ void CPU::oplhu(Instruction& instruction) {
     if(addr % 2 == 0) {
         uint16_t v = load16(addr);
         
-        //load = {t, static_cast<uint32_t>(v)};
         setLoad(t, static_cast<uint32_t>(v));
     } else {
         exception(LoadAddressError);

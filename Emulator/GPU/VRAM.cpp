@@ -67,26 +67,20 @@ void Emulator::VRAM::stepTransfer() {
 }
 
 void Emulator::VRAM::endTransfer() {
-    // Lock the texture before drawing
     if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
         std::cerr << "Failed to lock texture: " << SDL_GetError() << '\n';
-        return; // Handle the error appropriately
+        return;
     }
     
-    // Draw the texture
     SDL_Rect srcrect = { 0, 0,
         static_cast<int>(transferData.width), static_cast<int>(transferData.height) };
-    
     SDL_Rect dstrect = { static_cast<int>(transferData.x), static_cast<int>(transferData.y),
         static_cast<int>(transferData.width), static_cast<int>(transferData.height) };
     
     //SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
     SDL_RenderCopy(gpu->renderer->renderer, texture, nullptr, nullptr);
     
-    // Unlock the texture after drawing
     SDL_UnlockTexture(texture);
-    
-    // Update the screen
     SDL_RenderPresent(gpu->renderer->renderer);    
     
     // Draw the texture
@@ -110,7 +104,7 @@ void Emulator::VRAM::drawPixel(uint32_t pixel) {
     stepTransfer();
 }
 
-void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
+void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) const {
     x %= MAX_WIDTH;
     y %= MAX_HEIGHT;
     
@@ -118,7 +112,7 @@ void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
     pixels[index] = static_cast<uint16_t>(color);
 }
 
-int16_t Emulator::VRAM::getPixelRGB888(uint32_t x, uint32_t y) {
+uint16_t Emulator::VRAM::getPixelRGB888(uint32_t x, uint32_t y) const {
     size_t index = y * MAX_WIDTH + x;
     return pixels[index];
 }
