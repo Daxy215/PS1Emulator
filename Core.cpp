@@ -337,7 +337,7 @@ int main(int argc, char* argv[]) {
 	
     while(true) {
     	// TODO; Testing
-    	if(counter++ > 9560000) {
+    	if(counter++ > 2560000) {
     		counter = 0;
     		
     		cpu->interconnect->_joypad.update();
@@ -346,10 +346,10 @@ int main(int argc, char* argv[]) {
     		gpu.renderer->display();
     	}
 		
-    	bool disableBios = false;
+    	bool enableBios = false;
     	
 	    // Wait for the BIOS to jump to the shell
-	    if (cpu->pc != 0x80030000 || disableBios) {
+	    if (cpu->pc != 0x80030000 || enableBios) {
 		    cpu->executeNextInstruction();
 	    } else {
 	    	std::cerr << "Loading test EXE file\n";
@@ -398,9 +398,10 @@ int main(int argc, char* argv[]) {
 			
 	    	// GPU - 16 BPP
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/MemoryTransfer/MemoryTransfer16BPP.exe"); // TODO; Only shows arrows
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO;
-	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // TODO
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
+	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
 	    	
 	    	// Other stuff
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");

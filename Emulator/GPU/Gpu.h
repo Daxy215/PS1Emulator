@@ -441,6 +441,14 @@ namespace Emulator {
             renderer->pushQuad(positions, colors);
         }
         
+        // Helper function
+        void renderRectangle(Position position, Color color, uint16_t width, uint16_t height);
+        
+        void gp0VarRectangleMonoOpaque(uint32_t val);
+        void gp0DotRectangleMonoOpaque(uint32_t val);
+        void gp08RectangleMonoOpaque(uint32_t val);
+        void gp016RectangleMonoOpaque(uint32_t val);
+        
         // TODO; Testing
         void gp0Rectangle(uint32_t val) {
             uint32_t color = gp0Command.buffer[0] & 0xffffff;

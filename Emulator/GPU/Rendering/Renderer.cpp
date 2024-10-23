@@ -134,13 +134,22 @@ void Emulator::Renderer::draw() {
     }
     
     // Reset the buffers
-    nVertices = 0;
+    //nVertices = 0;
+}
+
+void Emulator::Renderer::pushLine(Emulator::Position* positions, Emulator::Color* colors) {
+    // TODO;
+    throw std::runtime_error("Error; Unsupported line rendering.");
 }
 
 void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
         printf("Vertex attribute buffers full forcing draw\n");
         std::cerr << "";
+
+        // Reset the buffer size
+        nVertices = 0;
+        
         display();
     }
     
@@ -153,7 +162,9 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
 
 void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color* colors) {
     if(nVertices + 6 > VERTEX_BUFFER_LEN) {
-        //printf("Vertex attribute buffers full forcing draw\n");
+        // Reset the buffer size
+        nVertices = 0;
+        
         display();
     }
     
@@ -196,6 +207,58 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
         this->colors.set(nVertices, colors[i]);
         nVertices++;
     }*/
+}
+
+void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::Color* colors) {
+    /*
+     * From my knowledgeable, PS1 doesn't split,
+     * rectangles into 2 trinagles, however,
+     * I don't understand SDL enough..
+     * So, my goal in the future is to use,
+     * a different library because I hate SDL.
+     * 
+     * Hence, why this is a different function,
+     * from pushQuad, even though my goal isn't,
+     * to make this emulator anywhere near accurate,
+     * but it's fun to learn new stuff
+     */
+    
+    if (nVertices + 6 > VERTEX_BUFFER_LEN) {
+        std::cerr << "Vertex attribute buffers full, forcing draw\n";
+        
+        // Reset the buffer size
+        nVertices = 0;
+        
+        display();
+    }
+    
+    // First triangle
+    // [0, 1, 2]
+    this->positions.set(nVertices, positions[0]);
+    this->colors.set(nVertices, colors[0]);
+    nVertices++;
+    
+    this->positions.set(nVertices, positions[1]);
+    this->colors.set(nVertices, colors[1]);
+    nVertices++;
+    
+    this->positions.set(nVertices, positions[2]);
+    this->colors.set(nVertices, colors[2]);
+    nVertices++;
+    
+    // First triangle
+    // [0, 2, 3]
+    this->positions.set(nVertices, positions[0]);
+    this->colors.set(nVertices, colors[0]);
+    nVertices++;
+
+    this->positions.set(nVertices, positions[2]);
+    this->colors.set(nVertices, colors[2]);
+    nVertices++;
+    
+    this->positions.set(nVertices, positions[3]);
+    this->colors.set(nVertices, colors[3]);
+    nVertices++;
 }
 
 GLuint Emulator::Renderer::compileShader(const char* source, GLenum shaderType) {

@@ -19,8 +19,10 @@ namespace Emulator {
         void display();
         void draw();
         
+        void pushLine(Emulator::Position* positions, Emulator::Color* colors);
         void pushTriangle(Emulator::Position* positions, Emulator::Color* colors);
         void pushQuad(Emulator::Position* positions, Emulator::Color* colors);
+        void pushRectangle(Emulator::Position* positions, Emulator::Color* colors);
         
         void setDrawingOffset(int32_t x, int32_t y) {
             glUniform2i(offsetUni, x, y);

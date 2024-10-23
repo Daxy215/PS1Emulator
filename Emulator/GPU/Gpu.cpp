@@ -108,6 +108,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             break;
         case 0x20: {
             // GP0(20h) - Monochrome three-point polygon, opaque
+            
             gp0CommandRemaining = 4;
             Gp0CommandMethod = &Gpu::gp0TriangleMonoOpaque;
             break;
@@ -163,9 +164,64 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 8;
             Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
             break;
+        case 0x60: {
+            // GP0(60h) - Monochrome Rectangle (variable size) (opaque)
+            
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp0VarRectangleMonoOpaque;
+            break;
+        }
+        case 0x62: {
+            // GP0(62h) - Monochrome Rectangle (variable size) (semi-transparent)
+            
+            // TODO; Make this semi-transparent
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp0VarRectangleMonoOpaque;
+            break;
+        }
         case 0x68: {
+            // GP0(68h) - Monochrome Rectangle (1x1) (Dot) (opaque)
+            
             gp0CommandRemaining = 2;
-            Gp0CommandMethod = &Gpu::gp0Rectangle;
+            Gp0CommandMethod = &Gpu::gp0DotRectangleMonoOpaque;
+            break;
+        }
+        case 0x6A: {
+            // GP0(6Ah) - Monochrome Rectangle (1x1) (Dot) (semi-transparent)
+
+            // TODO; Make this semi-transparent
+            gp0CommandRemaining = 2;
+            Gp0CommandMethod = &Gpu::gp0DotRectangleMonoOpaque;
+            break;
+        }
+        case 0x70: {
+            // GP0(70h) - Monochrome Rectangle (8x8) (opaque)
+            
+            gp0CommandRemaining = 2;
+            Gp0CommandMethod = &Gpu::gp08RectangleMonoOpaque;
+            break;
+        }
+        case 0x72: {
+            // GP0(72h) - Monochrome Rectangle (8x8) (semi-transparent)
+            
+            // TODO; Make this semi-transparent
+            gp0CommandRemaining = 2;
+            Gp0CommandMethod = &Gpu::gp08RectangleMonoOpaque;
+            break;
+        }
+        case 0x78: {
+            // GP0(78h) - Monochrome Rectangle (16x16) (opaque)
+            
+            gp0CommandRemaining = 2;
+            Gp0CommandMethod = &Gpu::gp016RectangleMonoOpaque;
+            break;
+        }
+        case 0x7A: {
+            // GP0(7Ah) - Monochrome Rectangle (16x16) (semi-transparent)
+            
+            // TODO; Make this semi-transparent
+            gp0CommandRemaining = 2;
+            Gp0CommandMethod = &Gpu::gp016RectangleMonoOpaque;
             break;
         }
         case 0x80: {
@@ -277,6 +333,52 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
     textureDisable = ((val >> 11) & 1) != 0;
     rectangleTextureFlipX = ((val >> 12) & 1) != 0;
     rectangleTextureFlipY = ((val >> 13) & 1) != 0;
+}
+
+void Emulator::Gpu::renderRectangle(Position position, Color color, uint16_t width, uint16_t height) {
+    Position positions[4] = {
+        position,
+        {position.x + width, position.y},
+        {position.x + width, position.y + height},
+        {position.x, position.y + height},
+    };
+    
+    Color colors[4] = { color, color, color, color };
+    
+    renderer->pushRectangle(positions, colors);
+}
+
+void Emulator::Gpu::gp0VarRectangleMonoOpaque(uint32_t val) {
+    Color color = Color::fromGp0(gp0Command.index(0));
+    Position position = Position::fromGp0P(gp0Command.index(1));
+    
+    uint32_t sizeData = gp0Command.index(2);
+    
+    uint16_t width = sizeData & 0xFFFF;
+    uint16_t height = sizeData >> 16;
+    
+    renderRectangle(position, color, width, height);
+}
+
+void Emulator::Gpu::gp0DotRectangleMonoOpaque(uint32_t val) {
+    Color color = Color::fromGp0(gp0Command.index(0));
+    Position position = Position::fromGp0P(gp0Command.index(1));
+    
+    renderRectangle(position, color, 1, 1);
+}
+
+void Emulator::Gpu::gp08RectangleMonoOpaque(uint32_t val) {
+    Color color = Color::fromGp0(gp0Command.index(0));
+    Position position = Position::fromGp0P(gp0Command.index(1));
+    
+    renderRectangle(position, color, 8, 8);
+}
+
+void Emulator::Gpu::gp016RectangleMonoOpaque(uint32_t val) {
+    Color color = Color::fromGp0(gp0Command.index(0));
+    Position position = Position::fromGp0P(gp0Command.index(1));
+    
+    renderRectangle(position, color, 16, 16);
 }
 
 void Emulator::Gpu::gp1(uint32_t val) {
