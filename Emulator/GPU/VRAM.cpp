@@ -67,6 +67,8 @@ void Emulator::VRAM::stepTransfer() {
 }
 
 void Emulator::VRAM::endTransfer() {
+    //return;
+    
     if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
         std::cerr << "Failed to lock texture: " << SDL_GetError() << '\n';
         return;
@@ -81,7 +83,7 @@ void Emulator::VRAM::endTransfer() {
     SDL_RenderCopy(gpu->renderer->renderer, texture, nullptr, nullptr);
     
     SDL_UnlockTexture(texture);
-    SDL_RenderPresent(gpu->renderer->renderer);    
+    SDL_RenderPresent(gpu->renderer->renderer);
     
     // Draw the texture
     /*SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)transferData.width, (int)transferData.height };
@@ -94,12 +96,12 @@ void Emulator::VRAM::endTransfer() {
 }
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {
-    if(!gpu->preserveMaskedPixels || (getPixelRGB888(transferData.x, transferData.y) >> 24) == 0) {
+    //if(!gpu->preserveMaskedPixels || (getPixelRGB888(transferData.x, transferData.y) >> 24) == 0) {
         //uint32_t color = color1555to8888LUT[pixel];
         
         //setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, color);
         setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, pixel);
-    }
+    //}
     
     stepTransfer();
 }

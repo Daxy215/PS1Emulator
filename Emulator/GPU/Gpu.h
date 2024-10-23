@@ -10,7 +10,6 @@
 #include <GL/glew.h>
 
 #include "VRAM.h"
-#include "CommandArgs/Command.h"
 #include "Rendering/Renderer.h"
 
 // TODO; Please redo this shitty code WTF IS THIS ;-;
@@ -186,6 +185,8 @@ namespace Emulator {
         void gp0DrawingAreaBottomRight(uint32_t val) {
             drawingAreaBottom = static_cast<uint16_t>((val >> 10) & 0x3FF);
             drawingAreaRight = static_cast<uint16_t>(val & 0x3FF);
+            
+            renderer->setDrawingArea(drawingAreaRight, drawingAreaBottom);
         }
         
         // GP0(0xE5): Set Drawing Offset
@@ -340,34 +341,26 @@ namespace Emulator {
             }
         }
         
-        // GP0(GP): Shaded Opaque Triangle
-        //TODO; Rename to polygon
+        // GP0(0x30): Shaded Opaque Triangle
         void gp0TriangleShadedOpaque(uint32_t val) {
-            Position p[3];
-            Color c[3];
+            /*Position p[4];
+            Color c[4];
             
-            int ptr = 1;
-
-            Position positions[] = {
-                Position::fromGp0P((gp0Command.index(1))),
-                Position::fromGp0P((gp0Command.index(3))),
-                Position::fromGp0P((gp0Command.index(5))),
-            };
+            int idx = 1;
             
             for(int i = 0; i < Commands::polygon.getVerticesCount(); i++) {
-                p[i].x = (gp0Command.index(ptr) & 0xffff);
-                p[i].y = (gp0Command.index(ptr++) & 0xffff0000) >> 16;
-                
-                if(p[i].x != positions[i].x || p[i].y != positions[i].y) {
-                    printf("");
-                }
+                p[i].x = (gp0Command.index(idx) & 0xffff);
+                p[i].y = (gp0Command.index(idx++) & 0xffff0000) >> 16;
                 
                 // Ignore colors if is gouraud
-                if (Commands::polygon.isGouraud && i == 0)
+                if (!Commands::polygon.isGouraud/* && i == 0#1#)
                     c[i] = Color::fromGp0(gp0Command.index(0) & 0xffffff);
                 
-                if (Commands::polygon.isGouraud && i < Commands::polygon.getVerticesCount() - 1)
-                    c[i + 1] = Color::fromGp0(gp0Command.index(ptr++) & 0xffffff);
+                if (!Commands::polygon.isQuad && Commands::polygon.isGouraud && i < Commands::polygon.getVerticesCount() - 1)
+                    c[i + 1] = Color::fromGp0(gp0Command.index(idx++) & 0xffffff);
+                else if(Commands::polygon.isQuad) {
+                    c[i] = Color::fromGp0(gp0Command.index(0) & 0xffffff);
+                }
                 
                 if(Commands::polygon.isTextured) {
                     throw std::runtime_error("ERROR Textures aren't supported!");
@@ -375,36 +368,38 @@ namespace Emulator {
                 
                 /*if (isTextureMapped) {
                     if (i == 0) {
-                        tex.palette = gp0Command.buffer[ptr];
+                        tex.palette = gp0Command.buffer[idx];
                     }
                     
                     if (i == 1) {
-                        tex.texpage = gp0Command.buffer[ptr];
+                        tex.texpage = gp0Command.buffer[idx];
                     }
                     
-                    p[i].uv.x = gp0Command.buffer[ptr] & 0xff;
-                    p[i].uv.y = (gp0Command.buffer[ptr] >> 8) & 0xff;
-                    ptr++;
-                }*/
+                    p[i].uv.x = gp0Command.buffer[idx] & 0xff;
+                    p[i].uv.y = (gp0Command.buffer[idx] >> 8) & 0xff;
+                    idx++;
+                }#1#
             }
             
-            /*
+            if(Commands::polygon.isQuad) {
+                renderer->pushQuad(p, c);
+            } else {
+                renderer->pushTriangle(p, c);
+            }*/
+            
             Position positions[] = {
-                Position::fromGp0P((gp0Command.buffer[1])),
-                Position::fromGp0P((gp0Command.buffer[3])),
-                Position::fromGp0P((gp0Command.buffer[5])),
+                Position::fromGp0P(gp0Command.buffer[1]),
+                Position::fromGp0P(gp0Command.buffer[3]),
+                Position::fromGp0P(gp0Command.buffer[5]),
             };
             
             Color colors[] = {
-                Color::fromGp0(gp0Command.buffer[0]),
-                Color::fromGp0(gp0Command.buffer[2]),
-                Color::fromGp0(gp0Command.buffer[4]),
-            };*/
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(2)),
+                Color::fromGp0(gp0Command.index(4)),
+            };
             
-            //renderer->pushQuad()
-            renderer->pushTriangle(p, c);
-            //renderer->pushTriangle(positions, colors);
-            //renderer->display();
+            renderer->pushTriangle(positions, colors);
         }
         
         // GP0(0xC2): Quad Texture Blend Opqaue
@@ -466,6 +461,25 @@ namespace Emulator {
             // TODO; Implement me
         }
         
+        // GP0(0x20): 
+        void gp0TriangleMonoOpaque(uint32_t val) {
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.index(1)),
+                Position::fromGp0P(gp0Command.index(2)),
+                Position::fromGp0P(gp0Command.index(3)),
+            };
+            
+            // Mono
+            Color colors[] = {
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(0)),
+            };
+            
+            renderer->pushTriangle(positions, colors);
+            //renderer->display();
+        }
+        
         // GP0(0xA0): Load Image
         // From CPU to VRAM
         void gp0ImageLoad(uint32_t val) {
@@ -502,7 +516,6 @@ namespace Emulator {
         
         // TODO; Remove
         uint32_t startX, startY, curX, curY, endX, endY;
-        bool startVram = true;
         
         // GP0(0xC0): Load Store
         // From VRAM to CPU
@@ -516,8 +529,6 @@ namespace Emulator {
             uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
             uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
             
-            //uint32_t imgSize = (width * height);
-            
             startX = curX = x;
             startY = curY = y;
             
@@ -525,9 +536,6 @@ namespace Emulator {
             endY = startY + height;
             
             readMode = VRam;
-            
-            /*printf("Unhandled image store %x %x\n", width, height);
-            std::cerr << "";*/
             
             // Update signals
             canSendVRAMToCPU = false;

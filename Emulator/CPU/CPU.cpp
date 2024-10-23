@@ -87,8 +87,6 @@ std::string getDetails(uint32_t value) {
  * Word - 32 bits or 4 bytes.
  */
 void CPU::executeNextInstruction() {
-    //regs[32] = { 0xdeadbeef};
-    
     // R0 is "hardwired" to 0
     //regs[0] = 0;
     
@@ -98,7 +96,6 @@ void CPU::executeNextInstruction() {
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
     
-    //nextInstruction = new Instruction(load32(pc));
     uint32_t pc = this->pc;
     Instruction* instruction = new Instruction(load32(pc));
     //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str()) << "\n";
@@ -1280,7 +1277,7 @@ void CPU::checkForTTY() {
         char ch = static_cast<char>(regs[4] & 0xFF);
         
         //if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r') {
-            std::cerr << ch;
+           // std::cerr << ch;
         //}
         //}
     }

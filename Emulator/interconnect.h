@@ -12,6 +12,7 @@
 #include "GPU/Gpu.h"
 #include "Ram.h"
 #include "Range.h"
+#include "Memory/CDROM/CDROM.h"
 #include "Memory/IO/Joypad.h"
 #include "Memory/ScratchPad/ScratchPad.h"
 #include "SPU/SPU.h"
@@ -76,15 +77,13 @@ public:
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-            printf("CDROM load %x\n", abs_addr);
-            std::cerr << "";
+            return _cdrom.load<T>(addr);
             
             return 0b11111111;
             //throw std::runtime_error("Unhandled CDROM load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::MDEC.contains(abs_addr)) {
-            //return 0;
             throw std::runtime_error("Unhandled MDEC load at address 0x" + to_hex(addr));
         }
         
@@ -101,7 +100,7 @@ public:
         }
         
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
-            
+            return 0;
             //throw std::runtime_error("Unhandled EXPANSION1 load at address 0x" + to_hex(addr));
         }
         
@@ -185,16 +184,7 @@ public:
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-            int8_t index = static_cast<int8_t>(val & 0x3);
-            
-            printf("CDROM %x - %x\n", abs_addr, offset.value());
-            std::cerr << "";
-            
-            if(abs_addr == 0x1f801800) {
-                // https://psx-spx.consoledev.net/cdromdrive/#1f801800h-indexstatus-register-bit0-1-rw-bit2-7-read-only
-                // READ-ONLY
-                return;
-            }
+           _cdrom.store<T>(addr, val);
             
             return;
             //throw std::runtime_error("Unhandled write to CDROM 0x" + to_hex(abs_addr));
@@ -309,6 +299,7 @@ public:
     
 public:
     Ram* ram;
+    CDROM _cdrom;
     ScratchPad _scratchPad;
     Joypad _joypad;
     

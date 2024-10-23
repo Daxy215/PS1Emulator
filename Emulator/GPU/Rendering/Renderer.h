@@ -26,6 +26,10 @@ namespace Emulator {
             glUniform2i(offsetUni, x, y);
         }
         
+        void setDrawingArea(int32_t right, int32_t bottom) {
+            glUniform2i(drawingUni, right, bottom);
+        }
+        
         GLuint compileShader(const char* source, GLenum shaderType);
         GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
         GLuint getProgramAttrib(GLuint program, const std::string& attr) {
@@ -57,6 +61,7 @@ namespace Emulator {
         
         // Uniforms
         GLint offsetUni;
+        GLint drawingUni;
         
         // Buffer contains the vertices positions
         Buffer<Position> positions;

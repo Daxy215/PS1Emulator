@@ -106,18 +106,60 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 1;
             Gp0CommandMethod = &Gpu::gp0ClearCache;
             break;
+        case 0x20: {
+            // GP0(20h) - Monochrome three-point polygon, opaque
+            gp0CommandRemaining = 4;
+            Gp0CommandMethod = &Gpu::gp0TriangleMonoOpaque;
+            break;
+        }
+        case 0x22: {
+            // GP0(22h) - Monochrome three-point polygon, semi-transparent
+            
+            // For now just same implementation
+            //TODO; Make this semi-transparent
+            gp0CommandRemaining = 4;
+            Gp0CommandMethod = &Gpu::gp0TriangleMonoOpaque;
+            break;
+        }
         case 0x28:
             gp0CommandRemaining = 5;
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
             break;
-        case 0x30: {
-            Commands::polygon = Commands::Polygon(opcode);
+        case 0x2A: {
+            gp0CommandRemaining = 5;
             
-            gp0CommandRemaining = Commands::polygon.getLength();
+            // For now, I don't really have transparency
+            //TODO; Make this semi-transparent
+            Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
+            break;
+        }
+        /*case 0x20: case 0x21: case 0x22: case 0x23: case 0x24: case 0x25:
+        case 0x26: case 0x27: case 0x28: case 0x29: case 0x2A: case 0x2B:
+        case 0x2C: case 0x2D: case 0x2E: case 0x2F: case 0x30: case 0x31:
+        case 0x32: case 0x33: case 0x34: case 0x35: case 0x36: case 0x37:
+        case 0x38: case 0x39:*/ case 0x30: {
+            /*if(/*opcode == 0x28 || #1#opcode == 0x38) {
+                printf("");
+            }*/
+            
+            gp0CommandRemaining = 6;
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
+            
+            break;
+        }
+        case 0x32: {
+            // TODO; Make this semi-transparent
+            gp0CommandRemaining = 6;
+            Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
+            
             break;
         }
         case 0x38:
+            gp0CommandRemaining = 8;
+            Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
+            break;
+        case 0x3A:
+            // TODO; Make this semi-transparent
             gp0CommandRemaining = 8;
             Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
             break;
