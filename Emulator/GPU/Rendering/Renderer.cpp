@@ -123,7 +123,7 @@ void Emulator::Renderer::draw() {
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
     // Wait for GPU to complete
-    auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    /*auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     
     while(true) {
         auto r = glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, 10000000);
@@ -132,6 +132,7 @@ void Emulator::Renderer::draw() {
             // Drawing done
                 break;
     }
+    */
     
     // Reset the buffers
     //nVertices = 0;
@@ -144,9 +145,6 @@ void Emulator::Renderer::pushLine(Emulator::Position* positions, Emulator::Color
 
 void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
-        printf("Vertex attribute buffers full forcing draw\n");
-        std::cerr << "";
-
         // Reset the buffer size
         nVertices = 0;
         
@@ -224,8 +222,6 @@ void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::
      */
     
     if (nVertices + 6 > VERTEX_BUFFER_LEN) {
-        std::cerr << "Vertex attribute buffers full, forcing draw\n";
-        
         // Reset the buffer size
         nVertices = 0;
         

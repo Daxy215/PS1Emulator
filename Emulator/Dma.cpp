@@ -16,7 +16,6 @@ uint32_t Dma::interrupt() {
 }
 
 void Dma::setInterrupt(uint32_t val) {
-    // TODO; Research
     // Unknown what bts [5:0] do
     irqDummy = static_cast<uint8_t>(val & 0x3F);
     

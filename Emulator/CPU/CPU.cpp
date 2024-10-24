@@ -77,7 +77,7 @@ std::string getBinary(uint32_t value) {
 std::string getDetails(uint32_t value) {
     std::string hex = getHex(value);
     std::string binary = getBinary(value);
-
+    
     return hex + " = " + binary;
 }
 
@@ -97,7 +97,7 @@ void CPU::executeNextInstruction() {
      */
     
     uint32_t pc = this->pc;
-    Instruction* instruction = new Instruction(load32(pc));
+    Instruction instruction = Instruction(load32(pc));
     //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str()) << "\n";
     
     // Save the address of the current instruction to save in
@@ -125,7 +125,7 @@ void CPU::executeNextInstruction() {
     branchSlot = false;
     
     // Executes the instruction
-    decodeAndExecute(*(instruction));
+    decodeAndExecute(instruction);
     
     // regs = outRegs;
     std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
@@ -1266,9 +1266,9 @@ void CPU::opillegal(Instruction& instruction) {
 }
 
 void CPU::checkForTTY() {
-    uint32_t pc_physical = pc & 0x1FFFFFFF;
+    uint32_t pc = this->pc & 0x1FFFFFFF;
     
-    if ((pc_physical == 0x000000A0 || pc_physical == 0x000000B0 || pc_physical == 0x000000C0)) {
+    if ((pc == 0x000000A0 || pc == 0x000000B0 || pc == 0x000000C0)) {
         //uint32_t r9 = regs[9];
         
         //if (r9 == 0x3C || r9 == 0x3D) {
@@ -1277,7 +1277,7 @@ void CPU::checkForTTY() {
         char ch = static_cast<char>(regs[4] & 0xFF);
         
         //if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r') {
-           // std::cerr << ch;
+        std::cerr << ch;
         //}
         //}
     }
@@ -1426,32 +1426,32 @@ void CPU::addu(Instruction& instruction) {
 }
 
 uint32_t CPU::load32(uint32_t addr) {
-    return interconnect->load<uint32_t>(addr);
+    return interconnect.load<uint32_t>(addr);
     //return interconnect->load32(addr);
 }
 
 uint16_t CPU::load16(uint32_t addr) {
-    return interconnect->load<uint16_t>(addr);
+    return interconnect.load<uint16_t>(addr);
     //return interconnect->load16(addr);
 }
 
 uint8_t CPU::load8(uint32_t addr) {
-    return interconnect->load<uint8_t>(addr);
+    return interconnect.load<uint8_t>(addr);
     //return interconnect->load8(addr);
 }
 
 void CPU::store32(uint32_t addr, uint32_t val) {
-    interconnect->store<uint32_t>(addr, val);
+    interconnect.store<uint32_t>(addr, val);
     //interconnect->store32(addr, val);
 }
 
 void CPU::store16(uint32_t addr, uint16_t val) {
-    interconnect->store<uint16_t>(addr, val);
+    interconnect.store<uint16_t>(addr, val);
     //interconnect->store16(addr, val);
 }
 
 void CPU::store8(uint32_t addr, uint8_t val) {
-    interconnect->store<uint8_t>(addr, val);
+    interconnect.store<uint8_t>(addr, val);
     //interconnect->store8(addr, val);
 }
 

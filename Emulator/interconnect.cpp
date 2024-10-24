@@ -13,7 +13,7 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
     switch (major) {
     case 0: case 1: case 2: case 3: case 4: case 5: case 6: {
         // Per-channel registers 0...6
-        Channel& channel = dma->getChannel(PortC::fromIndex(major));
+        Channel& channel = dma.getChannel(PortC::fromIndex(major));
         
         switch (minor) {
         case 8:
@@ -29,9 +29,9 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
     case 7: {
         switch (minor) {
             case 0:
-                return dma->control;
+                return dma.control;
             case 4:
-                return dma->interrupt();
+                return dma.interrupt();
             default:
                 throw std::runtime_error("Unhandled DMA read at " + std::to_string(offset));
         }
@@ -48,7 +48,7 @@ void Interconnect::doDma(Port port) {
     // process everything in one pass (i.e. no
     // chopping or priority handling)
     
-    if(dma->getChannel(port).sync == LinkedList) {
+    if(dma.getChannel(port).sync == LinkedList) {
         dmaLinkedList(port);
     } else {
         dmaBlock(port);
@@ -56,7 +56,7 @@ void Interconnect::doDma(Port port) {
 }
 
 void Interconnect::dmaBlock(Port port) {
-    Channel& channel = dma->getChannel(port);
+    Channel& channel = dma.getChannel(port);
     
     uint32_t increment = (channel.step == Increment) ? 4 : static_cast<uint32_t>(-4);
     uint32_t addr = channel.base;
@@ -73,12 +73,12 @@ void Interconnect::dmaBlock(Port port) {
         
         switch (channel.direction) {
         case FromRam: {
-                uint32_t srcWord = ram->load<uint32_t>(curAddr);
+                uint32_t srcWord = ram.load<uint32_t>(curAddr);
                 
                 switch (port) {
                 case Gpu:
                     //printf("GPU data %08x", srcWord);
-                    gpu->gp0(srcWord);
+                    gpu.gp0(srcWord);
                     break;
                 default:
                     throw std::runtime_error("Unhandled DMA destination port " + std::to_string(static_cast<uint8_t>(port)));
@@ -106,7 +106,7 @@ void Interconnect::dmaBlock(Port port) {
                     break;
                 }
                 
-                ram->store<uint32_t>(curAddr, srcWord);    
+                ram.store<uint32_t>(curAddr, srcWord);    
                 
                 break;
             }
@@ -122,7 +122,7 @@ void Interconnect::dmaBlock(Port port) {
 }
 
 void Interconnect::dmaLinkedList(Port port) {
-    Channel& channel = dma->getChannel(port);
+    Channel& channel = dma.getChannel(port);
     
     uint32_t addr = channel.base & 0x1FFFFC;
     
@@ -142,15 +142,15 @@ void Interconnect::dmaLinkedList(Port port) {
         // The high byte contains the number
         // of words in the "packet"
         // (not counting the header word)
-        uint32_t header = ram->load<uint32_t>(addr);
+        uint32_t header = ram.load<uint32_t>(addr);
         uint32_t remsz = header >> 24;
         
         while(remsz > 0) {
             addr = (addr + 4) & 0x1FFFFC;
             
-            uint32_t command = ram->load<uint32_t>(addr);
+            uint32_t command = ram.load<uint32_t>(addr);
             
-            gpu->gp0(command);
+            gpu.gp0(command);
             
             remsz -= 1;
         }
@@ -178,7 +178,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     switch (major) {
     case 0: case 1: case 2: case 3: case 4: case 5: case 6: {
             Port port = PortC::fromIndex(major);
-            Channel& channel = dma->getChannel(port);
+            Channel& channel = dma.getChannel(port);
             
             switch (minor) {
             case 0:
@@ -203,10 +203,10 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     case 7: {
             switch (minor) {
             case 0:
-                dma->setControl(val);
+                dma.setControl(val);
                 break;
             case 4:
-                dma->setInterrupt(val);
+                dma.setInterrupt(val);
                 break;
             default:
                 throw std::runtime_error("Unhandled DMA write " + std::to_string(offset) + " : " + std::to_string(val));
@@ -223,7 +223,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     
     /*switch (offset) {  // NOLINT(hicpp-multiway-paths-covered)
     case 0x70:
-        dma->setControl(val);
+        dma.setControl(val);
         break;
     default:
         printf("Unhandled DMA write access %x", offset);

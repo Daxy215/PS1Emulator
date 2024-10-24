@@ -26,7 +26,7 @@ class Bios;
 
 class Interconnect {
 public:
-    Interconnect(Ram* ram, Bios* bios, Dma* dma, Emulator::Gpu* gpu, Emulator::SPU* spu)
+    Interconnect(Ram ram, Bios bios, Dma dma, Emulator::Gpu gpu, Emulator::SPU spu)
         : ram(ram), _scratchPad(), bios(bios), dma(dma), gpu(gpu), spu(spu) {  }
     
     template<typename T>
@@ -34,7 +34,7 @@ public:
         uint32_t abs_addr = map::maskRegion(addr);
         
         if (auto offset = map::RAM.contains(abs_addr)) {
-            return ram->load<T>(offset.value());
+            return ram.load<T>(offset.value());
         }
         
         if (auto offset = map::SCRATCHPAD.contains(abs_addr)) {
@@ -43,11 +43,10 @@ public:
             }
             
             return _scratchPad.load<T>(offset.value());
-            //throw std::runtime_error("Unhandled SCRATCH_PAD load at address 0x" + to_hex(addr));
         }
         
         if (auto offset = map::BIOS.contains(abs_addr)) {
-            return bios->load<T>(offset.value());
+            return bios.load<T>(offset.value());
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
@@ -62,9 +61,9 @@ public:
         if (auto offset = map::GPU.contains(abs_addr)) {
             switch (offset.value()) {
                 case 0:
-                    return gpu->read(offset.value());
+                    return gpu.read(offset.value());
                 case 4: {
-                    return gpu->status();
+                    return gpu.status();
                 }
                 default:
                     return 0;
@@ -78,9 +77,6 @@ public:
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
             return _cdrom.load<T>(addr);
-            
-            return 0b11111111;
-            //throw std::runtime_error("Unhandled CDROM load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::MDEC.contains(abs_addr)) {
@@ -90,7 +86,7 @@ public:
         if (auto offset = map::SPU.contains(abs_addr)) {
             // https://github.com/psx-spx/psx-spx.github.io/blob/master/docs/soundprocessingunitspu.md
             //std::cerr << "SPU load register; " << to_hex(addr) << "\n";
-            spu->load(addr, offset.value());
+            spu.load(addr, offset.value());
             
             return 0;
         }
@@ -100,8 +96,13 @@ public:
         }
         
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
+            if(_ == 132) {
+                //   1F000084h 2Ch Pre-Boot ID  ("Licensed by Sony Computer Entertainment Inc.")
+                return 0;
+            }
+            
+            throw std::runtime_error("Unhandled EXPANSION1 load at address 0x" + to_hex(addr));
             return 0;
-            //throw std::runtime_error("Unhandled EXPANSION1 load at address 0x" + to_hex(addr));
         }
         
         if (auto _ = map::RAM_SIZE.contains(abs_addr)) {
@@ -125,8 +126,8 @@ public:
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
+            throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
             return 0xFF;
-            //throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
         return 0;
@@ -138,7 +139,7 @@ public:
         uint32_t abs_addr = map::maskRegion(addr);
         
         if (auto offset = map::RAM.contains(abs_addr)) {
-            ram->store<T>(offset.value(), val);
+            ram.store<T>(offset.value(), val);
             
             return;
         }
@@ -166,10 +167,10 @@ public:
         if (auto offset = map::GPU.contains(abs_addr)) {
             switch (offset.value()) {
                 case 0:
-                    gpu->gp0(val);
+                    gpu.gp0(val);
                     break;
                 case 4:
-                    gpu->gp1(val);
+                    gpu.gp1(val);
                     break;
                 default:
                     throw std::runtime_error("GPU write " + std::to_string(offset.value()) + ": 0x" + to_hex(val));
@@ -187,7 +188,6 @@ public:
            _cdrom.store<T>(addr, val);
             
             return;
-            //throw std::runtime_error("Unhandled write to CDROM 0x" + to_hex(abs_addr));
         }
         
         if (auto offset = map::MDEC.contains(abs_addr)) {
@@ -195,8 +195,8 @@ public:
         }
         
         if (auto offset = map::SPU.contains(abs_addr)) {
-            return;
             //throw std::runtime_error(": 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            return;
         }
         
         // Peripheral I/O Ports
@@ -210,6 +210,8 @@ public:
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled cache control access");
             }
+            
+            std::cerr << "Unhandled cache control access\n";
             
             return;
             throw std::runtime_error("Unhandled cache control access");
@@ -233,8 +235,73 @@ public:
                     }
                     
                     break;
+                
+                case 8: {
+                    /*
+                     * 1F801008h - Expansion 1 Delay/Size (usually 0013243Fh) (512Kbytes, 8bit bus)
+                     */
+                    
+                    
+                    
+                    break;
+                }
+                
+                case 12: {
+                    /*
+                     * 1F80100Ch - Expansion 3 Delay/Size (usually 00003022h) (1 byte)
+                     */
+                    
+                    
+                    
+                    break;
+                }
+                
+                case 16: {
+                    // 1F801010h - BIOS ROM Delay/Size (usually 0013243Fh) (512Kbytes, 8bit bus)
+                    
+                    
+                    
+                    break;
+                }
+                
+                case 20: {
+                    // 1F801014h - SPU Delay/Size (200931E1h) (use 220931E1h for SPU-RAM reads)
+                    
+                    // Ignoring SPU for now
+                    
+                    break;
+                }
+                
+                case 24: {
+                    // 1F801018h - CDROM Delay/Size (00020843h or 00020943h)
+                    
+                    break;
+                }
+                
+                case 28: {
+                    /*
+                     * 1F80101Ch - Expansion 2 Delay/Size (usually 00070777h) (128 bytes, 8bit bus)
+                     */
+                    
+                    break;
+                }
+                
+                case 32: {
+                    /*
+                     * 1F801020h - COM_DELAY / COMMON_DELAY (00031125h or 0000132Ch or 00001325h)
+                     * 0-3   COM0 - Recovery period cycles
+                     * 4-7   COM1 - Hold period cycles
+                     * 8-11  COM2 - Floating release cycles
+                     * 12-15 COM3 - Strobe active-going edge delay
+                     * 16-31 Unknown/unused (read: always 0000h)
+                     */
+                    
+                    
+                    
+                    break;
+                }
                 default:
-                    //throw std::runtime_error("Unhandled write to MEM_CONTROL register 0x" + to_hex(offset.value()) + ": 0x" + to_hex(val));
+                    throw std::runtime_error("Unhandled write to MEM_CONTROL register 0x" + to_hex(offset.value()) + ": 0x" + to_hex(val));
                     break;
             }
             
@@ -246,37 +313,32 @@ public:
                 throw std::runtime_error("Unhandled RAM_SIZE access");
             }
             
+            uint32_t v = (val) & 0b00000000111;
+            printf("f");
+            
             return;
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
             switch (abs_addr) {
             case 0x1F802041:
-                // Cyan
-                /*std::cout << "\033[36m";
-                std::cout << "[EXP2] PSX: POST [" << std::hex << std::setw(1) << static_cast<char>(val) << "]" << std::endl;
-                std::cout << "\033[0m";*/
                 
-                break;
+                return;
             
             case 0x1F802023:
             case 0x1F802080:
-                // Cyan
-                /*std::cout << "\033[36m";
-                std::cout << static_cast<char>(val);
-                std::cout << "\033[0m";*/
                 
-                break;
+                return;
             
             default:
                 std::cout << "[BUS] Write Unsupported to EXP2: " << std::hex << std::setw(8) << addr 
                           << " Value: " << std::hex << std::setw(8) << val << std::endl;
-                
-                break;
+                    
+                return;
             }
             
+            throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
             return;
-            //throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
         }
         
         throw std::runtime_error("Unhandled store into address 0x" + to_hex(addr) + ": 0x" + to_hex(val));
@@ -297,14 +359,18 @@ public:
         return ss.str();
     }
     
+private:
+    uint32_t expansion1Base = 0;
+    uint32_t expansion2Base = 0;
+    
 public:
-    Ram* ram;
+    Ram ram;
     CDROM _cdrom;
     ScratchPad _scratchPad;
     Joypad _joypad;
     
-    Bios* bios;
-    Dma* dma;
-    Emulator::Gpu* gpu;
-    Emulator::SPU* spu;
+    Bios bios;
+    Dma dma;
+    Emulator::Gpu gpu;
+    Emulator::SPU spu;
 };

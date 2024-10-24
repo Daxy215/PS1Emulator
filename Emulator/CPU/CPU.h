@@ -36,7 +36,7 @@ enum Exception {
 
 class CPU {
 public:
-    CPU(Interconnect* interconnect) : nextpc(pc + 4), outRegs{}, regs{}, interconnect(interconnect) {
+    CPU(Interconnect interconnect) : currentpc(0), nextpc(pc + 4), cause(0), epc(0), outRegs{}, regs{}, interconnect(interconnect) {
         
     }
     
@@ -46,6 +46,7 @@ public:
     
     // Instructions
     // TODO; Please move those in a different class future me!
+    // Hell no
     
     // Shift Left Logical
     void opsll(Instruction& instruction);
@@ -357,5 +358,5 @@ public:
 public:
     //Instruction* nextInstruction = new Instruction(0x0); //NOP
     
-    Interconnect* interconnect;
+    Interconnect interconnect;
 };

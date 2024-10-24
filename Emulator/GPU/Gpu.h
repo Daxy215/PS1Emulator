@@ -683,7 +683,7 @@ namespace Emulator {
         // Current mode for GP0
         Gp0Mode gp0Mode = Command;
         Gp0Mode readMode = Command;
-                
+        
         // Pointer to the method implementing the current GP command
         std::function<void(Gpu&, uint32_t)> Gp0CommandMethod;
         

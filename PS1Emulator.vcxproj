@@ -393,6 +393,8 @@
     <ClCompile Include="Emulator\GPU\VRAM.cpp" />
     <ClCompile Include="Emulator\interconnect.cpp" />
     <ClCompile Include="Emulator\Memory\CDROM\CDROM.cpp" />
+    <ClCompile Include="Emulator\Memory\CDROM\Sector.cpp" />
+    <ClCompile Include="Emulator\Memory\CDROM\TrackBuilder.cpp" />
     <ClCompile Include="Emulator\Memory\IO\Joypad.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -634,6 +636,8 @@
     <ClInclude Include="Emulator\GPU\VRAM.h" />
     <ClInclude Include="Emulator\interconnect.h" />
     <ClInclude Include="Emulator\Memory\CDROM\CDROM.h" />
+    <ClInclude Include="Emulator\Memory\CDROM\Sector.h" />
+    <ClInclude Include="Emulator\Memory\CDROM\TrackBuilder.h" />
     <ClInclude Include="Emulator\Memory\IO\Joypad.h" />
     <ClInclude Include="Emulator\Memory\ScratchPad\ScratchPad.h" />
     <ClInclude Include="Emulator\Ram.h" />

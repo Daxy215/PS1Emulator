@@ -10,6 +10,10 @@
 #include "Emulator/SPU/SPU.h"
 #include "Utility/FileSystem/FileManager.h"
 
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+
 //#include "Emulator/interconnect.h"
 //#include "Emulator/Ram.h"
 
@@ -318,6 +322,8 @@ struct Exe {
 };
 
 int main(int argc, char* argv[]) {
+	//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
     Dma dma;
@@ -326,9 +332,9 @@ int main(int argc, char* argv[]) {
     Emulator::Gpu gpu;
     
     // TODO; Implement
-    Emulator::SPU spu;
+    Emulator::SPU spu = Emulator::SPU();
     
-    CPU* cpu = new CPU(new Interconnect(&ram, &bios, &dma, &gpu, &spu));
+    CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
     SDL_Event event;
 	
@@ -336,21 +342,25 @@ int main(int argc, char* argv[]) {
 	uint32_t counter = 0;
 	
     while(true) {
+    	if(x == 129922852) {
+    		printf("");
+    	}
+    	
     	// TODO; Testing
     	if(counter++ > 2560000) {
     		counter = 0;
     		
-    		cpu->interconnect->_joypad.update();
+    		cpu.interconnect._joypad.update();
 			
     		// TODO; Remove
     		gpu.renderer->display();
     	}
 		
-    	bool enableBios = false;
+    	bool enableBios = true;
     	
 	    // Wait for the BIOS to jump to the shell
-	    if (cpu->pc != 0x80030000 || enableBios) {
-		    cpu->executeNextInstruction();
+	    if (cpu.pc != 0x80030000 || enableBios) {
+		    cpu.executeNextInstruction();
 	    } else {
 	    	std::cerr << "Loading test EXE file\n";
 	    	
@@ -399,9 +409,10 @@ int main(int argc, char* argv[]) {
 	    	// GPU - 16 BPP
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/MemoryTransfer/MemoryTransfer16BPP.exe"); // TODO; Only shows arrows
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
+	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
-	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO;
 	    	
 	    	// Other stuff
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
@@ -423,30 +434,30 @@ int main(int argc, char* argv[]) {
 	    	}
 			
 	    	for(uint32_t j = 0; j < exe.tSize; j++) {
-	    		cpu->interconnect->store<uint8_t>(exe.tAddr + j, data[0x800 + j]);
+	    		cpu.interconnect.store<uint8_t>(exe.tAddr + j, data[0x800 + j]);
 	    	}
 			
-	    	cpu->pc = exe.pc0;
-	    	cpu->nextpc = exe.pc0 + 4;
+	    	cpu.pc = exe.pc0;
+	    	cpu.nextpc = exe.pc0 + 4;
 	    	//cpu->currentpc = cpu->pc;
 			
-	    	cpu->set_reg(28, exe.gp0);
+	    	cpu.set_reg(28, exe.gp0);
 			
 	    	if(exe.sAddr != 0) {
-	    		cpu->set_reg(29, exe.sAddr + exe.sSize);
-	    		cpu->set_reg(30, exe.sAddr + exe.sSize);
+	    		cpu.set_reg(29, exe.sAddr + exe.sSize);
+	    		cpu.set_reg(30, exe.sAddr + exe.sSize);
 	    	}
 			
-	    	cpu->branchSlot = false;
+	    	cpu.branchSlot = false;
 	    }
 		
 	    x++;
         
-        if(SDL_PollEvent(&event)) {
+        while(SDL_PollEvent(&event)) {
             if(event.type == SDL_QUIT)
                 break;
 			
-        	switch(event.type) {
+        	/*switch(event.type) {
         	case SDL_CONTROLLERBUTTONDOWN:
 			case SDL_CONTROLLERBUTTONUP:
 				cpu->interconnect->_joypad.handleButtonEvent(event.cbutton);
@@ -461,7 +472,7 @@ int main(int argc, char* argv[]) {
 				cpu->interconnect->_joypad.updateConnectedControllers();
         		
         		break;
-        	}
+        	}*/
         }
     }
 	
