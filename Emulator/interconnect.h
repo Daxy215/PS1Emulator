@@ -12,6 +12,7 @@
 #include "GPU/Gpu.h"
 #include "Ram.h"
 #include "Range.h"
+#include "Memory/IRQ.h"
 #include "Memory/CDROM/CDROM.h"
 #include "Memory/IO/Joypad.h"
 #include "Memory/ScratchPad/ScratchPad.h"
@@ -23,6 +24,22 @@
 /*class Ram;
 class Dma;*/
 class Bios;
+
+union CACHECONTROL {
+    struct {
+        uint32_t config : 16;
+        uint32_t scratchpadEnabled1 : 1;
+        uint32_t scratchpadEnabled2 : 1;
+        uint32_t crash : 1;
+        uint32_t codeCacheEnable : 1;
+        
+        uint32_t _ : 13; // Remaining 13 bits
+    };
+    
+    uint32_t val = 0;
+    
+    CACHECONTROL(uint32_t val) : val(val) {}
+};
 
 class Interconnect {
 public:
@@ -50,8 +67,19 @@ public:
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
-            //printf("IRQ control read %s\n", to_hex(abs_addr).c_str());
-            return 0;
+            switch (offset.value()) {
+                case 0: {
+                    return _irq.getStatus();
+                }
+                
+                case 4: {
+                    return _irq.getMask();
+                }
+                
+                default: {
+                    throw std::runtime_error("Error; Unsupported IRQ offset");
+                }
+            }
         }
         
         if (auto offset = map::DMA.contains(abs_addr)) {
@@ -106,7 +134,7 @@ public:
         }
         
         if (auto _ = map::RAM_SIZE.contains(abs_addr)) {
-            throw std::runtime_error("Unhandled RAM_SIZE load at address 0x" + to_hex(addr));
+            return _ramSize;
         }
         
         if (auto _ = map::MEMCONTROL.contains(abs_addr)) {
@@ -155,7 +183,22 @@ public:
         }
         
         if (auto offset = map::IRQ_CONTROL.contains(abs_addr)) {
-            //throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+            switch (offset.value()) {
+                case 0: {
+                    _irq.acknowledge(static_cast<uint16_t>(val));
+                    break;
+                }
+                
+                case 4: {
+                    _irq.setMask(static_cast<uint16_t>(val));
+                    break;
+                }
+                
+                default: {
+                    throw std::runtime_error("Unhandled IRQ control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
+                }
+            }
+            
             return;
         }
         
@@ -211,7 +254,7 @@ public:
                 throw std::runtime_error("Unhandled cache control access");
             }
             
-            std::cerr << "Unhandled cache control access\n";
+            _cacheControl.val = val;
             
             return;
             throw std::runtime_error("Unhandled cache control access");
@@ -313,8 +356,7 @@ public:
                 throw std::runtime_error("Unhandled RAM_SIZE access");
             }
             
-            uint32_t v = (val) & 0b00000000111;
-            printf("f");
+            _ramSize = val;
             
             return;
         }
@@ -363,11 +405,17 @@ private:
     uint32_t expansion1Base = 0;
     uint32_t expansion2Base = 0;
     
+    uint32_t _ramSize = 0;
+    
 public:
     Ram ram;
     CDROM _cdrom;
     ScratchPad _scratchPad;
     Joypad _joypad;
+    
+    IRQ _irq;
+    
+    CACHECONTROL _cacheControl = (0x001e988);
     
     Bios bios;
     Dma dma;

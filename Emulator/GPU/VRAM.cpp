@@ -67,7 +67,7 @@ void Emulator::VRAM::stepTransfer() {
 }
 
 void Emulator::VRAM::endTransfer() {
-    return;
+    //return;
     
     if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
         std::cerr << "Failed to lock texture: " << SDL_GetError() << '\n';

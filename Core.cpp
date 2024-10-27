@@ -409,7 +409,7 @@ int main(int argc, char* argv[]) {
 	    	// GPU - 16 BPP
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/MemoryTransfer/MemoryTransfer16BPP.exe"); // TODO; Only shows arrows
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
-	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
+	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO;
@@ -422,7 +422,7 @@ int main(int argc, char* argv[]) {
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // TODO; Just black?
 	    	
 	    	// Requires controller
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpx.exe");
+	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
 	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
 	    	
 	    	Exe exe;

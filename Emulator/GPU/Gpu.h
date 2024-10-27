@@ -26,8 +26,8 @@ namespace Emulator {
     
     // Interlaced output splits each frame in two fields
     enum class Field {
-        Top = 1,
-        Bottom = 0,
+        Top = 0,
+        Bottom = 1,
     };
     
     // Video output horizontal resolution

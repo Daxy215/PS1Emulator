@@ -96,7 +96,7 @@ void CPU::executeNextInstruction() {
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
     
-    uint32_t pc = this->pc;
+    //uint32_t pc = this->pc;
     Instruction instruction = Instruction(load32(pc));
     //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str()) << "\n";
     
@@ -336,6 +336,9 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     case 0b001100:
         opSyscall(instruction);
         break;
+    case 0b001101:
+        opbreak(instruction);
+        break;
     case 0b010011:
         opmtlo(instruction);
         break;
@@ -442,12 +445,17 @@ void CPU::opsltiu(Instruction& instruction) {
     set_reg(t, static_cast<uint32_t>(v));
 }
 
+int b = 0;
 // Load Upper Immediate(LUI)
 void CPU::oplui(Instruction& instruction) {
-    uint32_t i = instruction.imm();
-    uint32_t t = instruction.t();
+    if(++b == 118949) {
+        printf("");
+    }
     
-    uint32_t v = i << 16;
+    auto i = instruction.imm();
+    auto t = instruction.t();
+    
+    auto v = i << 16;
     
     set_reg(t, v);
 }
@@ -463,22 +471,22 @@ void CPU::opori(Instruction& instruction) {
 }
 
 void CPU::opor(Instruction& instruction) {
-    RegisterIndex d = instruction.d();
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
+    auto d = instruction.d();
+    auto s = instruction.s();
+    auto t = instruction.t();
     
-    RegisterIndex v = reg(s) | reg(t);
+    auto v = reg(s) | reg(t);
     
     set_reg(d, v);
 }
 
 void CPU::opnor(Instruction& instruction) {
-    RegisterIndex d = instruction.d();
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
+    auto d = instruction.d();
+    auto s = instruction.s();
+    auto t = instruction.t();
     
     // Was doing '!' instead of '~' :)
-    RegisterIndex v = ~(reg(s) | reg(t));
+    auto v = ~(reg(s) | reg(t));
     
     set_reg(d, v);
 }
@@ -488,7 +496,7 @@ void CPU::opxor(Instruction& instruction) {
     auto s = instruction.s();
     auto t = instruction.t();
     
-    RegisterIndex v = reg(s) ^ reg(t);
+    auto v = reg(s) ^ reg(t);
     
     set_reg(d, v);
 }
@@ -783,16 +791,16 @@ void CPU::oplwr(Instruction& instruction) {
 }
 
 void CPU::oplh(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
-    uint32_t t = instruction.t();
-    uint32_t s = instruction.s();
-    
     // Can't write if we are in cache isolation mode!
     if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store-word while cache is isolated!\n";
-            
+        
         return;
     }
+    
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
     
@@ -826,11 +834,11 @@ void CPU::oplhu(Instruction& instruction) {
 
 // Load byte
 void CPU::oplb(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex t = instruction.t();
-    RegisterIndex s = instruction.s();
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
     
-    RegisterIndex addr = wrappingAdd(reg(s), i);
+    auto addr = wrappingAdd(reg(s), i);
     int8_t v = static_cast<int8_t>(load8(addr));
     
     // Put the load in the delay slot
@@ -1110,19 +1118,40 @@ void CPU::opcop0(Instruction& instruction) {
     }
 }
 
-// TODO; Implement
+// Doesn't exists
 void CPU::opcop1(Instruction& instruction) {
     throw std::runtime_error("Unhandled coprocessor 1 instructions\n");
 }
 
 void CPU::opcop2(Instruction& instruction) {
-    switch (instruction.copOpcode()) {
+    auto opcode = instruction.copOpcode();
+
+    if(opcode & 0x10) {
+        // TODO; Handle command at instruction.op & 0x3f
+        
+        return;
+    }
+    
+    switch (opcode) {
+    case 0b000000:
+        opmfc2(instruction);
+        break;
+    case 0b000010:
+        // TODO; CFC2 - Control register (cpur, copr) -> set(cpur, gte[copr]);
+        break;
+    case 0b00100:
+        opmtc2(instruction);
+        break;
+    case 0b00110:
+        // TODO CTC2 - Control register (cpur, copr) -> set(copr, reg[cpur]);
+        break;
     default:
         std::cerr << "Unhandled COP2 instruction: " + getDetails(instruction.copOpcode()) << "\n";
         throw std::runtime_error("Unhandled COP instruction: " + getDetails(instruction.copOpcode()));
     }
 }
 
+// Doesn't exists
 void CPU::opcop3(Instruction& instruction) {
     throw std::runtime_error("Unhandled coprocessor 3 instructions\n");
 }
@@ -1156,9 +1185,12 @@ void CPU::opmtc0(Instruction& instruction) {
         
         // https://hitmen.c02.at/files/docs/psx/system.txt
         // Bits 8-9 (Interrupt pending field) are writable
-        uint32_t mask = 0x00000300;  // Only bits 8 and 9 are writable
-        cause = (cause & ~mask) | (v & mask);
-       
+        /*uint32_t mask = 0x300;  // Only bits 8 and 9 are writable
+        cause = (cause & ~mask) | (v & mask);*/
+        
+        cause &= ~0x300;
+        cause |= v & 0x300;
+        
         break;
     }
     default:
@@ -1171,9 +1203,32 @@ void CPU::opmfc0(Instruction& instruction) {
     auto cpur = instruction.t();
     uint32_t copr = instruction.d().reg;
     
-    uint32_t v;
+    uint32_t v = 0;
+    
+    /**
+     * cop0r0-r2   - N/A
+     * cop0r3      - BPC - Breakpoint on execute (R/W)
+     * cop0r4      - N/A
+     * cop0r5      - BDA - Breakpoint on data access (R/W)
+     * cop0r6      - JUMPDEST - Randomly memorized jump address (R)
+     * cop0r7      - DCIC - Breakpoint control (R/W)
+     * cop0r8      - BadVaddr - Bad Virtual Address (R)
+     * cop0r9      - BDAM - Data Access breakpoint mask (R/W)
+     * cop0r10     - N/A
+     * cop0r11     - BPCM - Execute breakpoint mask (R/W)
+     * cop0r12     - SR - System status register (R/W)
+     * cop0r13     - CAUSE - Describes the most recently recognised exception (R)
+     * cop0r14     - EPC - Return Address from Trap (R)
+     * cop0r15     - PRID - Processor ID (R)
+     * cop0r16-r31 - Garbage
+     * cop0r32-r63 - N/A - None such (Control regs)
+     */
     
     switch (copr) {
+    case 6:
+    case 7:
+    case 8:
+        break;
     case 12:
         v = sr;
         break;
@@ -1184,7 +1239,14 @@ void CPU::opmfc0(Instruction& instruction) {
         v = epc;
         break;
     case 15:
-        v = pc;
+        /*
+         * cop0r15     - PRID - Processor ID (R)
+         * 
+         * SCPH-1001 (North America): 0x00000001
+         * SCPH-7502 (Europe): 0x00000002
+         */
+            
+        v = 0x00000001;
         break;
     default:
         throw std::runtime_error("Unhandled read from cop0r " + std::to_string(copr));
@@ -1197,13 +1259,13 @@ void CPU::oprfe(Instruction& instruction) {
     // There are other instructions with the same encoding but all
     // are virtual memory related And the Playstation doesnt't
     // implement them. Still, let's make sure we're not running
-    // buggy code .
+    // buggy code.
     if((instruction.op & 0x3f) != 0b010000) {
         throw std::runtime_error("Invalid cop0 instruction; " + instruction.op);
     }
     
     uint32_t mode = sr & 0x3f;
-    sr &= ~0x3f;
+    sr &= ~0xf;
     sr |= mode >> 2;
 }
 
@@ -1219,36 +1281,36 @@ void CPU::opgte(Instruction& instruction) {
     throw std::runtime_error("Unhandled GTE operator\n");
 }
 
-void CPU::exception(Exception cause) {
+void CPU::exception(const Exception exception) {
     // Determine the exception handler address based on the 'BEV' bit
     uint32_t handler = (sr & (1 << 22)) != 0 ? 0xbfc00180 : 0x80000080;
     
     // Shift bits [5:0] of 'SR' two places to the left
-    uint32_t mode = sr & 0x3F;
-    sr &= ~0x3F;
-    sr |= (mode << 2) & 0x3F;
+    uint32_t mode = sr & 0x3f;
+    
+    sr &= ~0x3f;
+    sr |= (mode << 2) & 0x3f;
     
     // Update 'CAUSE' register with the exception code (bits [6:2])
-    this->cause |= static_cast<uint32_t>(cause) << 2;
-    
-    // Save current instruction address in 'EPC'
-    epc = currentpc;
+    this->cause &= ~0x7C;
+    this->cause |= static_cast<uint32_t>(exception) << 2;
     
     if(delaySlot) {
         // When an exception occurs in a delay slot 'EPC' points
         // to the branch instruction and bit 31 of 'CAUSE' is set.
-        epc = wrappingSub(epc, 4);
-        //epc = pc - 4; // WrappingSub(4) ;-}
-        //this->cause |= (1 << 31);
-        // C++ is too epic :D
-        this->cause |= (static_cast<uint32_t>(1) << static_cast<uint32_t>(31));
+        epc = wrappingSub(currentpc, 4);
+        this->cause |= (1u << 31);
+    } else {
+        // Save current instruction address in 'EPC'
+        epc = currentpc;
+        this->cause &= ~(1u << 31);
     }
     
     // Exceptions don’t have a branch delay, we jump directly into the handler
     pc = handler;
     nextpc = wrappingAdd(pc, 4);
     
-    std::cerr << "EXCEPTION OCCURRED!!" << cause << "\n";
+    //std::cerr << "EXCEPTION OCCURRED!!" << cause << "\n";
 }
 
 void CPU::opSyscall(Instruction& instruction) {
@@ -1265,6 +1327,9 @@ void CPU::opillegal(Instruction& instruction) {
     exception(IllegalInstruction);
 }
 
+char prev = 'f';
+int x = 0;
+
 void CPU::checkForTTY() {
     uint32_t pc = this->pc & 0x1FFFFFFF;
     
@@ -1275,6 +1340,13 @@ void CPU::checkForTTY() {
             //char ch = static_cast<char>(regs[4] & 0xFF);
         
         char ch = static_cast<char>(regs[4] & 0xFF);
+        
+        if(ch == 'n' && prev == ' ') {
+            if(++x == 9)
+                printf("");
+        }
+        
+        prev = ch;
         
         //if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r') {
         std::cerr << ch;
@@ -1287,12 +1359,16 @@ void CPU::opj(Instruction& instruction) {
     uint32_t i = instruction.imm_jump();
     
     nextpc = (pc & 0xf0000000) | (i << 2);
+    
+    branchSlot = true;
 }
 
 void CPU::opjr(Instruction& instruction) {
     RegisterIndex s = instruction.s();
     
     nextpc = reg(s);
+    
+    branchSlot = true;
 }
 
 void CPU::opjal(Instruction& instruction) {
@@ -1310,11 +1386,13 @@ void CPU::opjalr(Instruction& instruction) {
     
     set_reg(d, nextpc);
     nextpc = reg(s);
+    
+    branchSlot = true;
 }
 
 void CPU::opbxx(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex s = instruction.s();
+    auto i = instruction.imm_se();
+    auto s = instruction.s();
     
     uint32_t op = instruction.op;
     
@@ -1328,19 +1406,19 @@ void CPU::opbxx(Instruction& instruction) {
     int32_t v = static_cast<int32_t>(reg(s));
     
     // Test "less than zero"
-    bool test = (static_cast<uint32_t>(v < 0));
+    auto test = (static_cast<uint32_t>(v < 0));
     
     // If the test is "greater than or equal to zero" we need
     // to negate the comparison above since
     // ("a >= 0" <=> "!(a < 0)"). The xor takes care of that.
     test = test ^ isbgez;
     
+    if(islink) {
+        // Store return address in R31 of RA
+        set_reg(31, nextpc);
+    }
+    
     if(test != 0) {
-        if(islink) {
-            // Store return address in R31 of RA
-            set_reg(31, nextpc);
-        }
-        
         branch(i);
     }
 }
@@ -1378,10 +1456,9 @@ void CPU::opbqtz(Instruction& instruction) {
 }
 
 void CPU::opbltz(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex s = instruction.s();
+    auto i = instruction.imm_se();
+    auto s = instruction.s();
     
-    // TODO; Problem at reg 9..
     int32_t v = static_cast<int32_t>(reg(s));
     
     if(v <= 0) {
@@ -1400,27 +1477,34 @@ void CPU::branch(uint32_t offset) {
     branchSlot = true;
 }
 
+int c = 0;
+
 void CPU::add(Instruction& instruction) {
-    uint32_t sReg = instruction.s().reg;
-    uint32_t tReg = instruction.t().reg;
-    uint32_t d = instruction.d();
+    // Test start
+    if(++c == 972 + 174) {
+        printf("");
+    }
+    
+    auto sReg = instruction.s();
+    auto tReg = instruction.t();
+    auto d = instruction.d();
     
     int32_t s = static_cast<int32_t>(reg(sReg));
     int32_t t = static_cast<int32_t>(reg(tReg));
     
-    if(std::optional<int32_t> v = check_add<int32_t>(s, t)) {
+    if (std::optional<int32_t> v = check_add<int32_t>(s, t)) {
         set_reg(d, static_cast<uint32_t>(v.value()));
-    } else
+    } else {
         exception(Overflow);
+    }
 }
 
-//TODO; reg 3 is wrong? 1562 at 86552
 void CPU::addu(Instruction& instruction) {
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
-    RegisterIndex d = instruction.d();
+    auto s = instruction.s();
+    auto t = instruction.t();
+    auto d = instruction.d();
     
-    RegisterIndex v = wrappingAdd(reg(s), reg(t));
+    auto v = wrappingAdd(reg(s), reg(t));
     
     set_reg(d, v);
 }
@@ -1514,7 +1598,8 @@ std::optional<T> CPU::check_add(T lhs, T rhs) {
             return std::nullopt;
         }
     } else {
-        if(rhs < std::numeric_limits<T>::max() - lhs) {
+        // Had std::numeric_limits<T>::max() instead of std::numeric_limits<T>::min()
+        if(rhs < std::numeric_limits<T>::min() - lhs) {
             return std::nullopt;
         }
     }

@@ -146,7 +146,7 @@ void Emulator::Renderer::pushLine(Emulator::Position* positions, Emulator::Color
 void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
-        nVertices = 0;
+        //nVertices = 0;
         
         display();
     }
@@ -161,7 +161,7 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
 void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color* colors) {
     if(nVertices + 6 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
-        nVertices = 0;
+        //nVertices = 0;
         
         display();
     }
@@ -223,7 +223,7 @@ void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::
     
     if (nVertices + 6 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
-        nVertices = 0;
+        //nVertices = 0;
         
         display();
     }

@@ -103,14 +103,15 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>..\libs\glew-2.2.0\include;..\libs\SDL2-2.30.3\include</AdditionalIncludeDirectories>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -639,6 +640,7 @@
     <ClInclude Include="Emulator\Memory\CDROM\Sector.h" />
     <ClInclude Include="Emulator\Memory\CDROM\TrackBuilder.h" />
     <ClInclude Include="Emulator\Memory\IO\Joypad.h" />
+    <ClInclude Include="Emulator\Memory\IRQ.h" />
     <ClInclude Include="Emulator\Memory\ScratchPad\ScratchPad.h" />
     <ClInclude Include="Emulator\Ram.h" />
     <ClInclude Include="Emulator\Range.h" />

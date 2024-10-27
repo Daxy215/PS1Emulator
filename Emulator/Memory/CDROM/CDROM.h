@@ -5,6 +5,7 @@
 #include <queue>
 
 #include "Sector.h"
+#include "../IRQ.h"
 
 class CDROM {
 public:
@@ -14,11 +15,6 @@ public:
 	
 	template<typename T>
 	T load(uint32_t addr) {
-		// TODO; Make a cycle function or tick?
-		if((IF & IE) != 0) {
-			transmittingCommand = false;
-		}
-		
 		printf("CDROM LOAD %x\n", addr);
 		std::cerr << "";
 		
@@ -57,13 +53,14 @@ public:
 	
 	template<typename T>
 	void store(uint32_t addr, T val) {
-		// TODO; Make a cycle function or tick?
-		if((IF & IE) != 0) {
-			transmittingCommand = false;
-		}
-		
 		printf("CDROM %x - %x\n", addr, val);
 		std::cerr << "";
+		
+		// Just cheating for now
+		if(stats & mask != 0) {
+			// Interrupt
+			IRQ::trigger(Interrupt::CdRom);
+		}
 		
 		if(addr == 0x1f801800) {
 			// https://psx-spx.consoledev.net/cdromdrive/#1f801800h-indexstatus-register-bit0-1-rw-bit2-7-read-only
@@ -96,7 +93,8 @@ public:
 				}
 				
 				case 1: {
-					IE = val & 0x1F;
+					//IE = val & 0x1F;
+					mask = val & 0x1F;
 					
 					break;
 				}
@@ -126,7 +124,8 @@ public:
 				
 				case 1: {
 					//IF &= ~(val & 0x1F);
-					IF = val & 0x1F;
+					//IF = val & 0x1F;
+					stats &= ~val;
 					
 					if((val & 0x40) == 0x40) {
 						for(int i = 0; i < paramaters.size(); i++)
@@ -146,9 +145,11 @@ private:
 	uint8_t _index = 0;
 	uint8_t _stats = 0;
 	
-	uint8_t IE;
-	uint8_t IF;
-
+	/*uint8_t IE = 0;
+	uint8_t IF = 0;*/
+	uint8_t mask = 0;
+	uint8_t stats = 0;
+	
 	bool transmittingCommand = false;
 	
 	Sector _readSector;

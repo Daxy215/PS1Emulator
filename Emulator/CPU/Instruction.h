@@ -43,13 +43,6 @@ public:
     
     // Returns the immediate value in bts [16:0] as sign-extended 32 bits.
     uint32_t imm_se() {
-        /*uint32_t d = op;
-        uint32_t f = d & 0xffff;
-        uint16_t g = static_cast<uint16_t>(f);
-        uint32_t x = static_cast<uint32_t>(g);
-        */
-        
-        //return static_cast<uint32_t>(static_cast<int32_t>(op & 0xFFFF));
         return static_cast<uint32_t>(static_cast<int16_t>(op & 0xFFFF));
     }
     
