@@ -47,12 +47,10 @@ uint32_t Joypad::load(uint32_t offset) {
 		// JOY_TX_DATA (R) - Read the next value in RX FIFO
 		uint32_t value = 0xFFFFFFFF;
 		
-		
-		
 		return value;
 	}
 	
-	return 0x0;
+	return 0x1;
 }
 
 void Joypad::store(uint32_t offset, uint32_t val) {

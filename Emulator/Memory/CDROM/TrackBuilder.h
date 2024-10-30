@@ -11,9 +11,12 @@ struct Track {
 
 class TrackBuilder {
 public:
+	void parseFile(const std::string& path);
 	void parseCueFile(const std::string& path);
-	void trim(std::string& str);
 	
+private:
+	void trim(std::string& str);
+
 private:
 	std::string binFilePath;
 	std::vector<Track> tracks;

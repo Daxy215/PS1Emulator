@@ -87,7 +87,7 @@ void Interconnect::dmaBlock(Port port) {
                 break;
             }
         case ToRam: {
-                uint32_t srcWord;
+                uint32_t srcWord = 0;
                 
                 switch(port) {
                 case Otc:
@@ -99,6 +99,14 @@ void Interconnect::dmaBlock(Port port) {
                         // Pointer to the previous entry
                         srcWord = CPU::wrappingSub(addr, 4) & 0x1FFFFF;
                     }
+                    
+                    break;
+                case Port::Gpu:
+                    // This gets called before the,
+                    // menu pops up after the PS logo
+                    //TODO; Implement
+                    
+                    srcWord = 0;
                     
                     break;
                 default:
@@ -118,7 +126,7 @@ void Interconnect::dmaBlock(Port port) {
         remsz.value() -= 1;
     }
     
-    channel.done();
+    channel.done(dma, port);
 }
 
 void Interconnect::dmaLinkedList(Port port) {
@@ -167,7 +175,7 @@ void Interconnect::dmaLinkedList(Port port) {
         addr = header & 0x1FFFFC;
     }
     
-    channel.done();
+    channel.done(dma, port);
 }
 
 void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {

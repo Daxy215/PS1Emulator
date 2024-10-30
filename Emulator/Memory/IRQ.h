@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+// TODO; This is wrong
 enum class Interrupt {
 	VBlank = 0,
 	CdRom = 2,
@@ -35,10 +36,10 @@ public:
 	}
 	
 	static void trigger(Interrupt interrupt) {
-		status |= 1 < static_cast<uint16_t>(static_cast<int32_t>(interrupt));
+		status |= 1 << static_cast<uint16_t>(static_cast<int32_t>(interrupt));
 	}
 	
-private:
+public:
 	// Im to lazy
 	inline static uint16_t status = 0;
 	

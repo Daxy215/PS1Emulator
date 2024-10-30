@@ -113,7 +113,7 @@ void Emulator::Renderer::display() {
 
 void Emulator::Renderer::draw() {
     // Make sure all the data is flushed to the buffer
-    glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+    //glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
     
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);

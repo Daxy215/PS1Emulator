@@ -17,7 +17,7 @@ namespace Emulator {
     public:
         void load(uint32_t addr, uint32_t val);
         void stat(uint32_t val);
-
+    
     public:
         Status status;
     };

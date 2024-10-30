@@ -4,6 +4,7 @@
 
 #include "Instruction.h"
 #include "../interconnect.h"
+#include "COP/COP2.h"
 
 class Instruction;
 
@@ -262,8 +263,11 @@ public:
     void oprfe(Instruction& instruction);
     
     // Opcodes for coprocessor 2 - GTE
-    void opmtc2(Instruction& instruction);
     void opmfc2(Instruction& instruction);
+    void opcfc2(Instruction& instruction);
+    void opmtc2(Instruction& instruction);
+    void opctc2(Instruction& instruction);
+    
     void opgte(Instruction& instruction);
     
     void exception(Exception cause);
@@ -353,10 +357,10 @@ public:
     // General purpose registers
     // First entry must always contain a 0.
     RegisterIndex regs[32];
-    RegisterIndex gte[32];
     
 public:
-    //Instruction* nextInstruction = new Instruction(0x0); //NOP
-    
     Interconnect interconnect;
+    
+private:
+    COP2 _cop2;
 };

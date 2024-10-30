@@ -115,6 +115,9 @@ void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) const {
 }
 
 uint16_t Emulator::VRAM::getPixelRGB888(uint32_t x, uint32_t y) const {
+    x %= MAX_WIDTH;
+    y %= MAX_HEIGHT;
+    
     size_t index = y * MAX_WIDTH + x;
     return pixels[index];
 }

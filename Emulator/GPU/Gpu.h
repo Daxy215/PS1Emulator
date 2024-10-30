@@ -251,88 +251,7 @@ namespace Emulator {
             renderer->pushQuad(positions, colors);
         }
         
-        // GP0: Render Polygon
-        /*void gp0RenderPolygon(uint32_t val) {
-            auto command = val;//gp0Command.buffer[0];
-
-            // Gouraud / flat shading
-            bool shading = get_bit(val, 28);
-            uint8_t numVerts = (get_bit(val, 27)) ? 4 : 3;
-            bool useTextures = get_bit(val, 26);
-            
-            /**
-             * 1 - Semi-transparent
-             * 0 - Modulation 
-             #1#
-            bool transparent = get_bit(val, 25);
-            
-            /**
-             * 1 - Raw texture
-             * 0 - Modulation
-             #1#
-            bool texture = get_bit(val, 24);
-            
-            // Bits 23-0 - RGB First color values
-            /*uint32_t r = (command >> 0) & 0xff;
-            uint32_t g = (command >> 8) & 0xff;
-            uint32_t b = (command >> 16) & 0xff;#1#
-            
-            Emulator::Color baseColor = Color::fromGp0(val);  // Base color for flat shading
-            
-            Emulator::Position positions[4];  // Array for positions
-            Emulator::Color colors[4];        // Array for colors (if Gouraud shading)
-            Emulator::Color uvCoords[4];         // Array for UV (if textured)
-            
-            for (int i = 0; i < numVerts; i++) {
-                uint32_t vertexData = gp0Command.buffer[i + 1]; // Vertex data starts from buffer[1]
-                
-                // Parse vertex positions (YYYYXXXX)
-                int16_t x = vertexData & 0xFFFF;
-                int16_t y = (vertexData >> 16) & 0xFFFF;
-                positions[i] = {x, y};
-                
-                if (shading) {
-                    uint32_t colorData = gp0Command.buffer[i + 1 + numVerts];
-                    colors[i].r = (colorData >> 0) & 0xFF;
-                    colors[i].g = (colorData >> 8) & 0xFF;
-                    colors[i].b = (colorData >> 16) & 0xFF;
-                } else {
-                    colors[i] = baseColor;  // Flat shading uses the same color for all vertices
-                }
-                
-                if (useTextures) {
-                    uint32_t uvData = gp0Command.buffer[i + 1 + 2 * numVerts];
-                    uint16_t u = uvData & 0xFF;
-                    uint16_t v = (uvData >> 8) & 0xFF;
-                    //uvCoords[i] = {u, v};
-                }
-            }
-            
-            if (numVerts == 3) {
-                renderer->pushTriangle(positions, colors);
-            } else {
-                renderer->pushQuad(positions, colors);
-            }
-            
-            /*uint32_t opcode = command >> 24;
-            
-            bool quad = get_bit(command, 27);
-            bool shaded = get_bit(command, 28);
-            bool textured = get_bit(command, 26);
-            bool mono = opcode == 0x20 || opcode == 0x22 || opcode == 0x28 || opcode == 0x2A;
-            bool semiTransparent = get_bit(command, 25);
-            bool rawTextured = get_bit(command, 28);
-            int numVertices = quad ? 4 : 3;
-            int pointer = (mono || !shaded ? 1 : 0);
-            
-            uint32_t r = (command >> 0) & 0xff;
-            uint32_t g = (command >> 8) & 0xff;
-            uint32_t b = (command >> 16) & 0xff;#1#
-            
-        }
-        */
-        
-        // Test
+        // TODO; Remove
         void vertexOrder(Position* p) {
             auto crossZ = (p[1].x - p[0].x) * (p[2].y - p[0].y) - (p[1].y - p[0].y) * (p[2].x - p[0].x);
             
@@ -343,50 +262,6 @@ namespace Emulator {
         
         // GP0(0x30): Shaded Opaque Triangle
         void gp0TriangleShadedOpaque(uint32_t val) {
-            /*Position p[4];
-            Color c[4];
-            
-            int idx = 1;
-            
-            for(int i = 0; i < Commands::polygon.getVerticesCount(); i++) {
-                p[i].x = (gp0Command.index(idx) & 0xffff);
-                p[i].y = (gp0Command.index(idx++) & 0xffff0000) >> 16;
-                
-                // Ignore colors if is gouraud
-                if (!Commands::polygon.isGouraud/* && i == 0#1#)
-                    c[i] = Color::fromGp0(gp0Command.index(0) & 0xffffff);
-                
-                if (!Commands::polygon.isQuad && Commands::polygon.isGouraud && i < Commands::polygon.getVerticesCount() - 1)
-                    c[i + 1] = Color::fromGp0(gp0Command.index(idx++) & 0xffffff);
-                else if(Commands::polygon.isQuad) {
-                    c[i] = Color::fromGp0(gp0Command.index(0) & 0xffffff);
-                }
-                
-                if(Commands::polygon.isTextured) {
-                    throw std::runtime_error("ERROR Textures aren't supported!");
-                }
-                
-                /*if (isTextureMapped) {
-                    if (i == 0) {
-                        tex.palette = gp0Command.buffer[idx];
-                    }
-                    
-                    if (i == 1) {
-                        tex.texpage = gp0Command.buffer[idx];
-                    }
-                    
-                    p[i].uv.x = gp0Command.buffer[idx] & 0xff;
-                    p[i].uv.y = (gp0Command.buffer[idx] >> 8) & 0xff;
-                    idx++;
-                }#1#
-            }
-            
-            if(Commands::polygon.isQuad) {
-                renderer->pushQuad(p, c);
-            } else {
-                renderer->pushTriangle(p, c);
-            }*/
-            
             Position positions[] = {
                 Position::fromGp0P(gp0Command.buffer[1]),
                 Position::fromGp0P(gp0Command.buffer[3]),
@@ -402,24 +277,21 @@ namespace Emulator {
             renderer->pushTriangle(positions, colors);
         }
         
-        // GP0(0xC2): Quad Texture Blend Opqaue
-        void gp0QuadTextureBlendOpaque(uint32_t val) {
+        // GP0(0x34): Shaded Texture Opaque Triangle
+        void gp0TriangleTexturedShadedOpaque(uint32_t val) {
             Position positions[] = {
                 Position::fromGp0P(gp0Command.buffer[1]),
-                Position::fromGp0P(gp0Command.buffer[3]),
-                Position::fromGp0P(gp0Command.buffer[5]),
+                Position::fromGp0P(gp0Command.buffer[4]),
                 Position::fromGp0P(gp0Command.buffer[7]),
             };
             
-            // TODO; Textures aren't currently supported
             Color colors[] = {
-                {0x80, 0x00, 0x00},
-                {0x80, 0x00, 0x00},
-                {0x80, 0x00, 0x00},
-                {0x80, 0x00, 0x00},
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(3)),
+                Color::fromGp0(gp0Command.index(6)),
             };
             
-            renderer->pushQuad(positions, colors);
+            renderer->pushTriangle(positions, colors);
         }
         
         // GP0(0x38): gp0QuadShadedOpaque
@@ -436,6 +308,26 @@ namespace Emulator {
                 Color::fromGp0(gp0Command.buffer[2]),
                 Color::fromGp0(gp0Command.buffer[4]),
                 Color::fromGp0(gp0Command.buffer[6]),
+            };
+            
+            renderer->pushQuad(positions, colors);
+        }
+
+        // GP0(0x3C): Shaded Texture Opaque Quad
+        void gp0QuadTexturedShadedOpaque(uint32_t val) {
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.index(1)),
+                Position::fromGp0P(gp0Command.index(4)),
+                Position::fromGp0P(gp0Command.index(7)),
+                Position::fromGp0P(gp0Command.index(10)),
+            };
+            
+            // TODO; Textures
+            Color colors[] = {
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(3)),
+                Color::fromGp0(gp0Command.index(6)),
+                Color::fromGp0(gp0Command.index(9)),
             };
             
             renderer->pushQuad(positions, colors);
@@ -469,6 +361,25 @@ namespace Emulator {
             // TODO; Implement me
         }
         
+        // GP0(0x02): Full VRam
+        void gp0FillVRam(uint32_t val) {
+            Color color = Color::fromGp0(gp0Command.index(0));
+            uint32_t cords = gp0Command.buffer[1];
+            uint32_t res = gp0Command.buffer[2];
+            
+            uint32_t xPos = (cords & 0xFFFF) & 0x3FF;
+            uint32_t yPos = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
+            
+            uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
+            uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
+            
+            for(uint32_t y = yPos; y < (height + yPos); y++) {
+                for(uint32_t x = xPos; x < (width + xPos); x++) {
+                    vram->setPixel(x, y, (static_cast<uint32_t>(color.b) << 10) | (static_cast<uint32_t>(color.g) << 5) | static_cast<uint32_t>(color.r));
+                }
+            }
+        }
+        
         // GP0(0x20): 
         void gp0TriangleMonoOpaque(uint32_t val) {
             Position positions[] = {
@@ -486,6 +397,82 @@ namespace Emulator {
             
             renderer->pushTriangle(positions, colors);
             //renderer->display();
+        }
+        
+        void gp0TriangleTexturedOpaque(uint32_t val) {
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.index(1)),
+                Position::fromGp0P(gp0Command.index(3)),
+                Position::fromGp0P(gp0Command.index(5))
+            };
+            
+            // This uses textures along side a color
+            Color colors[] = {
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(0)),
+            };
+            
+            renderer->pushTriangle(positions, colors);
+        }
+        
+        void gp0TriangleRawTexturedOpaque(uint32_t val) {
+            // Color is ignored for raw-textures
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.index(1)),
+                Position::fromGp0P(gp0Command.index(3)),
+                Position::fromGp0P(gp0Command.index(5))
+            };
+            
+            // TODO; Textures aren't currently supported
+            Color colors[] = {
+                {0x80, 0x00, 0x00},
+                {0x80, 0x00, 0x00},
+                {0x80, 0x00, 0x00},
+            };
+            
+            renderer->pushTriangle(positions, colors);
+        }
+
+        // GP0(0x2C): Quad Raw Texture Blend Opqaue
+        void gp0QuadTextureBlendOpaque(uint32_t val) {
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.buffer[1]),
+                Position::fromGp0P(gp0Command.buffer[3]),
+                Position::fromGp0P(gp0Command.buffer[5]),
+                Position::fromGp0P(gp0Command.buffer[7]),
+            };
+            
+            // TODO; Textures aren't currently supported
+            Color colors[] = {
+                {0x80, 0x00, 0x00},
+                {0x80, 0x00, 0x00},
+                {0x80, 0x00, 0x00},
+                {0x80, 0x00, 0x00},
+            };
+            
+            renderer->pushQuad(positions, colors);
+        }
+        
+        // GP0(0x2D): Quad Raw Texture Blend Opqaue
+        void gp0QuadRawTextureBlendOpaque(uint32_t val) {
+            Position positions[] = {
+                Position::fromGp0P(gp0Command.buffer[1]),
+                Position::fromGp0P(gp0Command.buffer[3]),
+                Position::fromGp0P(gp0Command.buffer[5]),
+                Position::fromGp0P(gp0Command.buffer[7]),
+            };
+            
+            // TODO; Textures aren't currently supported
+            // Uses a texture along side a color
+            Color colors[] = {
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(0)),
+                Color::fromGp0(gp0Command.index(0)),
+            };
+            
+            renderer->pushQuad(positions, colors);
         }
         
         // GP0(0xA0): Load Image
@@ -551,9 +538,9 @@ namespace Emulator {
         }
         
         void gp0VramToVram(uint32_t val) {
-            uint32_t cords = gp0Command.buffer[0];
-            uint32_t dests = gp0Command.buffer[1];
-            uint32_t res = gp0Command.buffer[2];
+            uint32_t cords = gp0Command.buffer[1];
+            uint32_t dests = gp0Command.buffer[2];
+            uint32_t res = gp0Command.buffer[3];
             
             uint32_t srcX = (cords & 0xFFFF) & 0x3FF;
             uint32_t srcY = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
@@ -570,7 +557,7 @@ namespace Emulator {
                 for(uint32_t x = 0; x < width; x++) {
                     uint32_t posX = (!dir) ? x : width - 1 - x;
                     
-                    uint32_t color = vram->getPixelRGB888((srcX + posX) % 1024, (srcY + y) % 512);
+                    uint16_t color = vram->getPixelRGB888((srcX + posX), (srcY + y));
                     vram->setPixel(dstX + posX, dstY + y, color);
                 }
             }

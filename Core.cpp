@@ -11,8 +11,10 @@
 #include "Utility/FileSystem/FileManager.h"
 
 #define _CRTDBG_MAP_ALLOC
+#include <chrono>
 #include <stdlib.h>
 #include <crtdbg.h>
+#include <thread>
 
 //#include "Emulator/interconnect.h"
 //#include "Emulator/Ram.h"
@@ -124,7 +126,7 @@
     * Channel 6 -> Is used to connect to the RAM and is used to clear an "ordering table"
     
  * DMA Channel Control register description
-    * Field bits        Description
+    * Field bits        Description-
     * 0                 Transfer direction: RAM-to-device(0) or device-RAM(1)
     * 1                 Address increment(0) or decrement(1) mode
     * 2                 Chopping mode
@@ -168,7 +170,7 @@
  * $cop0 7 is DCIC, used to enable and disable the various hardware breakpoints.
  * $cop0 9 is BDAM, it’s a bitmask applied when testing for BDA above.
     * That way we could trigger on a range of addresses instead of a single one.
-    
+	-
  * $cop0 11 is BPCM, like BDAM but for masking the BPC breakpoint.
  * $cop0 12 we’ve already encountered: it’s SR, the status register.
  * $cop0 13 is CAUSE, which contains mostly read-only data describing the
@@ -239,7 +241,7 @@
  */
 
 /** Information about some registers;
- *
+ * 
  * Please note this is NOT written by me.
  * It is simply used as a further guide to myself.
  *
@@ -249,13 +251,13 @@
         * it doesn't do anything, the register will still be 0 afterwards.
             * It can be used to reduce the size of the instruction as it's a constant 0.
         * For instance, moving a value from $v0 to $a0 you can do;
-            * move $a0, $v0
-        * However the "move" instruction is not part of the MIPS instruction set.
-        * It's just a conveninet shorthand understood by the assembler which,
+            * move $a0, $v0,
+        * However, the "move" instruction is not part of the MIPS instruction set.
+        * It's just a convenient shorthand understood by the assembler which,
         * which will generate the equivalent instruction;
             * addu $a0, $v0, $zero
-        * We can see that it is effectively does the same thing as the previous instruction,
-        * but we are avoid to implement a dedicated "move" instruction in the CPU.
+        * We can see that it is effectively doing the same thing as the previous instruction,
+        * but we are avoiding implementing a dedicated "move" instruction in the CPU.
         
  * The $ra register;
     * $ra ($31) is the other general purpose register given a special meaning by the hardware,
@@ -275,25 +277,29 @@
 // Other thingies...... ¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?¬?
 
 /** Gotta do more research on
- *
+ * 
  * File type??? 001111 [31:26]
  * LUI(Load Upper Immediate)
- *
+ * 
  * Information about it;
     * Immediate means that the value loaded is directly in the instruction,
     * not indirectly somewhere else in memory.
-    *
+    * 
     * Upper means that it's loading this immediate value into the high 16 bits,
     * of the target register.
-    *
+    * 
     * The 16 low bits are cleared (set to 0).
-    *
+    * 
     * Which is equivalent to MIPS assembly:
         * lui $8, 0x13
     
     * Dont get ANY of this. Page 16
  */
 
+// I was too lazy so I stole this,
+// from somewhere, and I really,
+// can't remember from where..
+// Idk why I didn't link it
 struct Exe {
 	char header[8];
 	
@@ -321,7 +327,100 @@ struct Exe {
 	char license[60];
 };
 
+void handleLoadExe(CPU& cpu) {
+	std::cerr << "Loading test EXE file\n";
+	
+	// Tests
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADD/CPUADD.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDI/CPUADDI.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDIU/CPUADDIU.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDU/CPUADDU.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/AND/CPUAND.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ANDI/CPUANDI.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/DIV/CPUDIV.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/DIVU/CPUDIVU.exe"); // Passed
+	
+	// Load Tests
+	//td::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LB/CPULB.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LH/CPULH.exe"); // Passed - This was failing bc of LH. V was meant to be in16 but it was uint32
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LW/CPULW.exe"); // Passed
+	
+	// Store Tests
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SB/CPUSB.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SH/CPUSH.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SW/CPUSW.exe"); // Passed
+	
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/MULT/CPUMULT.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/MULTU/CPUMULTU.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/NOR/CPUNOR.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/OR/CPUOR.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ORI/CPUORI.exe"); // Passed
+	
+	// Shift tests
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/Sll/CPUSlL.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SllV/CPUSlLV.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRA/CPUSRA.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRAV/CPUSRAV.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRL/CPUSRL.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRLV/CPUSRLV.exe"); // Passed
+	
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SUB/CPUSUB.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SUBU/CPUSUBU.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XOR/CPUXOR.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XORI/CPUXORI.exe"); // Passed
+	
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/AVSZ/GTEAVSZ.exe"); // TODO; Failed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/NCLIP/GTENCLIP.exe"); // TODO; Failed
+	
+	// GPU - 16 BPP
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/MemoryTransfer/MemoryTransfer16BPP.exe"); // TODO; Third arrow isn't showing
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
+	
+	// Other stuff
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
+	
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // TODO; Just black?
+	
+	// Requires controller
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+	
+	Exe exe;
+	memcpy(&exe, data.data(), sizeof(exe));
+	
+	if (exe.tSize > data.size() - 0x800) {
+		std::cerr << "Invalid exe size";
+		exe.tSize = data.size() - 0x800;
+	}
+	
+	for (uint32_t j = 0; j < exe.tSize; j++) {
+		cpu.interconnect.store<uint8_t>(exe.tAddr + j, data[0x800 + j]);
+	}
+	
+	cpu.pc = exe.pc0;
+	cpu.nextpc = exe.pc0 + 4;
+	//cpu->currentpc = cpu->pc;
+	
+	cpu.set_reg(28, exe.gp0);
+	
+	if (exe.sAddr != 0) {
+		cpu.set_reg(29, exe.sAddr + exe.sSize);
+		cpu.set_reg(30, exe.sAddr + exe.sSize);
+	}
+	
+	cpu.branchSlot = false;
+}
+
+// TODO; Use GLFW instead of SDL please!
+// TODO; Use GLM for GTE
 int main(int argc, char* argv[]) {
+	// Was used for debuging
 	//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	
     Ram ram;
@@ -329,151 +428,48 @@ int main(int argc, char* argv[]) {
     Dma dma;
 	
     // TODO; Texture loading
+	// TODO; Line rendering
+	// TODO; Semi-transparency
+	// TODO; Blending-textures?
     Emulator::Gpu gpu;
     
     // TODO; Implement
     Emulator::SPU spu = Emulator::SPU();
-    
+	
+	// TODO; LB is bugged? Wrong value
+	// TODO; LBU is bugged? Wrong value
+	// TODO; LH is bugged? Wrong value
+	// TODO; LHU is bugged? Wrong value
+	// TODO; LW is bugged? Wrong value
+	// TODO; LWL is bugged? Wrong value
+	// TODO; LWR is bugged? Wrong value
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
     SDL_Event event;
 	
-    int x = 0;
-	uint32_t counter = 0;
-	
-    while(true) {
-    	if(x == 129922852) {
-    		printf("");
-    	}
-    	
-    	// TODO; Testing
-    	if(counter++ > 2560000) {
-    		counter = 0;
-    		
-    		cpu.interconnect._joypad.update();
-			
-    		// TODO; Remove
-    		gpu.renderer->display();
-    	}
+	while(true) {
+		// Wait for the BIOS to jump to the shell
+		if (cpu.pc != 0x80030000 || true) {
+			// TODO; Make a class for stepping
+			cpu.executeNextInstruction();
+			cpu.interconnect._cdrom.step(1);
+		} else {
+			handleLoadExe(cpu);
+		}
 		
-    	bool enableBios = true;
-    	
-	    // Wait for the BIOS to jump to the shell
-	    if (cpu.pc != 0x80030000 || enableBios) {
-		    cpu.executeNextInstruction();
-	    } else {
-	    	std::cerr << "Loading test EXE file\n";
-	    	
-	    	// Tests
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADD/CPUADD.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDI/CPUADDI.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDIU/CPUADDIU.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDU/CPUADDU.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/AND/CPUAND.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ANDI/CPUANDI.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/DIV/CPUDIV.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/DIVU/CPUDIVU.exe"); // Passed
-			
-	    	// Load Tests
-	    	//td::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LB/CPULB.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LH/CPULH.exe"); // Passed - This was failing bc of LH. V was meant to be in16 but it was uint32
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LW/CPULW.exe"); // Passed
-			
-	    	// Store Tests
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SB/CPUSB.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SH/CPUSH.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/SW/CPUSW.exe"); // Passed
-	    	
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/MULT/CPUMULT.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/MULTU/CPUMULTU.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/NOR/CPUNOR.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/OR/CPUOR.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ORI/CPUORI.exe"); // Passed
-			
-	    	// Shift tests
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/Sll/CPUSlL.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SllV/CPUSlLV.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRA/CPUSRA.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRAV/CPUSRAV.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRL/CPUSRL.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SHIFT/SRLV/CPUSRLV.exe"); // Passed
-			
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SUB/CPUSUB.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/SUBU/CPUSUBU.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XOR/CPUXOR.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XORI/CPUXORI.exe"); // Passed
-	    	
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/AVSZ/GTEAVSZ.exe"); // TODO; Failed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/NCLIP/GTENCLIP.exe"); // TODO; Failed
-			
-	    	// GPU - 16 BPP
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/MemoryTransfer/MemoryTransfer16BPP.exe"); // TODO; Only shows arrows
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO;
-	    	
-	    	// Other stuff
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
-			
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // TODO; Just black?
-	    	
-	    	// Requires controller
-	    	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
-	    	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
-	    	
-	    	Exe exe;
-	    	memcpy(&exe, data.data(), sizeof(exe));
-			
-	    	if(exe.tSize > data.size() - 0x800) {
-	    		std::cerr << "Invalid exe size";
-	    		exe.tSize = data.size() - 0x800;
-	    	}
-			
-	    	for(uint32_t j = 0; j < exe.tSize; j++) {
-	    		cpu.interconnect.store<uint8_t>(exe.tAddr + j, data[0x800 + j]);
-	    	}
-			
-	    	cpu.pc = exe.pc0;
-	    	cpu.nextpc = exe.pc0 + 4;
-	    	//cpu->currentpc = cpu->pc;
-			
-	    	cpu.set_reg(28, exe.gp0);
-			
-	    	if(exe.sAddr != 0) {
-	    		cpu.set_reg(29, exe.sAddr + exe.sSize);
-	    		cpu.set_reg(30, exe.sAddr + exe.sSize);
-	    	}
-			
-	    	cpu.branchSlot = false;
-	    }
-		
-	    x++;
-        
-        while(SDL_PollEvent(&event)) {
-            if(event.type == SDL_QUIT)
-                break;
-			
-        	/*switch(event.type) {
-        	case SDL_CONTROLLERBUTTONDOWN:
-			case SDL_CONTROLLERBUTTONUP:
-				cpu->interconnect->_joypad.handleButtonEvent(event.cbutton);
-				
-        		break;
-        	case SDL_CONTROLLERAXISMOTION:
-        		cpu->interconnect->_joypad.handleAxisEvent(event.caxis);
-				
-        		break;
-        	case SDL_JOYDEVICEADDED:
-        	case SDL_JOYDEVICEREMOVED:
-				cpu->interconnect->_joypad.updateConnectedControllers();
-        		
-        		break;
-        	}*/
-        }
+		while (SDL_PollEvent(&event)) {
+			if (event.type == SDL_QUIT)
+				break;
+			else if (event.type == SDL_KEYDOWN) {
+				if (event.key.keysym.sym == SDLK_ESCAPE) {
+					IRQ::status++;
+				} else if (event.key.keysym.sym == SDLK_f) {
+					gpu.renderer->display();
+				} else if (event.key.keysym.sym == SDLK_g) {
+					gpu.vram->endTransfer();
+				}
+			}
+		}
     }
 	
 	SDL_Quit();

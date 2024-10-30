@@ -8,7 +8,7 @@
 #include <string>
 
 #include "Bios.h"
-#include "Dma.h"
+#include "DMA/Dma.h"
 #include "GPU/Gpu.h"
 #include "Ram.h"
 #include "Range.h"
@@ -100,11 +100,14 @@ public:
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
             //printf("TIMERS control read %s\n", to_hex(abs_addr).c_str());
+            if(offset == 32)
+                return 5809;
+            
             return 0;
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-            return _cdrom.load<T>(addr);
+            return _cdrom.load<uint32_t>(addr);
         }
         
         if (auto _ = map::MDEC.contains(abs_addr)) {
@@ -114,7 +117,7 @@ public:
         if (auto offset = map::SPU.contains(abs_addr)) {
             // https://github.com/psx-spx/psx-spx.github.io/blob/master/docs/soundprocessingunitspu.md
             //std::cerr << "SPU load register; " << to_hex(addr) << "\n";
-            spu.load(addr, offset.value());
+            //spu.load(addr, offset.value());
             
             return 0;
         }
@@ -124,13 +127,23 @@ public:
         }
         
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
-            if(_ == 132) {
+            // Gets called right before it prints the boot-id.
+            // I guess this is used as a checker? Or something?
+            /*if(_ == 132) {
                 //   1F000084h 2Ch Pre-Boot ID  ("Licensed by Sony Computer Entertainment Inc.")
                 return 0;
+            }*/
+            
+            T r = 0;
+            
+            for(size_t i = 0; i < sizeof(T); i++) {
+                // Simulate that nothing is connected
+                uint8_t data = ~0;
+                
+                r |= (static_cast<uint32_t>(data) << (8 * i));
             }
             
-            throw std::runtime_error("Unhandled EXPANSION1 load at address 0x" + to_hex(addr));
-            return 0;
+            return r;
         }
         
         if (auto _ = map::RAM_SIZE.contains(abs_addr)) {
@@ -155,12 +168,11 @@ public:
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
             throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
-            return 0xFF;
         }
         
-        return 0;
-        //throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
-    }
+        //return 0;
+        throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
+     }
     
     template<typename T>
     void store(uint32_t addr, T val) {
@@ -223,12 +235,15 @@ public:
         }
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
+            if(offset == 32)
+                target = val;
+            
             return;
             //throw std::runtime_error("Unhandled TIMERS control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-           _cdrom.store<T>(addr, val);
+           _cdrom.store<uint32_t>(addr, val);
             
             return;
         }
@@ -257,7 +272,6 @@ public:
             _cacheControl.val = val;
             
             return;
-            throw std::runtime_error("Unhandled cache control access");
         }
         
         if (auto offset = map::MEMCONTROL.contains(abs_addr)) {
@@ -351,6 +365,15 @@ public:
             return;
         }
         
+        if (auto _ = map::EXPANSION1.contains(abs_addr)) {
+            if(_ == 132) {
+                //   1F000084h 2Ch Pre-Boot ID  ("Licensed by Sony Computer Entertainment Inc.")
+                return;
+            }
+            
+            throw std::runtime_error("Unhandled EXPANSION1 load at address 0x" + to_hex(addr));
+        }
+        
         if (auto _ = map::RAM_SIZE.contains(abs_addr)) {
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled RAM_SIZE access");
@@ -369,7 +392,7 @@ public:
             
             case 0x1F802023:
             case 0x1F802080:
-                
+                    
                 return;
             
             default:
@@ -406,6 +429,9 @@ private:
     uint32_t expansion2Base = 0;
     
     uint32_t _ramSize = 0;
+
+    // Timers - TODO; Move to a class
+    uint32_t target = 0;
     
 public:
     Ram ram;

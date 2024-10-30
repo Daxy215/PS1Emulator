@@ -11,7 +11,7 @@ public:
         // The two MSB are ignored, the 2MB RAM is mirrored four times
         // over the first 8MB of address space
         offset &= 0x1fffff;
-
+        
         if(offset + sizeof(T) >= data.size()) {
             printf("");
         }

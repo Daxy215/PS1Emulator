@@ -17,8 +17,11 @@ namespace Emulator {
         Renderer();
         
         void display();
+
+    private:
         void draw();
-        
+
+    public:
         void pushLine(Emulator::Position* positions, Emulator::Color* colors);
         void pushTriangle(Emulator::Position* positions, Emulator::Color* colors);
         void pushQuad(Emulator::Position* positions, Emulator::Color* colors);

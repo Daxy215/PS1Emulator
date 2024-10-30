@@ -38,7 +38,7 @@ namespace Emulator {
         
         uint16_t getPixelRGB888(uint32_t x, uint32_t y) const;
         uint32_t getPixelBGR555(uint32_t x, uint32_t y);
-        
+
     public:
         TransferData transferData = {};
         

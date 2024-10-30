@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <ostream>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -124,6 +125,19 @@ void CPU::executeNextInstruction() {
     delaySlot = branchSlot;
     branchSlot = false;
     
+    // Check for interrupt
+    bool irqActive = (interconnect._irq.status & interconnect._irq.mask) != 0;
+    uint32_t cause = (this->cause | (static_cast<uint32_t>(irqActive) << 10));
+    uint32_t pending = (cause & sr) & 0x700;
+    bool irqEnabled = (sr & 1) != 0;
+    
+    bool causeInterrupt = (irqEnabled && pending) != 0;
+    
+    if(causeInterrupt) {
+        printf("");
+        exception(Interrupt);
+    }
+    
     // Executes the instruction
     decodeAndExecute(instruction);
     
@@ -131,8 +145,6 @@ void CPU::executeNextInstruction() {
     std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
 }
 
-// page 92
-//https://github.com/deadcore/playstation-emulator/blob/master/src/cpu/mod.rs
 void CPU::decodeAndExecute(Instruction& instruction) {
     // Gotta decode the instructions using the;
     // Playstation R3000 processor
@@ -551,16 +563,16 @@ void CPU::opslt(Instruction& instruction) {
 
 // Store word
 void CPU::opsw(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
-    uint32_t t = instruction.t();
-    uint32_t s = instruction.s();
-    
     // Can't write if we are in cache isolation mode!
     if((sr & 0x10000) != 0) {
         //std::cerr << "Ignoring store-word while cache is isolated!\n";
         
         return;
     }
+    
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
     
@@ -651,9 +663,9 @@ void CPU::opsh(Instruction& instruction) {
         return;
     }
     
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex t = instruction.t();
-    RegisterIndex s = instruction.s();
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
     
@@ -673,9 +685,9 @@ void CPU::opsb(Instruction& instruction) {
         return;
     }
     
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex t = instruction.t();
-    RegisterIndex s = instruction.s();
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
     
     uint32_t addr = wrappingAdd(reg(s), i);
     uint32_t v    = reg(t);
@@ -685,17 +697,17 @@ void CPU::opsb(Instruction& instruction) {
 
 // Load word
 void CPU::oplw(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex t = instruction.t();
-    RegisterIndex s = instruction.s();
-    
     if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store while cache is isolated!";
         
         return;
     }
     
-    RegisterIndex addr = wrappingAdd(reg(s), i);
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
+    
+    auto addr = wrappingAdd(reg(s), i);
     
     if(addr % 4 == 0) {
         uint32_t v = load32(addr);
@@ -987,37 +999,18 @@ void CPU::oplwc1(Instruction& instruction) {
 }
 
 void CPU::oplwc2(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex t = instruction.t();
-    RegisterIndex s = instruction.s();
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
     
-    if((sr & 0x10000) != 0) {
-        std::cout << "Ignoring store while cache is isolated!";
-        
-        return;
-    }
-    
-    RegisterIndex addr = wrappingAdd(gte[s], i);
+    auto addr = wrappingAdd(reg(s), i);
     
     if(addr % 4 == 0) {
         uint32_t v = load32(addr);
         
-        // Put the load in the delay slot
-        gte[t] = v;
-        //setLoad(t, v);
+        _cop2.setData(t, v);
     } else
         exception(LoadAddressError);
-    
-    /*// Geometry Transformation Engine
-    auto s = instruction.s();
-    auto t = instruction.t();
-    auto i = instruction.imm();
-    
-    uint32_t addr = gte[s] + i;
-    
-    uint32_t data = load32(addr);
-    gte[t] = data;
-    //set_reg(t, data);*/
 }
 
 void CPU::oplwc3(Instruction& instruction) {
@@ -1038,11 +1031,17 @@ void CPU::opswc1(Instruction& instruction) {
 void CPU::opswc2(Instruction& instruction) {
     auto s = instruction.s();
     auto t = instruction.t();
-    auto i = instruction.imm();
+    auto i = instruction.imm_se();
     
-    uint32_t addr = gte[s] + i;
+    auto addr = wrappingAdd(reg(s), i);
     
-    store32(addr, gte[t]);
+    if(addr % 4 == 0) {
+        auto v = _cop2.getData(t);
+        
+        store32(addr, v);
+    } else {
+        exception(LoadAddressError);
+    }
 }
 
 void CPU::opswc3(Instruction& instruction) {
@@ -1125,25 +1124,30 @@ void CPU::opcop1(Instruction& instruction) {
 
 void CPU::opcop2(Instruction& instruction) {
     auto opcode = instruction.copOpcode();
-
+    
     if(opcode & 0x10) {
         // TODO; Handle command at instruction.op & 0x3f
+        auto cmd = instruction.op & 0x3F;
         
         return;
     }
     
     switch (opcode) {
     case 0b000000:
+        // Move from GTE to Data register
         opmfc2(instruction);
         break;
     case 0b000010:
-        // TODO; CFC2 - Control register (cpur, copr) -> set(cpur, gte[copr]);
+        // From GTE to Control register
+        opcfc2(instruction);
         break;
     case 0b00100:
+        // Data Register to GTE
         opmtc2(instruction);
         break;
     case 0b00110:
-        // TODO CTC2 - Control register (cpur, copr) -> set(copr, reg[cpur]);
+        // Data Register to GTE Control register
+        opctc2(instruction);
         break;
     default:
         std::cerr << "Unhandled COP2 instruction: " + getDetails(instruction.copOpcode()) << "\n";
@@ -1269,12 +1273,40 @@ void CPU::oprfe(Instruction& instruction) {
     sr |= mode >> 2;
 }
 
-void CPU::opmtc2(Instruction& instruction) {
-    throw std::runtime_error("Unhandled MTC2 operator\n");
+void CPU::opmfc2(Instruction& instruction) {
+    auto t = instruction.t();
+    auto d = instruction.d();
+    
+    auto v = _cop2.getData(d);
+    
+    setLoad(t, v);
 }
 
-void CPU::opmfc2(Instruction& instruction) {
-    throw std::runtime_error("Unhandled MFC2 operator\n");
+void CPU::opcfc2(Instruction& instruction) {
+    auto t = instruction.t();
+    auto d = instruction.d();
+    
+    auto v = _cop2.getControl(d);
+    
+    setLoad(t, v);
+}
+
+void CPU::opmtc2(Instruction& instruction) {
+    auto t = instruction.t();
+    auto d = instruction.d();
+    
+    auto v = reg(t);
+    
+    _cop2.setData(d, v);
+}
+
+void CPU::opctc2(Instruction& instruction) {
+    auto t = instruction.t();
+    auto d = instruction.d();
+    
+    auto v = reg(t);
+    
+    _cop2.setControl(d, v);
 }
 
 void CPU::opgte(Instruction& instruction) {
@@ -1348,9 +1380,9 @@ void CPU::checkForTTY() {
         
         prev = ch;
         
-        //if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r') {
+        if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
         std::cerr << ch;
-        //}
+        }
         //}
     }
 }
