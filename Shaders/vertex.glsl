@@ -2,17 +2,17 @@
 
 in vec2 vertexPosition;
 in uvec3 vertexColor;
+in uvec2 attributes;
 
 out vec3 color;
+flat out uvec2 attr;
 
-// Drawing offset
 uniform ivec2 offset;
-
 uniform ivec2 drawingArea;
 
 void main() {
     // Apply the offset
-    vec2 position = vertexPosition + offset;
+    vec2 position = vertexPosition + offset + attributes.x;
     
     /*
     * Converts VRAM coordinates (0; drawingArea.x, 0; drawingArea.y)
@@ -30,4 +30,6 @@ void main() {
     color = vec3(float(vertexColor.r) / 255.0,
                  float(vertexColor.g) / 255.0,
                  float(vertexColor.b) / 255.0);
+    
+    attr = attributes;
 }

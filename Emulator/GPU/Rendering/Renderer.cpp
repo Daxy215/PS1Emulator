@@ -73,6 +73,17 @@ Emulator::Renderer::Renderer() {
     // Link the buffer and the given index.
     glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
     
+    // Attributes buffer
+    attributes.create();
+    
+    index = getProgramAttrib(program, "attributes");
+    
+    // Enable the attributes in the shader
+    glEnableVertexAttribArray(index);
+    
+    // Link the attributes to the buffer with offsets
+    glVertexAttribIPointer(index, 2, GL_UNSIGNED_BYTE, 0, nullptr);
+    
     glUseProgram(program);
     
     // Uniforms
@@ -81,6 +92,9 @@ Emulator::Renderer::Renderer() {
     
     drawingUni = glGetUniformLocation(program, "drawingArea");
     glUniform2i(drawingUni, 1024, 512);
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     GLenum ersr = glGetError();
     if (ersr!= GL_NO_ERROR) {
@@ -130,12 +144,12 @@ void Emulator::Renderer::draw() {
     //nVertices = 0;
 }
 
-void Emulator::Renderer::pushLine(Emulator::Position* positions, Emulator::Color* colors) {
+void Emulator::Renderer::pushLine(Emulator::Position* positions, Emulator::Color* colors, Attributes attributes) {
     // TODO;
     throw std::runtime_error("Error; Unsupported line rendering.");
 }
 
-void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors) {
+void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors, Attributes attributes) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
         //nVertices = 0;
@@ -146,11 +160,12 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
     for(int i = 0; i < 3; i++) {
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
+        this->attributes.set(nVertices, attributes);
         nVertices++;
     }
 }
 
-void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color* colors) {
+void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color* colors, Attributes attributes) {
     if(nVertices + 6 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
         //nVertices = 0;
@@ -162,27 +177,33 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
     // [2, 3, 0]
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     // [3, 0, 1]
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     /*for(int i = 0; i < 3; i++) {
@@ -199,7 +220,7 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
     }*/
 }
 
-void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::Color* colors) {
+void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::Color* colors, Attributes attributes) {
     /*
      * From my knowledgeable, PS1 doesn't split,
      * rectangles into 2 trinagles, however,
@@ -224,28 +245,34 @@ void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::
     // [0, 1, 2]
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     // First triangle
     // [0, 2, 3]
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
 
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
+    this->attributes.set(nVertices, attributes);
     nVertices++;
 }
 

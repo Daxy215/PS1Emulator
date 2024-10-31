@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <stdexcept>
 
 #include <GL/glew.h>
@@ -54,6 +53,5 @@ struct Buffer {
         
         map[index] = value;
         auto var = map[index];
-        printf("");
     }
 };

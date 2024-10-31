@@ -108,8 +108,10 @@ namespace Emulator {
         VRam,
     };
     
+    // TODO; Change this back to GLint
     struct Position {
         Position() = default;
+        
         Position(float x, float y) : x(x), y(y) {
             
         }
@@ -123,9 +125,9 @@ namespace Emulator {
         
         float x, y;
     };
-
+    
     struct Color {
-        Color() {}
+        Color() = default;
         
         Color(GLubyte r, GLubyte g, GLubyte b) : r(r), g(g), b(b) {
             
@@ -140,6 +142,19 @@ namespace Emulator {
         }
         
         GLubyte r, g, b;
+    };
+    
+    struct Attributes {
+        Attributes() = default;
+        
+        Attributes(GLubyte isSemiTransparent, GLubyte blendTexture)
+            : isSemiTransparent(isSemiTransparent),
+              blendTexture(blendTexture) {
+            
+        }
+        
+        GLubyte isSemiTransparent = 0;
+        GLubyte blendTexture = 0;
     };
     
     // GPU structure
@@ -318,6 +333,8 @@ namespace Emulator {
         uint16_t displayHorizEnd; // Display output horizontal end relative to HSYNC
         uint16_t displayLineStart; // Display output first line relative to VSYNC
         uint16_t displayLineEnd; // Display output last line relative to VSYNC
+        
+        Attributes curAttribute = {0, 0};
         
         // Signals
         // TODO; Rename to isReady instead of can. Would make more sense..

@@ -124,16 +124,19 @@ void Emulator::Gpu::gp0(uint32_t val) {
     if(gp0CommandRemaining == 0) {
         switch (uint8_t opcode = (val >> 24) & 0xFF) {
         case 0x00:
+            
             gp0CommandRemaining = 1;
             Gp0CommandMethod = &Gpu::gp0Nop;
             
             break;
         case 0x01:
+            
             gp0CommandRemaining = 1;
             Gp0CommandMethod = &Gpu::gp0ClearCache;
             
             break;
         case 0x2:
+            
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp0FillVRam;
             
@@ -149,8 +152,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x22: {
             // GP0(22h) - Monochrome three-point polygon, semi-transparent
             
-            // For now just same implementation
-            //TODO; Make this semi-transparent
+            curAttribute = {1, 0};
+            
             gp0CommandRemaining = 4;
             Gp0CommandMethod = &Gpu::gp0TriangleMonoOpaque;
             
@@ -159,7 +162,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x24: {
             // GP0(24h) - Textured three-point polygon, opaque, texture-blending
             
-            // TODO; Enable texture-blending?
+            curAttribute = {0, 1};
+            
             gp0CommandRemaining = 7;
             Gp0CommandMethod = &Gpu::gp0TriangleTexturedOpaque;
             
@@ -176,8 +180,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x26: {
             // GP0(26h) - Textured three-point polygon, semi-transparent, texture-blending
             
-            // TODO; Enable texture-blending?
-            // TODO; Make this semi-transparent
+            curAttribute = {1, 1};
+            
             gp0CommandRemaining = 7;
             Gp0CommandMethod = &Gpu::gp0TriangleTexturedOpaque;
             
@@ -186,7 +190,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x27: {
             // GP0(27h) - Textured three-point polygon, semi-transparent, raw-texture
             
-            // TODO; Make this semi-transparent
+            curAttribute = {1, 0};
+            
             gp0CommandRemaining = 7;
             Gp0CommandMethod = &Gpu::gp0TriangleRawTexturedOpaque;
             
@@ -195,7 +200,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x2C: {
             // GP0(2Ch) - Textured four-point polygon, opaque, texture-blending
             
-            // TODO; Enable texture-blending?
+            curAttribute = {0, 1};
+            
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
             
@@ -212,8 +218,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x2E: {
             // GP0(2Eh) - Textured four-point polygon, semi-transparent, texture-blending
             
-            // TODO; Enable texture-blending?
-            // TODO; Semi-transparent
+            curAttribute = {1, 1};
+            
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
             
@@ -222,34 +228,38 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x2F: {
             // GP0(2Fh) - Textured four-point polygon, semi-transparent, raw-texture
             
-            // TODO; Semi-transparent
+            curAttribute = {1, 0};
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0QuadRawTextureBlendOpaque;
             
             break;
         }
         case 0x28:
+            
             gp0CommandRemaining = 5;
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
             
             break;
         case 0x2A: {
-            gp0CommandRemaining = 5;
             
-            // For now, I don't really have transparency
-            //TODO; Make this semi-transparent
+            curAttribute = {1, 0};
+            
+            gp0CommandRemaining = 5;
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
             
             break;
         }
         case 0x30: {
+            
             gp0CommandRemaining = 6;
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
             
             break;
         }
         case 0x32: {
-            // TODO; Make this semi-transparent
+            
+            curAttribute = {1, 0};
+            
             gp0CommandRemaining = 6;
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
             
@@ -257,8 +267,9 @@ void Emulator::Gpu::gp0(uint32_t val) {
         }
         case 0x34: {
             // GP0(34h) - Shaded Textured three-point polygon, opaque, texture-blending
-
-            //TODO; Texture-blending?
+            
+            curAttribute = {0, 1};
+            
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0TriangleTexturedShadedOpaque;
             
@@ -267,20 +278,23 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x36: {
             // GP0(36h) - Shaded Textured three-point polygon, semi-transparent, tex-blend
             
-            // TODO; Texture-blending?
-            // TODO; Semi-transparent
+            curAttribute = {1, 1};
+            
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0TriangleTexturedShadedOpaque;
             
             break;
         }
         case 0x38:
+            
             gp0CommandRemaining = 8;
             Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
             
             break;
         case 0x3A:
-            // TODO; Make this semi-transparent
+            
+            curAttribute = {1, 0};
+            
             gp0CommandRemaining = 8;
             Gp0CommandMethod = &Gpu::gp0QuadShadedOpaque;
             
@@ -288,7 +302,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x3C: {
             // GP0(3Ch) - Shaded Textured four-point polygon, opaque, texture-blending
             
-            //TODO; Texture-blending?
+            curAttribute = {0, 1};
+            
             gp0CommandRemaining = 12;
             Gp0CommandMethod = &Gpu::gp0QuadTexturedShadedOpaque;
             
@@ -297,8 +312,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x3E: {
             // GP0(3Eh) - Shaded Textured four-point polygon, semi-transparent, tex-blend
             
-            // TODO; Texture-blending?
-            // TODO; Semi-transparent
+            curAttribute = {1, 1};
+            
             gp0CommandRemaining = 12;
             Gp0CommandMethod = &Gpu::gp0QuadTexturedShadedOpaque;
             
@@ -315,7 +330,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x62: {
             // GP0(62h) - Monochrome Rectangle (variable size) (semi-transparent)
             
-            // TODO; Make this semi-transparent
+            curAttribute = {1, 0};
+            
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp0VarRectangleMonoOpaque;
             
@@ -332,7 +348,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x6A: {
             // GP0(6Ah) - Monochrome Rectangle (1x1) (Dot) (semi-transparent)
 
-            // TODO; Make this semi-transparent
+            curAttribute = {1, 0};
+            
             gp0CommandRemaining = 2;
             Gp0CommandMethod = &Gpu::gp0DotRectangleMonoOpaque;
             
@@ -349,7 +366,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x72: {
             // GP0(72h) - Monochrome Rectangle (8x8) (semi-transparent)
             
-            // TODO; Make this semi-transparent
+            curAttribute = {1, 0};
+            
             gp0CommandRemaining = 2;
             Gp0CommandMethod = &Gpu::gp08RectangleMonoOpaque;
             
@@ -366,7 +384,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x7A: {
             // GP0(7Ah) - Monochrome Rectangle (16x16) (semi-transparent)
             
-            // TODO; Make this semi-transparent
+            curAttribute = {1, 0};
+            
             gp0CommandRemaining = 2;
             Gp0CommandMethod = &Gpu::gp016RectangleMonoOpaque;
             
@@ -436,6 +455,9 @@ void Emulator::Gpu::gp0(uint32_t val) {
         if(gp0CommandRemaining == 0) {
             // All of the parameters optioned; run the command
             Gp0CommandMethod(*this, val);
+            
+            // Reset current attributes
+            curAttribute = {0, 0};
         }
         break;
     case VRam:
@@ -545,7 +567,7 @@ void Emulator::Gpu::gp0QuadMonoOpaque(uint32_t val) {
         Color::fromGp0(gp0Command.buffer[0]),
     };
     
-    renderer->pushQuad(positions, colors);
+    renderer->pushQuad(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0TriangleShadedOpaque(uint32_t val) {
@@ -561,7 +583,7 @@ void Emulator::Gpu::gp0TriangleShadedOpaque(uint32_t val) {
         Color::fromGp0(gp0Command.index(4)),
     };
     
-    renderer->pushTriangle(positions, colors);
+    renderer->pushTriangle(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0TriangleTexturedShadedOpaque(uint32_t val) {
@@ -577,7 +599,7 @@ void Emulator::Gpu::gp0TriangleTexturedShadedOpaque(uint32_t val) {
         Color::fromGp0(gp0Command.index(6)),
     };
     
-    renderer->pushTriangle(positions, colors);
+    renderer->pushTriangle(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0QuadShadedOpaque(uint32_t val) {
@@ -595,7 +617,7 @@ void Emulator::Gpu::gp0QuadShadedOpaque(uint32_t val) {
         Color::fromGp0(gp0Command.buffer[6]),
     };
     
-    renderer->pushQuad(positions, colors);
+    renderer->pushQuad(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0QuadTexturedShadedOpaque(uint32_t val) {
@@ -614,7 +636,7 @@ void Emulator::Gpu::gp0QuadTexturedShadedOpaque(uint32_t val) {
         Color::fromGp0(gp0Command.index(9)),
     };
     
-    renderer->pushQuad(positions, colors);
+    renderer->pushQuad(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::renderRectangle(Position position, Color color, uint16_t width, uint16_t height) {
@@ -627,7 +649,7 @@ void Emulator::Gpu::renderRectangle(Position position, Color color, uint16_t wid
     
     Color colors[4] = { color, color, color, color };
     
-    renderer->pushRectangle(positions, colors);
+    renderer->pushRectangle(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0VarRectangleMonoOpaque(uint32_t val) {
@@ -713,7 +735,7 @@ void Emulator::Gpu::gp0TriangleMonoOpaque(uint32_t val) {
         Color::fromGp0(gp0Command.index(0)),
     };
     
-    renderer->pushTriangle(positions, colors);
+    renderer->pushTriangle(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0TriangleTexturedOpaque(uint32_t val) {
@@ -730,7 +752,7 @@ void Emulator::Gpu::gp0TriangleTexturedOpaque(uint32_t val) {
         Color::fromGp0(gp0Command.index(0)),
     };
     
-    renderer->pushTriangle(positions, colors);
+    renderer->pushTriangle(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0TriangleRawTexturedOpaque(uint32_t val) {
@@ -748,7 +770,7 @@ void Emulator::Gpu::gp0TriangleRawTexturedOpaque(uint32_t val) {
         {0x80, 0x00, 0x00},
     };
     
-    renderer->pushTriangle(positions, colors);
+    renderer->pushTriangle(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0QuadTextureBlendOpaque(uint32_t val) {
@@ -767,7 +789,7 @@ void Emulator::Gpu::gp0QuadTextureBlendOpaque(uint32_t val) {
         {0x80, 0x00, 0x00},
     };
     
-    renderer->pushQuad(positions, colors);
+    renderer->pushQuad(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0QuadRawTextureBlendOpaque(uint32_t val) {
@@ -787,7 +809,7 @@ void Emulator::Gpu::gp0QuadRawTextureBlendOpaque(uint32_t val) {
         Color::fromGp0(gp0Command.index(0)),
     };
     
-    renderer->pushQuad(positions, colors);
+    renderer->pushQuad(positions, colors, curAttribute);
 }
 
 void Emulator::Gpu::gp0ImageLoad(uint32_t val) {

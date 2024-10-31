@@ -13,6 +13,7 @@ class GLFWwindow;
 namespace Emulator {
     struct Position;
     struct Color;
+    struct Attributes;
     
     class Renderer {
     public:
@@ -24,10 +25,10 @@ namespace Emulator {
         void draw();
         
     public:
-        void pushLine(Emulator::Position* positions, Emulator::Color* colors);
-        void pushTriangle(Emulator::Position* positions, Emulator::Color* colors);
-        void pushQuad(Emulator::Position* positions, Emulator::Color* colors);
-        void pushRectangle(Emulator::Position* positions, Emulator::Color* colors);
+        void pushLine(Emulator::Position* positions, Emulator::Color* colors, Emulator::Attributes attributes);
+        void pushTriangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::Attributes attributes);
+        void pushQuad(Emulator::Position* positions, Emulator::Color* colors, Emulator::Attributes attributes);
+        void pushRectangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::Attributes attributes);
         
         void setDrawingOffset(int32_t x, int32_t y) {
             glUniform2i(offsetUni, x, y);
@@ -76,6 +77,9 @@ namespace Emulator {
         
         // Buffer contains the vertices colors
         Buffer<Color> colors;
+        
+        // Buffer contains the vertices attributes
+        Buffer<Attributes> attributes;
         
         // Current number of vertices in the buffers
         uint32_t nVertices;
