@@ -21,7 +21,7 @@ void Joypad::updateConnectedControllers() {
 	// Get connected controllers
 	int slot = 0;
 	
-	for (int i = 0; i < SDL_NumJoysticks(); i++) {
+	/*for (int i = 0; i < SDL_NumJoysticks(); i++) {
 		if (SDL_IsGameController(i)) {
 			SDL_GameController* controller = SDL_GameControllerOpen(i);
 
@@ -39,7 +39,7 @@ void Joypad::updateConnectedControllers() {
 				break;
 			}
 		}
-	}
+	}*/
 }
 
 uint32_t Joypad::load(uint32_t offset) {
@@ -62,6 +62,7 @@ void Joypad::store(uint32_t offset, uint32_t val) {
 	}
 }
 
+/*
 // TODO; Maybe use SDL_GameControllerGetButton instead?
 void Joypad::handleButtonEvent(SDL_ControllerButtonEvent& event) {
 	bool buttonPressed = event.state == SDL_PRESSED;
@@ -134,6 +135,7 @@ void Joypad::handleAxisEvent(SDL_ControllerAxisEvent& event) {
 		break;
 	}
 }
+*/
 
 void Joypad::attachController(int slot, const ControllerState& controller) {
 	if (slot < 0 || slot >= 2)
@@ -145,5 +147,5 @@ void Joypad::attachController(int slot, const ControllerState& controller) {
 void Joypad::detachController(int slot) {
 	if (slot < 0 || slot >= 2) return;
 	
-	controllers[slot].free();
+	//controllers[slot].free();
 }

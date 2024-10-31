@@ -1,12 +1,14 @@
 ﻿#pragma once
 
 #include <iostream>
-#include <SDL_render.h>
-#include <SDL_video.h>
-#include <vector>
-#include <GL/glew.h>
 
 #include "Buffer.h"
+
+//#include <GL/glew.h>
+//#define GLFW_INCLUDE_NONE
+/*#include <GLFW/glfw3.h>*/
+
+class GLFWwindow;
 
 namespace Emulator {
     struct Position;
@@ -17,10 +19,10 @@ namespace Emulator {
         Renderer();
         
         void display();
-
+        
     private:
         void draw();
-
+        
     public:
         void pushLine(Emulator::Position* positions, Emulator::Color* colors);
         void pushTriangle(Emulator::Position* positions, Emulator::Color* colors);
@@ -51,6 +53,7 @@ namespace Emulator {
         std::string getShaderSource(const std::string& path);
         
         GLuint createFrameBuffer(GLsizei width, GLsizei height);
+        
     public:
         // Shader parameters
         GLuint vertexShader;
@@ -77,8 +80,6 @@ namespace Emulator {
         // Current number of vertices in the buffers
         uint32_t nVertices;
         
-        SDL_Window* window;
-        SDL_GLContext sdl_context;
-        SDL_Renderer* renderer;
+        GLFWwindow* window;
     };
 }

@@ -1,7 +1,6 @@
 ﻿#pragma once
+
 #include <cstdint>
-#include <SDL_render.h>
-#include <vector>
 
 namespace Emulator {
     class Gpu;
@@ -46,13 +45,16 @@ namespace Emulator {
         const int32_t MAX_WIDTH  = 1024;
         const int32_t MAX_HEIGHT = 512;
         
-        SDL_Texture* texture;
+        //SDL_Texture* texture;
         
         Gpu* gpu;
     public:
         uint16_t* pixels;
         int pitch;
         
-        std::pmr::vector<uint32_t> color1555to8888LUT;
+        // GLuint
+        unsigned int textureId;
+        
+        //std::pmr::vector<uint32_t> color1555to8888LUT;
     };
 }

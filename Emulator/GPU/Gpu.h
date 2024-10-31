@@ -9,12 +9,14 @@
 #include <string>
 #include <GL/glew.h>
 
-#include "VRAM.h"
-#include "Rendering/Renderer.h"
-
 // TODO; Please redo this shitty code WTF IS THIS ;-;
 
 // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/
+
+namespace Emulator {
+    class Renderer;
+    class VRAM;
+}
 
 namespace Emulator {
     // Depth of the pixel values in a texture page
@@ -143,30 +145,8 @@ namespace Emulator {
     // GPU structure
     class Gpu {
     public:
-        Gpu()
-            : pageBaseX(0),
-              pageBaseY(0),
-              semiTransparency(0),
-              textureDepth(TextureDepth::T4Bit),
-              dithering(false),
-              drawToDisplay(false),
-              forceSetMaskBit(false),
-              preserveMaskedPixels(false),
-              field(Field::Top),
-              textureDisable(false),
-              hres(HorizontalRes::fromFields(320, 240)),
-              vres(VerticalRes::Y240Lines),
-              vmode(VMode::Ntsc),
-              displayDepth(DisplayDepth::D15Bits),
-              interlaced(false),
-              displayEnabled(false),
-              interrupt(false),
-              dmaDirection(DmaDirection::Off),
-              renderer(new Renderer()),
-              vram(new VRAM(this)) {
-            
-        }
-        
+        Gpu();
+
         uint32_t status();
         
         // Handles writes to the GP0 command register
@@ -176,80 +156,32 @@ namespace Emulator {
         void gp0DrawMode(uint32_t val);
         
         // GP0(0XE3): Set Drawing Area top left
-        void gp0DrawingAreaTopLeft(uint32_t val) {
-            drawingAreaTop = static_cast<uint16_t>((val >> 10) & 0x3FF);
-            drawingAreaLeft = static_cast<uint16_t>(val & 0x3FF);
-        }
+        void gp0DrawingAreaTopLeft(uint32_t val);
         
         // GP0(0xE4): Set Drawing Area bottom right
-        void gp0DrawingAreaBottomRight(uint32_t val) {
-            drawingAreaBottom = static_cast<uint16_t>((val >> 10) & 0x3FF);
-            drawingAreaRight = static_cast<uint16_t>(val & 0x3FF);
-            
-            renderer->setDrawingArea(drawingAreaRight, drawingAreaBottom);
-        }
+        void gp0DrawingAreaBottomRight(uint32_t val);
         
         // GP0(0xE5): Set Drawing Offset
-        void gp0DrawingOffset(uint32_t val) {
-            uint16_t x = (static_cast<uint16_t>(val) & 0x7FF);
-            uint16_t y = (static_cast<uint16_t>(val >> 11) & 0x7FF);
-            
-            // Values are 11bit two's complement-signed values,
-            // we need to shift the value to 16 bits,
-            // to force a sign extension
-            drawingXOffset = static_cast<int16_t>(x << 5) >> 5;
-            drawingYOffset = static_cast<int16_t>(y << 5) >> 5;
-            
-            // Update rendering offset
-            renderer->setDrawingOffset(drawingXOffset, drawingYOffset);
-            
-            // XXX Temporary hack: force display when changing offset,
-            // since we don't have proper timings
-            renderer->display();
-        }
+        void gp0DrawingOffset(uint32_t val);
         
         // GP0(0xE2): Set Texture Window
-        void gp0TextureWindow(uint32_t val) {
-            textureWindowXMask   = static_cast<uint8_t>(val & 0x1F);
-            textureWindowYMask   = static_cast<uint8_t>((val >> 5) & 0x1F);
-            textureWindowXOffset = static_cast<uint8_t>((val >> 10) & 0x1F);
-            textureWindowYOffset = static_cast<uint8_t>((val >> 15) & 0x1F);
-        }
+        void gp0TextureWindow(uint32_t val);
         
         // GP0(0xE6): Set Mask Bit Setting
-        void gp0MaskBitSetting(uint32_t val) {
-            forceSetMaskBit = (val & 1) != 0;
-            preserveMaskedPixels = (val & 2) != 0;
-        }
+        void gp0MaskBitSetting(uint32_t val);
         
         // GP0(0x00): No operations
         void gp0Nop(uint32_t val) {
             // NOP
         }
-        
+
+        // TODO; Move to a utils class
         static inline bool get_bit(uint32_t num, int b) {
             return num & (1 << b);
         }
         
         // GP0(0x28): Momochrome Opaque Quadrilateral
-        void gp0QuadMonoOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.buffer[1]),
-                Position::fromGp0P(gp0Command.buffer[2]),
-                Position::fromGp0P(gp0Command.buffer[3]),
-                Position::fromGp0P(gp0Command.buffer[4]),
-            };
-            
-            // A single color repeated 4 times
-            Color colors[] = {
-                Color::fromGp0(gp0Command.buffer[0]),
-                Color::fromGp0(gp0Command.buffer[0]),
-                Color::fromGp0(gp0Command.buffer[0]),
-                Color::fromGp0(gp0Command.buffer[0]),
-            };
-            
-            renderer->pushQuad(positions, colors);
-        }
+        void gp0QuadMonoOpaque(uint32_t val);
         
         // TODO; Remove
         void vertexOrder(Position* p) {
@@ -261,77 +193,16 @@ namespace Emulator {
         }
         
         // GP0(0x30): Shaded Opaque Triangle
-        void gp0TriangleShadedOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.buffer[1]),
-                Position::fromGp0P(gp0Command.buffer[3]),
-                Position::fromGp0P(gp0Command.buffer[5]),
-            };
-            
-            Color colors[] = {
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(2)),
-                Color::fromGp0(gp0Command.index(4)),
-            };
-            
-            renderer->pushTriangle(positions, colors);
-        }
+        void gp0TriangleShadedOpaque(uint32_t val);
         
         // GP0(0x34): Shaded Texture Opaque Triangle
-        void gp0TriangleTexturedShadedOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.buffer[1]),
-                Position::fromGp0P(gp0Command.buffer[4]),
-                Position::fromGp0P(gp0Command.buffer[7]),
-            };
-            
-            Color colors[] = {
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(3)),
-                Color::fromGp0(gp0Command.index(6)),
-            };
-            
-            renderer->pushTriangle(positions, colors);
-        }
+        void gp0TriangleTexturedShadedOpaque(uint32_t val);
         
         // GP0(0x38): gp0QuadShadedOpaque
-        void gp0QuadShadedOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.buffer[1]),
-                Position::fromGp0P(gp0Command.buffer[3]),
-                Position::fromGp0P(gp0Command.buffer[5]),
-                Position::fromGp0P(gp0Command.buffer[7]),
-            };
-            
-            Color colors[] = {
-                Color::fromGp0(gp0Command.buffer[0]),
-                Color::fromGp0(gp0Command.buffer[2]),
-                Color::fromGp0(gp0Command.buffer[4]),
-                Color::fromGp0(gp0Command.buffer[6]),
-            };
-            
-            renderer->pushQuad(positions, colors);
-        }
+        void gp0QuadShadedOpaque(uint32_t val);
 
         // GP0(0x3C): Shaded Texture Opaque Quad
-        void gp0QuadTexturedShadedOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.index(1)),
-                Position::fromGp0P(gp0Command.index(4)),
-                Position::fromGp0P(gp0Command.index(7)),
-                Position::fromGp0P(gp0Command.index(10)),
-            };
-            
-            // TODO; Textures
-            Color colors[] = {
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(3)),
-                Color::fromGp0(gp0Command.index(6)),
-                Color::fromGp0(gp0Command.index(9)),
-            };
-            
-            renderer->pushQuad(positions, colors);
-        }
+        void gp0QuadTexturedShadedOpaque(uint32_t val);
         
         // Helper function
         void renderRectangle(Position position, Color color, uint16_t width, uint16_t height);
@@ -342,226 +213,39 @@ namespace Emulator {
         void gp016RectangleMonoOpaque(uint32_t val);
         
         // TODO; Testing
-        void gp0Rectangle(uint32_t val) {
-            uint32_t color = gp0Command.buffer[0] & 0xffffff;
-            
-            if(color != 0) {
-                printf("");
-            }
-            
-            uint32_t cmd = gp0Command.buffer[1];
-            uint32_t x = (cmd & 0xffff) + drawingXOffset;
-            uint32_t y = (cmd >> 16) + drawingYOffset;
-            
-            vram->setPixel(x, y, color);
-        }
+        void gp0Rectangle(uint32_t val);
         
         // GP0(0x01): Clear Cache
-        void gp0ClearCache(uint32_t val) {
-            // TODO; Implement me
-        }
+        void gp0ClearCache(uint32_t val);
         
         // GP0(0x02): Full VRam
-        void gp0FillVRam(uint32_t val) {
-            Color color = Color::fromGp0(gp0Command.index(0));
-            uint32_t cords = gp0Command.buffer[1];
-            uint32_t res = gp0Command.buffer[2];
-            
-            uint32_t xPos = (cords & 0xFFFF) & 0x3FF;
-            uint32_t yPos = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
-            
-            uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
-            uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
-            
-            for(uint32_t y = yPos; y < (height + yPos); y++) {
-                for(uint32_t x = xPos; x < (width + xPos); x++) {
-                    vram->setPixel(x, y, (static_cast<uint32_t>(color.b) << 10) | (static_cast<uint32_t>(color.g) << 5) | static_cast<uint32_t>(color.r));
-                }
-            }
-        }
+        void gp0FillVRam(uint32_t val);
         
         // GP0(0x20): 
-        void gp0TriangleMonoOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.index(1)),
-                Position::fromGp0P(gp0Command.index(2)),
-                Position::fromGp0P(gp0Command.index(3)),
-            };
-            
-            // Mono
-            Color colors[] = {
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(0)),
-            };
-            
-            renderer->pushTriangle(positions, colors);
-            //renderer->display();
-        }
+        void gp0TriangleMonoOpaque(uint32_t val);
         
-        void gp0TriangleTexturedOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.index(1)),
-                Position::fromGp0P(gp0Command.index(3)),
-                Position::fromGp0P(gp0Command.index(5))
-            };
-            
-            // This uses textures along side a color
-            Color colors[] = {
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(0)),
-            };
-            
-            renderer->pushTriangle(positions, colors);
-        }
+        void gp0TriangleTexturedOpaque(uint32_t val);
         
-        void gp0TriangleRawTexturedOpaque(uint32_t val) {
-            // Color is ignored for raw-textures
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.index(1)),
-                Position::fromGp0P(gp0Command.index(3)),
-                Position::fromGp0P(gp0Command.index(5))
-            };
-            
-            // TODO; Textures aren't currently supported
-            Color colors[] = {
-                {0x80, 0x00, 0x00},
-                {0x80, 0x00, 0x00},
-                {0x80, 0x00, 0x00},
-            };
-            
-            renderer->pushTriangle(positions, colors);
-        }
+        void gp0TriangleRawTexturedOpaque(uint32_t val);
 
         // GP0(0x2C): Quad Raw Texture Blend Opqaue
-        void gp0QuadTextureBlendOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.buffer[1]),
-                Position::fromGp0P(gp0Command.buffer[3]),
-                Position::fromGp0P(gp0Command.buffer[5]),
-                Position::fromGp0P(gp0Command.buffer[7]),
-            };
-            
-            // TODO; Textures aren't currently supported
-            Color colors[] = {
-                {0x80, 0x00, 0x00},
-                {0x80, 0x00, 0x00},
-                {0x80, 0x00, 0x00},
-                {0x80, 0x00, 0x00},
-            };
-            
-            renderer->pushQuad(positions, colors);
-        }
+        void gp0QuadTextureBlendOpaque(uint32_t val);
         
         // GP0(0x2D): Quad Raw Texture Blend Opqaue
-        void gp0QuadRawTextureBlendOpaque(uint32_t val) {
-            Position positions[] = {
-                Position::fromGp0P(gp0Command.buffer[1]),
-                Position::fromGp0P(gp0Command.buffer[3]),
-                Position::fromGp0P(gp0Command.buffer[5]),
-                Position::fromGp0P(gp0Command.buffer[7]),
-            };
-            
-            // TODO; Textures aren't currently supported
-            // Uses a texture along side a color
-            Color colors[] = {
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(0)),
-                Color::fromGp0(gp0Command.index(0)),
-            };
-            
-            renderer->pushQuad(positions, colors);
-        }
+        void gp0QuadRawTextureBlendOpaque(uint32_t val);
         
         // GP0(0xA0): Load Image
         // From CPU to VRAM
-        void gp0ImageLoad(uint32_t val) {
-            uint32_t cords = gp0Command.buffer[1];
-            uint32_t res = gp0Command.buffer[2];
-            
-            uint32_t x = (cords & 0xFFFF) & 0x3FF;
-            uint32_t y = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
-            
-            // 2nd  Source Coord      (YyyyXxxxh) ; write to GP0 port (as usual?)
-            uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
-            uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
-            
-            uint32_t imgSize = (width * height);
-            
-            // If we have an odd number of pixels we must round up
-            // since we transfer 32bits at a time. There'll be 16bits
-            // of padding in the last word
-            imgSize = (imgSize + 1) & ~1;
-            
-            // Signal to VRAM to begin the transfer to the CPU
-            vram->beginTransfer(x, y, width, height, imgSize);
-            
-            // Store number of words expected for this image
-            gp0CommandRemaining = (imgSize / 2);
-            
-            // Put the GP0 state machine into the VRam mode
-            gp0Mode = VRam;
-            
-            // Update signals
-            canSendVRAMToCPU = true;
-            canSendCPUToVRAM = false;
-        }
+        void gp0ImageLoad(uint32_t val);
         
         // TODO; Remove
         uint32_t startX, startY, curX, curY, endX, endY;
         
         // GP0(0xC0): Load Store
         // From VRAM to CPU
-        void gp0ImageStore(uint32_t val) {
-            uint32_t cords = gp0Command.buffer[1];
-            uint32_t res = gp0Command.buffer[2];
-            
-            uint32_t x = (cords & 0xFFFF) & 0x3FF;
-            uint32_t y = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
-            
-            uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
-            uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
-            
-            startX = curX = x;
-            startY = curY = y;
-            
-            endX = startX + width;
-            endY = startY + height;
-            
-            readMode = VRam;
-            
-            // Update signals
-            canSendVRAMToCPU = false;
-            canSendCPUToVRAM = true;
-        }
+        void gp0ImageStore(uint32_t val);
         
-        void gp0VramToVram(uint32_t val) {
-            uint32_t cords = gp0Command.buffer[1];
-            uint32_t dests = gp0Command.buffer[2];
-            uint32_t res = gp0Command.buffer[3];
-            
-            uint32_t srcX = (cords & 0xFFFF) & 0x3FF;
-            uint32_t srcY = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
-            
-            uint32_t dstX = (dests & 0xFFFF) & 0x3FF;
-            uint32_t dstY = ((dests & 0xFFFF0000) >> 16) & 0x1FF;
-            
-            uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
-            uint32_t height = ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
-            
-            bool dir = srcX < dstX;
-            
-            for(uint32_t y = 0; y < height; y++) {
-                for(uint32_t x = 0; x < width; x++) {
-                    uint32_t posX = (!dir) ? x : width - 1 - x;
-                    
-                    uint16_t color = vram->getPixelRGB888((srcX + posX), (srcY + y));
-                    vram->setPixel(dstX + posX, dstY + y, color);
-                }
-            }
-        }
+        void gp0VramToVram(uint32_t val);
         
         // Handles writes to the GP1 command register
         void gp1(uint32_t val);
@@ -573,42 +257,25 @@ namespace Emulator {
         void gp1DisplayMode(uint32_t val);
         
         // GP1(0x03): Display Enable
-        void gp1DisplayEnable(uint32_t val) {
-            displayEnabled = (val & 1) == 0;
-        }
+        void gp1DisplayEnable(uint32_t val);
         
         // GP1(0x04): DMA Direction
         void gp1DmaDirection(uint32_t val);
         
         // GP1(0x05): Display VRAM Start
-        void gp1DisplayVramStart(uint32_t val) {
-            displayVramXStart = static_cast<uint16_t>(val & 0x3FE);
-            displayVramYStart = static_cast<uint16_t>((val >> 10) & 0x1FF);
-        }
+        void gp1DisplayVramStart(uint32_t val);
         
         // GP1(0x06): Display Horizontal Range
-        void gp1DisplayHorizontalRange(uint32_t val) {
-            displayHorizStart = static_cast<uint16_t>(val & 0xFFF);
-            displayHorizEnd = static_cast<uint16_t>((val >> 12) & 0xFFF);
-        }
+        void gp1DisplayHorizontalRange(uint32_t val);
         
         // GP1(0x07): Display Vertical Range
-        void gp1DisplayVerticalRange(uint32_t val) {
-            displayLineStart = static_cast<uint16_t>(val & 0x3FF);
-            displayLineEnd = static_cast<uint16_t>((val >> 10) & 0x3FF);
-        }
+        void gp1DisplayVerticalRange(uint32_t val);
         
         // GP1(0x01): Reset Command Buffer
-        void gp1ResetCommandBuffer(uint32_t val) {
-            gp0Command.clear();
-            //gp0CommandRemaining = 0;
-            gp0Mode = Command; 
-        }
+        void gp1ResetCommandBuffer(uint32_t val);
         
         // GP1(0x02): Acknowledge Interrupt
-        void gp1AcknowledgeIrq(uint32_t val) {
-            interrupt = false;
-        }
+        void gp1AcknowledgeIrq(uint32_t val);
         
         // Retrieve value of the "read" register
         uint32_t read(uint32_t addr);

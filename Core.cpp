@@ -3,18 +3,21 @@
 #include <iostream>
 #include <fstream>
 
-#include <SDL.h>
-
 #include "Emulator/Bios.h"
 #include "Emulator/CPU/CPU.h"
 #include "Emulator/SPU/SPU.h"
 #include "Utility/FileSystem/FileManager.h"
 
-#define _CRTDBG_MAP_ALLOC
+/*
+#define GLFW_DLL
+*/
+#include <GLFW/glfw3.h>
+
+//#define _CRTDBG_MAP_ALLOC
 #include <chrono>
-#include <stdlib.h>
-#include <crtdbg.h>
 #include <thread>
+
+#include "Emulator/GPU/Rendering/renderer.h"
 
 //#include "Emulator/interconnect.h"
 //#include "Emulator/Ram.h"
@@ -369,7 +372,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XOR/CPUXOR.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/XORI/CPUXORI.exe"); // Passed
 	
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/AVSZ/GTEAVSZ.exe"); // TODO; Failed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/AVSZ/GTEAVSZ.exe"); // TODO; Failed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/NCLIP/GTENCLIP.exe"); // TODO; Failed
 	
 	// GPU - 16 BPP
@@ -378,7 +381,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
 	
 	// Other stuff
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
@@ -417,7 +420,35 @@ void handleLoadExe(CPU& cpu) {
 	cpu.branchSlot = false;
 }
 
-// TODO; Use GLFW instead of SDL please!
+void runCPU(CPU& cpu) {
+	/*auto start = std::chrono::high_resolution_clock::now();
+	unsigned long long sped = 33868880;
+	
+	while (true) {
+		auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+			std::chrono::high_resolution_clock::now() - start);
+		
+		if (duration.count() >= static_cast<long long>(1000) * 1000 / sped) {
+			cpu.executeNextInstruction();
+			start = std::chrono::high_resolution_clock::now();
+		} else {
+			std::this_thread::sleep_for(std::chrono::nanoseconds(
+				1000 * 1000 / sped - duration.count()));
+		}
+	}*/
+	
+	while (true) {
+		// Wait for the BIOS to jump to the shell
+		if (cpu.pc != 0x80030000 || false) {
+			// TODO; Make a class for stepping
+			cpu.executeNextInstruction();
+			cpu.interconnect._cdrom.step(1);
+		} else {
+			handleLoadExe(cpu);
+		}
+	}
+}
+
 // TODO; Use GLM for GTE
 int main(int argc, char* argv[]) {
 	// Was used for debuging
@@ -445,34 +476,57 @@ int main(int argc, char* argv[]) {
 	// TODO; LWR is bugged? Wrong value
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
-    SDL_Event event;
+	std::thread thr(runCPU, std::ref(cpu));
 	
-	while(true) {
-		// Wait for the BIOS to jump to the shell
-		if (cpu.pc != 0x80030000 || true) {
-			// TODO; Make a class for stepping
-			cpu.executeNextInstruction();
-			cpu.interconnect._cdrom.step(1);
-		} else {
-			handleLoadExe(cpu);
+	bool isRunning = true;
+	
+	while(!glfwWindowShouldClose(gpu.renderer->window)) {
+		gpu.renderer->display();
+		
+		glfwPollEvents();
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_1) == GLFW_PRESS) {
+			IRQ::status += 1;
 		}
 		
-		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_QUIT)
-				break;
-			else if (event.type == SDL_KEYDOWN) {
-				if (event.key.keysym.sym == SDLK_ESCAPE) {
-					IRQ::status++;
-				} else if (event.key.keysym.sym == SDLK_f) {
-					gpu.renderer->display();
-				} else if (event.key.keysym.sym == SDLK_g) {
-					gpu.vram->endTransfer();
-				}
-			}
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_2) == GLFW_PRESS) {
+			IRQ::status += 2;
 		}
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_3) == GLFW_PRESS) {
+			IRQ::status += 3;
+		}
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_4) == GLFW_PRESS) {
+			IRQ::status += 4;
+		}
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_5) == GLFW_PRESS) {
+			IRQ::status += 5;
+		}
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_6) == GLFW_PRESS) {
+			IRQ::status += 6;
+		}
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_7) == GLFW_PRESS) {
+			IRQ::status += 7;
+		}
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_F) == GLFW_PRESS) {
+			gpu.renderer->display();
+		}
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_G) == GLFW_PRESS) {
+			//gpu.vram->endTransfer();
+		}
+		
+		std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
     }
 	
-	SDL_Quit();
+	thr.join();
+	
+	glfwTerminate();
     
     return 0;
 }

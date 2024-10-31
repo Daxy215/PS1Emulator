@@ -4,7 +4,6 @@
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
-#include <vector>
 
 #include <GL/glew.h>
 
@@ -12,7 +11,7 @@ constexpr unsigned int VERTEX_BUFFER_LEN = 6400 * 1024;
 
 template<typename T>
 struct Buffer {
-    GLuint object;
+    uint32_t object;
     T* map;
     
     Buffer() : object(0), map(nullptr) {

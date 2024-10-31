@@ -172,7 +172,7 @@ public:
         
         //return 0;
         throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
-     }
+    }
     
     template<typename T>
     void store(uint32_t addr, T val) {

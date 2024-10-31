@@ -1,8 +1,6 @@
 ﻿#pragma once
 
 #include <queue>
-#include <SDL_events.h>
-#include <vector>
 
 enum Buttons {
     BUTTON_CROSS,
@@ -26,7 +24,7 @@ class ControllerState {
 public:
     ControllerState() = default;
     
-    ControllerState(SDL_GameController& controller)
+    /*ControllerState(SDL_GameController& controller)
         : buttons{}, axisLeftX(0), axisLeftY(0), axisRightX(0), axisRightY(0), _controller(&controller) {
         
     }
@@ -35,7 +33,7 @@ public:
         // TODO;
         SDL_GameControllerClose(_controller);
         _controller = nullptr;
-    }
+    }*/
     
 public:
     bool buttons[BUTTON_TOTAL];
@@ -45,7 +43,7 @@ public:
     int16_t axisRightX;
     int16_t axisRightY;
     
-    SDL_GameController* _controller;
+    //SDL_GameController* _controller;
 };
 
 class Joypad {
@@ -58,8 +56,8 @@ public:
     uint32_t load(uint32_t offset);
     void store(uint32_t offset, uint32_t val);
     
-    void handleButtonEvent(SDL_ControllerButtonEvent &event);
-    void handleAxisEvent(SDL_ControllerAxisEvent &event);
+    /*void handleButtonEvent(SDL_ControllerButtonEvent &event);
+    void handleAxisEvent(SDL_ControllerAxisEvent &event);*/
 	
 	void attachController(int slot,  const ControllerState& controller);
     void detachController(int slot);

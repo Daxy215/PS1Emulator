@@ -1,31 +1,33 @@
 ﻿#include "VRAM.h"
 
-#include <SDL_render.h>
+//#include <GLFW/glfw3.h>
 
 #include "Gpu.h"
 
-Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu), color1555to8888LUT(2 * 32 * 32 * 32) {
-    // Create a texture with the desired dimensions
-    texture = SDL_CreateTexture(gpu->renderer->renderer, SDL_PIXELFORMAT_BGR555,
-        SDL_TEXTUREACCESS_STREAMING, MAX_WIDTH, MAX_HEIGHT);
+Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu)/*, color1555to8888LUT(2 * 32 * 32 * 32)*/ {
+    glGenTextures(1, &textureId);
     
-    if (!texture) {
-        std::cerr << "Failed to create texture: " << SDL_GetError() << '\n';
-        return;
-    }
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
-    // Lock the texture to get a pointer to its raw pixel data
-    pixels = nullptr;
-    pitch = 0;
+    // Create a texture image
+    pixels = new uint16_t[MAX_WIDTH * MAX_HEIGHT * 2];
     
-    if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
-        std::cerr << "Failed to lock texture: " << SDL_GetError() << '\n';
-        //throw std::runtime_error("Failed to lock texture");
-        //return;
-    }
+    glActiveTexture(GL_TEXTURE0);
     
-    // Unlock the texture
-    SDL_UnlockTexture(texture);
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_UNSIGNED_BYTE, &pixels);
+    
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, MAX_WIDTH, MAX_HEIGHT, 0, GL_RED, GL_UNSIGNED_BYTE, pixels);
+    
+    // Set the texture as active
+    /**/
+    
+    // Update pitch based on the returned pointer
+    //pitch = MAX_WIDTH * sizeof(GLubyte);
     
     // Init color 1555 to 8888 LUT
     /*for (int m = 0; m < 2; m++) {
@@ -69,7 +71,40 @@ void Emulator::VRAM::stepTransfer() {
 void Emulator::VRAM::endTransfer() {
     //return;
     
-    if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
+    // Bind and draw the texture
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_UNSIGNED_BYTE, &pixels);
+    
+    float s = 10;
+    
+    glBegin(GL_QUADS);
+    glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f * s, -1.0f * s);
+    glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f * s, -1.0f * s);
+    glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0f * s,  1.0f * s);
+    glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f * s,  1.0f * s);
+    glEnd();
+    
+    /*// Bind the texture
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    
+    // Set up the viewport
+    glViewport(0, 0, transferData.width, transferData.height);
+    
+    // Clear the screen
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    // Draw the quad
+    glBegin(GL_QUADS);
+    glVertex2f(0, 0);
+    glVertex2f(transferData.width, 0);
+    glVertex2f(transferData.width, transferData.height);
+    glVertex2f(0, transferData.height);
+    glEnd();
+    
+    // Unbind the texture
+    glBindTexture(GL_TEXTURE_2D, 0);*/
+    
+    /*if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
         std::cerr << "Failed to lock texture: " << SDL_GetError() << '\n';
         return;
     }
@@ -83,15 +118,6 @@ void Emulator::VRAM::endTransfer() {
     SDL_RenderCopy(gpu->renderer->renderer, texture, nullptr, nullptr);
     
     SDL_UnlockTexture(texture);
-    SDL_RenderPresent(gpu->renderer->renderer);
-    
-    // Draw the texture
-    /*SDL_Rect dstrect = { (int)transferData.x, (int)transferData.y, (int)transferData.width, (int)transferData.height };
-    SDL_Rect srcrect = { 0, 0, (int)transferData.width, (int)transferData.height};
-    //SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
-    SDL_RenderCopy(gpu->renderer->renderer, texture, nullptr, nullptr);
-    
-    //Update the screen
     SDL_RenderPresent(gpu->renderer->renderer);*/
 }
 

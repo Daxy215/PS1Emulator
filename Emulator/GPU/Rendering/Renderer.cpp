@@ -3,50 +3,40 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <GL/glew.h>
-#include "SDL.h"
+
+#include <GLFW/glfw3.h>
 
 #include "../Gpu.h"
 
 Emulator::Renderer::Renderer() {
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        std::cerr << "SDL could not initialize SDL_Error: " << SDL_GetError() << '\n';
+    if (!glfwInit()) {
+        std::cerr << "GLFW could not initialize: " << glewGetErrorString(0) << " \n";
         return;
     }
     
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    // Set all the required options for GLFW
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
+    //glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     
-    window = SDL_CreateWindow("PSX", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        1024, 512, SDL_WINDOW_OPENGL);
+    window = glfwCreateWindow(1024, 512, "PSX", NULL, NULL);
     
     if (window == nullptr) {
-        std::cerr << "Window could not be created SDL_Error: " << SDL_GetError() << '\n';
+        glfwTerminate();
         return;
     }
     
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, GL_CONTEXT_FLAG_DEBUG_BIT);
+    glfwMakeContextCurrent(window);
     
-    sdl_context = SDL_GL_CreateContext(window);
-    if (sdl_context == nullptr) {
-        std::cerr << "OpenGL context could not be created SDL_Error: " << SDL_GetError() << '\n';
-        return;
-    }
-    
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-    
-    glClearColor(1, 0, 0, 1.0f);
-    SDL_GL_SwapWindow(window);
-    
+    //glewExperimental = GL_TRUE;
     GLenum err = glewInit();
-    if (err!= GLEW_OK) {
-        std::cerr << "GLEW initialization failed: " << glewGetErrorString(err) << '\n';
+    
+    if (err != GLEW_OK) {
+        std::cerr << "Error: " << glewGetErrorString(err) << '\n';
+        glfwTerminate();
         return;
     }
-    
-    SDL_Surface* screenSurface = SDL_GetWindowSurface(window);
-    SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0xFF, 0xFF, 0xFF));
-    SDL_UpdateWindowSurface(window);
     
     // Load and bind shaders
     std::string vertexSource   = getShaderSource("Shaders/vertex.glsl");
@@ -99,15 +89,13 @@ Emulator::Renderer::Renderer() {
 }
 
 void Emulator::Renderer::display() {
-    //glClearColor(1, 0, 0, 1.0f);
-    
     draw();
     
-    SDL_GL_SwapWindow(window);
+    glfwSwapBuffers(window);
     
     GLenum ersr = glGetError();
     if (ersr!= GL_NO_ERROR) {
-        std::cerr << "OpenGL Error con: " << ersr << '\n';
+        std::cerr << "OpenGL Error con: " << glewGetErrorString(ersr) << '\n';
     }
 }
 
@@ -118,21 +106,25 @@ void Emulator::Renderer::draw() {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
-    glUseProgram(program);
-    //glBindVertexArray(VAO);
+    /*glUseProgram(program);
+    glBindVertexArray(VAO);*/
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
     // Wait for GPU to complete
     /*auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     
     while(true) {
+        GLenum err = glGetError();
+        if(err != GL_NO_ERROR && err != GL_INVALID_OPERATION) {
+            std::cerr << "OpenGL Error: " << err << std::endl;
+        }
+        
         auto r = glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, 10000000);
         
         if(r == GL_ALREADY_SIGNALED || r == GL_CONDITION_SATISFIED)
             // Drawing done
                 break;
-    }
-    */
+    }*/
     
     // Reset the buffers
     //nVertices = 0;
@@ -284,7 +276,7 @@ GLuint Emulator::Renderer::linkProgram(GLuint vertexShader, GLuint fragmentShade
     GLint success;
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     
-    if (!success) {
+    if (success != GL_TRUE) {
         GLchar infoLog[512];
         glGetProgramInfoLog(program, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << '\n';
