@@ -12,7 +12,7 @@ uniform ivec2 drawingArea;
 
 void main() {
     // Apply the offset
-    vec2 position = vertexPosition + offset + attributes.x;
+    vec2 position = vertexPosition + offset;
     
     /*
     * Converts VRAM coordinates (0; drawingArea.x, 0; drawingArea.y)
