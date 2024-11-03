@@ -117,7 +117,7 @@ void Channel::done(Dma dma, Port port) {
 	dma.channelIrqEn |= en;
 	
 	if(!prvIrq && dma.irq()) {
-		IRQ::trigger(Interrupt::Dma);
+		IRQ::trigger(IRQ::Interrupt::Dma);
 	}
 }
 

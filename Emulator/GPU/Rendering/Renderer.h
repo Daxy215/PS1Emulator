@@ -30,11 +30,11 @@ namespace Emulator {
         void pushQuad(Emulator::Position* positions, Emulator::Color* colors, Emulator::Attributes attributes);
         void pushRectangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::Attributes attributes);
         
-        void setDrawingOffset(int32_t x, int32_t y) {
+        void setDrawingOffset(uint32_t x, uint32_t y) {
             glUniform2i(offsetUni, x, y);
         }
         
-        void setDrawingArea(int32_t right, int32_t bottom) {
+        void setDrawingArea(uint32_t right, uint32_t bottom) {
             glUniform2i(drawingUni, right, bottom);
         }
         
@@ -53,7 +53,7 @@ namespace Emulator {
         
         std::string getShaderSource(const std::string& path);
         
-        GLuint createFrameBuffer(GLsizei width, GLsizei height);
+        GLuint createFrameBuffer(GLsizei width, GLsizei height, GLuint& textureId);
         
     public:
         // Shader parameters

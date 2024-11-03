@@ -6,7 +6,7 @@
 
 #include <GL/glew.h>
 
-constexpr unsigned int VERTEX_BUFFER_LEN = 6400 * 1024;
+constexpr unsigned int VERTEX_BUFFER_LEN = 640 * 1024;
 
 template<typename T>
 struct Buffer {
@@ -48,7 +48,8 @@ struct Buffer {
         }
         
         if (!map) {
-            throw std::runtime_error("buffer not mapped");
+            //throw std::runtime_error("buffer not mapped");
+            return;
         }
         
         map[index] = value;

@@ -548,6 +548,7 @@
       <AdditionalIncludeDirectories>..\libs\glew-2.2.0\include;..\libs\SDL2-2.30.3\include</AdditionalIncludeDirectories>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
+    <ClCompile Include="Emulator\Memory\IO\SIO.cpp" />
     <ClCompile Include="Emulator\Memory\ScratchPad\ScratchPad.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -623,6 +624,8 @@
       <AdditionalIncludeDirectories>..\libs\glew-2.2.0\include;..\libs\SDL2-2.30.3\include</AdditionalIncludeDirectories>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
+    <ClCompile Include="Emulator\Memory\Timers\Timer.cpp" />
+    <ClCompile Include="Emulator\Memory\Timers\Timers.cpp" />
     <ClCompile Include="Emulator\Ram.cpp" />
     <ClCompile Include="Emulator\SPU\SPU.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
@@ -702,7 +705,6 @@
     <ClCompile Include="Utility\FileSystem\FileManager.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\libs\SDL2-2.30.3\include\SDL.h" />
     <ClInclude Include="Emulator\Bios.h" />
     <ClInclude Include="Emulator\CPU\COP\COP0.h" />
     <ClInclude Include="Emulator\CPU\COP\COP2.h" />
@@ -721,11 +723,15 @@
     <ClInclude Include="Emulator\Memory\CDROM\Sector.h" />
     <ClInclude Include="Emulator\Memory\CDROM\TrackBuilder.h" />
     <ClInclude Include="Emulator\Memory\IO\Joypad.h" />
+    <ClInclude Include="Emulator\Memory\IO\SIO.h" />
     <ClInclude Include="Emulator\Memory\IRQ.h" />
     <ClInclude Include="Emulator\Memory\ScratchPad\ScratchPad.h" />
+    <ClInclude Include="Emulator\Memory\Timers\Timer.h" />
+    <ClInclude Include="Emulator\Memory\Timers\Timers.h" />
     <ClInclude Include="Emulator\Ram.h" />
     <ClInclude Include="Emulator\Range.h" />
     <ClInclude Include="Emulator\SPU\SPU.h" />
+    <ClInclude Include="Emulator\Utils\Bitwise.h" />
     <ClInclude Include="Utility\FileSystem\FileManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

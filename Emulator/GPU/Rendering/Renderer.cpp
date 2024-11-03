@@ -120,8 +120,8 @@ void Emulator::Renderer::draw() {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
-    /*glUseProgram(program);
-    glBindVertexArray(VAO);*/
+    glUseProgram(program);
+    //glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
     // Wait for GPU to complete
@@ -264,7 +264,7 @@ void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::
     this->colors.set(nVertices, colors[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
-
+    
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
     this->attributes.set(nVertices, attributes);
@@ -329,20 +329,19 @@ std::string Emulator::Renderer::getShaderSource(const std::string& path) {
     return content;
 }
 
-GLuint Emulator::Renderer::createFrameBuffer(GLsizei width, GLsizei height) {
+GLuint Emulator::Renderer::createFrameBuffer(GLsizei width, GLsizei height, GLuint& textureId) {
     GLuint framebuffer;
     glGenFramebuffers(1, &framebuffer);
     
-    GLuint texture;
-    glGenTextures(1, &texture);
+    glGenTextures(1, &textureId);
     
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindTexture(GL_TEXTURE_2D, textureId);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId, 0);
     
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << '\n';

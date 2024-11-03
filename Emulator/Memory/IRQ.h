@@ -1,18 +1,21 @@
 ﻿#pragma once
 
-// TODO; This is wrong
-enum class Interrupt {
-	VBlank = 0,
-	CdRom = 2,
-	Dma = 3,
-	Timer0 = 4,
-	Timer1 = 5,
-	Timer2 = 6,
-	PadMemCard = 7
-};
-
 class IRQ {
 public:
+	enum Interrupt {
+		VBlank = 0,
+		GPU = 1, // Rarely used, triggered by GP0(1F)
+		CDROM = 2,
+		Dma = 3,
+		Timer0 = 4, // Root Counter 0 (Sysclk or Dotclk)
+		Timer1 = 5, // Root Counter 1 (Sysclk or H-blank)
+		Timer2 = 6, // Root Counter 2 (Sysclk or Sysclk /8)
+		PadMemCard = 7, // Byte Received Interrupt
+		SIO = 8,
+		SPU = 9,
+		Controller = 10, // Lightpen interrupt. ALso shared by PIO and DTL cards
+	};
+	
 	IRQ() = default;
 	
 	explicit operator bool() const {
@@ -36,6 +39,8 @@ public:
 	}
 	
 	static void trigger(Interrupt interrupt) {
+		//status |= (interrupt);
+		//status |= static_cast<int32_t>(interrupt);
 		status |= 1 << static_cast<uint16_t>(static_cast<int32_t>(interrupt));
 	}
 	

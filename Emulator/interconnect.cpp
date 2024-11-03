@@ -5,6 +5,15 @@
 
 #include "CPU/CPU.h"
 #include "Ram.h"
+#include "GPU/VRAM.h"
+
+void Interconnect::step(uint32_t cycles) {
+    gpu.step(cycles);
+    _cdrom.step(cycles);
+    _sio.step(cycles);
+    
+    _timers.step(cycles);
+}
 
 uint32_t Interconnect::dmaReg(uint32_t offset) {
     uint32_t major = (offset & 0x70) >> 4;
@@ -19,7 +28,8 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
         case 8:
             return channel.control();
         default:
-            throw std::runtime_error("Unhandled DMA minor read at " + std::to_string(minor));
+            //throw std::runtime_error("Unhandled DMA minor read at " + std::to_string(minor));
+            printf("");
             break;
         }
         
@@ -55,6 +65,9 @@ void Interconnect::doDma(Port port) {
     }
 }
 
+// Im too lazy
+bool reset = false;
+
 void Interconnect::dmaBlock(Port port) {
     Channel& channel = dma.getChannel(port);
     
@@ -63,6 +76,11 @@ void Interconnect::dmaBlock(Port port) {
     
     // Transfer size in words
     std::optional<uint32_t> remsz = channel.transferSize();
+    
+    // TODO; Testing.. im too lazy
+    if((channel.direction != ToRam || port != Gpu)) {
+        reset = true;
+    }
     
     while(remsz.value() > 0) {
         // Not sure what happens if the address is bogus,
@@ -106,7 +124,15 @@ void Interconnect::dmaBlock(Port port) {
                     // menu pops up after the PS logo
                     //TODO; Implement
                     
-                    srcWord = 0;
+                    if(reset) {
+                        reset = false;
+                        
+                        gpu.curX = gpu.curY = gpu.startX = gpu.startY = 0;
+                        gpu.endX = gpu.vram->MAX_WIDTH;
+                        gpu.endY = gpu.vram->MAX_HEIGHT;
+                    }
+                    
+                    srcWord = gpu.read();
                     
                     break;
                 default:
@@ -120,8 +146,6 @@ void Interconnect::dmaBlock(Port port) {
             }
         }
         
-        // TODO; Wrapping add
-        //addr += increment;
         addr = CPU::wrappingAdd(addr, increment);
         remsz.value() -= 1;
     }

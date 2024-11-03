@@ -38,7 +38,7 @@ enum Exception {
 
 class CPU {
 public:
-    CPU(Interconnect interconnect) : currentpc(0), nextpc(pc + 4), cause(0), epc(0), outRegs{}, regs{}, interconnect(interconnect) {
+    CPU(Interconnect interconnect) : currentpc(0), nextpc(pc + 4), outRegs{}, regs{}, interconnect(interconnect) {
         
     }
     
@@ -337,10 +337,10 @@ public:
     uint32_t sr = 0;
     
     // Cop0; register 13; Cause Register
-    uint32_t cause;
+    uint32_t cause = 0;
     
     // Cop0; register 14; EPC
-    uint32_t epc;
+    uint32_t epc = 0;
     
     // High register for division remainder and multiplication high
     uint32_t hi =  0xdeadbeef;

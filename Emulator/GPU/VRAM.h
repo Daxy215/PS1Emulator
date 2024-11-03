@@ -35,26 +35,30 @@ namespace Emulator {
         void drawPixel(uint32_t pixel);
         void setPixel(uint32_t x, uint32_t y, uint32_t color) const;
         
-        uint16_t getPixelRGB888(uint32_t x, uint32_t y) const;
-        uint32_t getPixelBGR555(uint32_t x, uint32_t y);
-
-    public:
+        uint16_t getPixel(uint32_t x, uint32_t y) const;
+        
+        uint16_t getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
+        uint16_t getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
+        uint16_t getPixel16(uint32_t x, uint32_t y, uint32_t pageX, uint32_t pageY);
+        
+    private:
         TransferData transferData = {};
         
+    public:
         // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#vram-overview-vram-addressing
         const int32_t MAX_WIDTH  = 1024;
         const int32_t MAX_HEIGHT = 512;
         
-        //SDL_Texture* texture;
-        
+    private:
         Gpu* gpu;
+        
     public:
-        uint16_t* pixels;
-        int pitch;
+        // Maybe move this to a struct?
+        uint32_t pbo4, pbo8, pbo16;
+        uint32_t texture4, texture8, texture16;
         
-        // GLuint
-        unsigned int textureId;
-        
-        //std::pmr::vector<uint32_t> color1555to8888LUT;
+        uint8_t* pixels4;
+        uint8_t* pixels8;
+        uint16_t* pixels16;
     };
 }

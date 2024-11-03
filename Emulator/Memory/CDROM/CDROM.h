@@ -27,7 +27,7 @@ public:
 			transmittingCommand = false;
 			
 			// Interrupt
-			IRQ::trigger(Interrupt::CdRom);
+			IRQ::trigger(IRQ::Interrupt::CDROM);
 		}
 	}
 	

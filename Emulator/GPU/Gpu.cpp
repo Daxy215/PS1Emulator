@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "../Memory/IRQ.h"
+
 Emulator::Gpu::Gpu()
     : pageBaseX(0),
       pageBaseY(0),
@@ -30,6 +32,50 @@ Emulator::Gpu::Gpu()
       renderer(new Renderer()),
       vram(new VRAM(this)) {
     
+}
+
+void Emulator::Gpu::step(uint32_t cycles) {
+    /**
+     * The PSone/PAL video clock is the cpu clock multiplied by 11/7.
+     * CPU Clock   =  33.868800MHz (44100Hz*300h)
+     * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode
+     */
+    _cycles += cycles * 11 / 7;
+    
+    uint32_t htiming = ((vmode == VMode::Pal) ? 3406 : 3413);
+    
+    /**
+     * Horizontal Timings
+     * PAL:  3406 video cycles per scanline (or 3406.1 or so?)
+     * NTSC: 3413 video cycles per scanline (or 3413.6 or so?)
+     */
+    if(_cycles >= htiming) {
+        _cycles -= htiming;
+        _scanLine++;
+        
+        if(vres != VerticalRes::Y480Lines) {
+            isOddLine = (_scanLine & 0x1) != 0;
+        }
+        
+        uint32_t vtiming = ((vmode == VMode::Pal) ? 314 : 263);
+        
+        /**
+         * Vertical Timings
+         * PAL:  314 scanlines per frame (13Ah)
+         * NTSC: 263 scanlines per frame (107h)
+         */
+        if(_scanLine >= vtiming) {
+            _scanLine = 0;
+            
+            if(interlaced && vres == VerticalRes::Y480Lines) {
+                isOddLine = !isOddLine;
+                field = static_cast<Field>(!isOddLine);
+            }
+            
+            // TODO; This shouldn't always occur
+            IRQ::trigger(IRQ::VBlank);
+        }
+    }
 }
 
 uint32_t Emulator::Gpu::status() {
@@ -101,7 +147,7 @@ uint32_t Emulator::Gpu::status() {
     status |= (static_cast<uint32_t>(dmaDirection)) << 29;
     
     // Bit 31: Drawing even/odd lines in interlace mode (0=Even, 1=Odd)
-    status |= (false ? 1 : 0) << 31;
+    status |= 0 << 31;
     
     uint32_t dma = 0;
     if (dmaDirection == DmaDirection::Off) {
@@ -334,6 +380,14 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp0VarRectangleMonoOpaque;
+            
+            break;
+        }
+        case 0x65: {
+            // GP0(65h) - Textured Rectangle, variable size, opaque, raw-texture
+            
+            gp0CommandRemaining = 4;
+            Gp0CommandMethod = &Gpu::gp0VarTexturedRectangleMonoOpaque;
             
             break;
         }
@@ -664,6 +718,18 @@ void Emulator::Gpu::gp0VarRectangleMonoOpaque(uint32_t val) {
     renderRectangle(position, color, width, height);
 }
 
+void Emulator::Gpu::gp0VarTexturedRectangleMonoOpaque(uint32_t val) {
+    Color color = Color::fromGp0(gp0Command.index(0));
+    Position position = Position::fromGp0P(gp0Command.index(1));
+    
+    uint32_t sizeData = gp0Command.index(2);
+    
+    uint16_t width = sizeData & 0xFFFF;
+    uint16_t height = sizeData >> 16;
+    
+    renderRectangle(position, color, width, height);
+}
+
 void Emulator::Gpu::gp0DotRectangleMonoOpaque(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0P(gp0Command.index(1));
@@ -700,7 +766,10 @@ void Emulator::Gpu::gp0Rectangle(uint32_t val) {
 }
 
 void Emulator::Gpu::gp0ClearCache(uint32_t val) {
-    memset(vram->pixels, 0, vram->MAX_WIDTH * vram->MAX_HEIGHT * sizeof(uint16_t));
+    // TODO;
+    /*memset(vram->pixels16, 0, vram->MAX_WIDTH * vram->MAX_HEIGHT * sizeof(uint16_t));
+    memset(vram->pixels8, 0,  vram->MAX_WIDTH * vram->MAX_HEIGHT * sizeof(uint8_t));
+    memset(vram->pixels4, 0,  vram->MAX_WIDTH * vram->MAX_HEIGHT * sizeof(uint8_t));*/
 }
 
 void Emulator::Gpu::gp0FillVRam(uint32_t val) {
@@ -838,10 +907,6 @@ void Emulator::Gpu::gp0ImageLoad(uint32_t val) {
     
     // Put the GP0 state machine into the VRam mode
     gp0Mode = VRam;
-    
-    // Update signals
-    canSendVRAMToCPU = true;
-    canSendCPUToVRAM = false;
 }
 
 void Emulator::Gpu::gp0ImageStore(uint32_t val) {
@@ -861,13 +926,9 @@ void Emulator::Gpu::gp0ImageStore(uint32_t val) {
     endY = startY + height;
     
     readMode = VRam;
-    
-    // Update signals
-    canSendVRAMToCPU = false;
-    canSendCPUToVRAM = true;
 }
 
-void Emulator::Gpu::gp0VramToVram(uint32_t val) {
+void Emulator::Gpu::gp0VramToVram(uint32_t val) const {
     uint32_t cords = gp0Command.buffer[1];
     uint32_t dests = gp0Command.buffer[2];
     uint32_t res = gp0Command.buffer[3];
@@ -886,8 +947,8 @@ void Emulator::Gpu::gp0VramToVram(uint32_t val) {
     for(uint32_t y = 0; y < height; y++) {
         for(uint32_t x = 0; x < width; x++) {
             uint32_t posX = (!dir) ? x : width - 1 - x;
-                    
-            uint16_t color = vram->getPixelRGB888((srcX + posX), (srcY + y));
+            
+            uint16_t color = vram->getPixel((srcX + posX), (srcY + y));
             vram->setPixel(dstX + posX, dstY + y, color);
         }
     }
@@ -1092,9 +1153,27 @@ void Emulator::Gpu::gp1ResetCommandBuffer(uint32_t val) {
 
 void Emulator::Gpu::gp1AcknowledgeIrq(uint32_t val) {
     interrupt = false;
+    
+    IRQ::trigger(IRQ::GPU);
 }
 
-uint32_t Emulator::Gpu::read(uint32_t addr) {
+float Emulator::Gpu::getRefreshRate() const {
+    if (vmode == VMode::Ntsc) {
+        if (interlaced) {
+            return 59.940f; // NTSC interlaced
+        } else {
+            return 59.826f; // NTSC progressive
+        }
+    } else {
+        if (interlaced) {
+            return 50.000f; // PAL interlaced
+        } else {
+            return 49.761f; // PAL progressive
+        }
+    }
+}
+
+uint32_t Emulator::Gpu::read() {
     if(readMode == Command)
         return _read;
     
@@ -1110,10 +1189,14 @@ uint32_t Emulator::Gpu::read(uint32_t addr) {
     
     uint32_t data = 0;
     
-    data |= vram->getPixelRGB888(curX % vram->MAX_WIDTH, curY % vram->MAX_HEIGHT);
+    data |= vram->getPixel(curX % vram->MAX_WIDTH, curY % vram->MAX_HEIGHT);
     step();
-    data |= vram->getPixelRGB888(curX % vram->MAX_WIDTH, curY % vram->MAX_HEIGHT) << 16;
+    data |= vram->getPixel(curX % vram->MAX_WIDTH, curY % vram->MAX_HEIGHT) << 16;
     step();
+    
+    if(data != 0) {
+        printf("");
+    }
     
     return data;
 }

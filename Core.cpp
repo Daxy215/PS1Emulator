@@ -16,7 +16,9 @@
 //#define _CRTDBG_MAP_ALLOC
 #include <chrono>
 #include <thread>
+#include <iostream>
 
+#include "Emulator/GPU/VRAM.h"
 #include "Emulator/GPU/Rendering/renderer.h"
 
 //#include "Emulator/interconnect.h"
@@ -344,7 +346,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/DIVU/CPUDIVU.exe"); // Passed
 	
 	// Load Tests
-	//td::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LB/CPULB.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LB/CPULB.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LH/CPULH.exe"); // Passed - This was failing bc of LH. V was meant to be in16 but it was uint32
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/LOADSTORE/LW/CPULW.exe"); // Passed
 	
@@ -381,7 +383,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
 	
 	// Other stuff
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
@@ -392,7 +394,38 @@ void handleLoadExe(CPU& cpu) {
 	
 	// Requires controller
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
+	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+	
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/access-time/access-time.exe"); // TODO; All timings return 4
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/cop/cop.exe"); // TODO; Fails some tests?
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/io-access-bitwidth/io-access-bitwidth.exe"); // TODO; Fails many tests
+	
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/dma/otc-test/otc-test.exe"); // TODO; Fails many tests
+	
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/animated-triangle/animated-triangle.exe"); // TODO; Needs GTE
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 99999999 MB/s lol
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // TODO; Idrk draws a bunch of stuff, but many commands aren't implemented
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/version-detect/version-detect.exe"); // Not really a tested but I suppose (0* GPU version 2 [New 208pin GPU (LATE-PU-8 and up)])
+	
+	/**
+	 * Idk where exactly the cause but,
+	 * it seems like it's calling "oplwc2",
+	 * and the address isn't aligned to,
+	 * 4 bytes, so at least from my knowleagde,
+	 * I am causing a LoadAddressError expection,
+	 * howerver, this is causing the emulator,
+	 * to go in some sort of a hault? No idea,
+	 * after commenting out the expection cause,
+	 * it seems to run? But all writes to "oplwc2",
+	 * aren't aligned? Most likely an issue with my CPU,
+	 * could be that I have many unimlemented memory locations?
+	 * 
+	 * The test seems to fully run while it's commented out.
+	 */
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/timers/timers.exe"); // Freezes..
 	
 	Exe exe;
 	memcpy(&exe, data.data(), sizeof(exe));
@@ -421,32 +454,24 @@ void handleLoadExe(CPU& cpu) {
 }
 
 void runCPU(CPU& cpu) {
-	/*auto start = std::chrono::high_resolution_clock::now();
-	unsigned long long sped = 33868880;
+	int cyclesPerFrame = 564480; // 33.868 MHz / 60 FPS
+	int cyclesDelta = 0;
 	
-	while (true) {
-		auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-			std::chrono::high_resolution_clock::now() - start);
+    while (true) {
+    	while(cyclesDelta < cyclesPerFrame) {
+    		if (cpu.pc != 0x80030000 || false) {
+    			cpu.executeNextInstruction();
+    		} else {
+    			handleLoadExe(cpu);
+    		}
+            
+    		cpu.interconnect.step(1);
+    		
+    		cyclesDelta++;
+    	}
 		
-		if (duration.count() >= static_cast<long long>(1000) * 1000 / sped) {
-			cpu.executeNextInstruction();
-			start = std::chrono::high_resolution_clock::now();
-		} else {
-			std::this_thread::sleep_for(std::chrono::nanoseconds(
-				1000 * 1000 / sped - duration.count()));
-		}
-	}*/
-	
-	while (true) {
-		// Wait for the BIOS to jump to the shell
-		if (cpu.pc != 0x80030000 || false) {
-			// TODO; Make a class for stepping
-			cpu.executeNextInstruction();
-			cpu.interconnect._cdrom.step(1);
-		} else {
-			handleLoadExe(cpu);
-		}
-	}
+    	cyclesDelta -= cyclesPerFrame;
+    }
 }
 
 // TODO; Use GLM for GTE
@@ -478,39 +503,37 @@ int main(int argc, char* argv[]) {
 	
 	std::thread thr(runCPU, std::ref(cpu));
 	
-	bool isRunning = true;
-	
 	while(!glfwWindowShouldClose(gpu.renderer->window)) {
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		gpu.renderer->display();
-		
 		glfwPollEvents();
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_1) == GLFW_PRESS) {
-			IRQ::status += 1;
+			IRQ::trigger(IRQ::Interrupt::VBlank);
 		}
-		
+				
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_2) == GLFW_PRESS) {
-			IRQ::status += 2;
+			IRQ::trigger(IRQ::Interrupt::GPU);
 		}
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_3) == GLFW_PRESS) {
-			IRQ::status += 3;
+			IRQ::trigger(IRQ::Interrupt::CDROM);
 		}
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_4) == GLFW_PRESS) {
-			IRQ::status += 4;
+			IRQ::trigger(IRQ::Interrupt::Timer0);
 		}
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_5) == GLFW_PRESS) {
-			IRQ::status += 5;
+			IRQ::trigger(IRQ::Interrupt::Timer1);
 		}
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_6) == GLFW_PRESS) {
-			IRQ::status += 6;
+			IRQ::trigger(IRQ::Interrupt::Timer2);
 		}
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_7) == GLFW_PRESS) {
-			IRQ::status += 7;
+			IRQ::trigger(IRQ::Interrupt::PadMemCard);
 		}
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_F) == GLFW_PRESS) {
@@ -518,7 +541,12 @@ int main(int argc, char* argv[]) {
 		}
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_G) == GLFW_PRESS) {
-			//gpu.vram->endTransfer();
+			glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+			
+			gpu.vram->endTransfer();
+			
+			glfwSwapBuffers(gpu.renderer->window);
 		}
 		
 		std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS

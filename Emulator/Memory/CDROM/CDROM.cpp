@@ -11,9 +11,6 @@ void CDROM::step(uint32_t cycles) {
 
 template <>
 uint32_t CDROM::load<uint32_t>(uint32_t addr) {
-	printf("CDROM LOAD %x\n", addr);
-	std::cerr << "";
-	
 	if(addr == 0x1f801800) {
 		uint32_t stat = 0;
 		
@@ -58,9 +55,6 @@ uint32_t CDROM::load<uint32_t>(uint32_t addr) {
 
 template <>
 void CDROM::store<uint32_t>(uint32_t addr, uint32_t val) {
-	printf("CDROM %x - %x\n", addr, val);
-	std::cerr << "";
-	
 	// Just cheating for now
 	triggerInterrupt();
 	

@@ -4,46 +4,100 @@
 
 #include "Gpu.h"
 
-Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu)/*, color1555to8888LUT(2 * 32 * 32 * 32)*/ {
-    glGenTextures(1, &textureId);
-    
-    glBindTexture(GL_TEXTURE_2D, textureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
+    /*glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
-    // Create a texture image
-    pixels = new uint16_t[MAX_WIDTH * MAX_HEIGHT * 2];
-    
-    glActiveTexture(GL_TEXTURE0);
-    
-    glBindTexture(GL_TEXTURE_2D, textureId);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_UNSIGNED_BYTE, &pixels);
-    
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, MAX_WIDTH, MAX_HEIGHT, 0, GL_RED, GL_UNSIGNED_BYTE, pixels);
-    
-    // Set the texture as active
-    /**/
-    
-    // Update pitch based on the returned pointer
-    //pitch = MAX_WIDTH * sizeof(GLubyte);
-    
-    // Init color 1555 to 8888 LUT
-    /*for (int m = 0; m < 2; m++) {
-        for (int r = 0; r < 32; r++) {
-            for (int g = 0; g < 32; g++) {
-                for (int b = 0; b < 32; b++) {
-                    color1555to8888LUT[m << 15 | b << 10 | g << 5 | r] = m << 24 | r << 16 + 3 | g << 8 + 3| b << 3;
-                }
-            }
-        }
-    }*/
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);*/
+	
+	pixels16 = new uint16_t[MAX_WIDTH * MAX_HEIGHT];
+	
+    /*uint32_t buffer_mode = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
+	
+	/* 16bit VRAM pixel buffer. #1#
+	glGenBuffers(1, &pbo16);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo16);
+	
+	glBufferStorage(GL_PIXEL_UNPACK_BUFFER, MAX_WIDTH * MAX_HEIGHT, nullptr, buffer_mode);	
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	
+	glGenTextures(1, &texture16);
+	glBindTexture(GL_TEXTURE_2D, texture16);
+	
+	/* Set the texture wrapping parameters. #1#
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	
+	/* Set texture filtering parameters. #1#
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	
+	/* Allocate space on the GPU. #1#
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16, MAX_WIDTH, MAX_HEIGHT, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	
+	glBindTexture(GL_TEXTURE_2D, texture16);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo16);
+	
+	pixels16 = static_cast<uint16_t*>(glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, MAX_WIDTH * MAX_HEIGHT, buffer_mode));
+	*/
+	
+	/*/* 4bit VRAM pixel buffer. #1#
+	glGenBuffers(1, &pbo4);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo4);
+	
+	glBufferStorage(GL_PIXEL_UNPACK_BUFFER, 1024 * 512 * 4, nullptr, buffer_mode);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	
+	glGenTextures(1, &texture4);
+	glBindTexture(GL_TEXTURE_2D, texture4);
+	
+	/* Set the texture wrapping parameters. #1#
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	
+	/* Set texture filtering parameters. #1#
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	
+	/* Allocate space on the GPU. #1#
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 4096, 512, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	
+	glBindTexture(GL_TEXTURE_2D, texture4);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo4);
+	
+	pixels8 = static_cast<uint8_t*>(glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, 1024 * 512 * 4, buffer_mode));
+	
+    /* 8bit VRAM pixel buffer. #1#
+	glGenBuffers(1, &pbo8);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo8);
+	
+	glBufferStorage(GL_PIXEL_UNPACK_BUFFER, 1024 * 512 * 2, nullptr, buffer_mode);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	
+	glGenTextures(1, &texture8);
+	glBindTexture(GL_TEXTURE_2D, texture8);
+	
+	/* Set the texture wrapping parameters. #1#
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	
+	/* Set texture filtering parameters. #1#
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	
+	/* Allocate space on the GPU. #1#
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 2048, 512, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	
+	glBindTexture(GL_TEXTURE_2D, texture8);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo8);
+	
+	pixels4 = static_cast<uint8_t*>(glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, 1024 * 512 * 2, buffer_mode));*/
 }
 
 void Emulator::VRAM::store(uint32_t val) {
-    uint32_t pixel1 = ((val >> 16)/* + gpu->dithering*/)/* / 8*/;
-    uint32_t pixel0 = ((val & 0xFFFF)/* + gpu->dithering*/)/* / 8*/;
+    // TODO; Apply dithering
+    uint32_t pixel1 = (val >> 16);
+    uint32_t pixel0 = (val & 0xFFFF);
     
     pixel0 |= (gpu->forceSetMaskBit << 15);
     pixel1 |= (gpu->forceSetMaskBit << 15);
@@ -69,63 +123,26 @@ void Emulator::VRAM::stepTransfer() {
 }
 
 void Emulator::VRAM::endTransfer() {
-    //return;
-    
-    // Bind and draw the texture
-    glBindTexture(GL_TEXTURE_2D, textureId);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_UNSIGNED_BYTE, &pixels);
-    
-    float s = 10;
-    
-    glBegin(GL_QUADS);
-    glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f * s, -1.0f * s);
-    glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0f * s, -1.0f * s);
-    glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0f * s,  1.0f * s);
-    glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f * s,  1.0f * s);
-    glEnd();
-    
-    /*// Bind the texture
-    glBindTexture(GL_TEXTURE_2D, textureId);
-    
-    // Set up the viewport
-    glViewport(0, 0, transferData.width, transferData.height);
-    
-    // Clear the screen
-    glClear(GL_COLOR_BUFFER_BIT);
-    
-    // Draw the quad
-    glBegin(GL_QUADS);
-    glVertex2f(0, 0);
-    glVertex2f(transferData.width, 0);
-    glVertex2f(transferData.width, transferData.height);
-    glVertex2f(0, transferData.height);
-    glEnd();
-    
-    // Unbind the texture
-    glBindTexture(GL_TEXTURE_2D, 0);*/
-    
-    /*if (SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch) != 0) {
-        std::cerr << "Failed to lock texture: " << SDL_GetError() << '\n';
-        return;
-    }
-    
-    SDL_Rect srcrect = { 0, 0,
-        static_cast<int>(transferData.width), static_cast<int>(transferData.height) };
-    SDL_Rect dstrect = { static_cast<int>(transferData.x), static_cast<int>(transferData.y),
-        static_cast<int>(transferData.width), static_cast<int>(transferData.height) };
-    
-    //SDL_RenderCopy(gpu->renderer->renderer, texture, &srcrect, &dstrect);
-    SDL_RenderCopy(gpu->renderer->renderer, texture, nullptr, nullptr);
-    
-    SDL_UnlockTexture(texture);
-    SDL_RenderPresent(gpu->renderer->renderer);*/
+    // TODO; Draw to a texture, perhaps?
+	/* Upload 16bit texture. */
+	glBindTexture(GL_TEXTURE_2D, texture16);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo16);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 512, GL_RED, GL_UNSIGNED_BYTE, 0);
+	
+	/*/* Upload 4bit texture. #1#
+	glBindTexture(GL_TEXTURE_2D, texture4);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo4);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4096, 512, GL_RED, GL_UNSIGNED_BYTE, 0);
+	
+	/* Upload 8bit texture. #1#
+	glBindTexture(GL_TEXTURE_2D, texture8);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo8);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 2048, 512, GL_RED, GL_UNSIGNED_BYTE, 0);*/
 }
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {
+    // TODO; Check if this is needed
     //if(!gpu->preserveMaskedPixels || (getPixelRGB888(transferData.x, transferData.y) >> 24) == 0) {
-        //uint32_t color = color1555to8888LUT[pixel];
-        
-        //setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, color);
         setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, pixel);
     //}
     
@@ -136,26 +153,42 @@ void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) const {
     x %= MAX_WIDTH;
     y %= MAX_HEIGHT;
     
-    size_t index = y * MAX_WIDTH + x;
-    pixels[index] = static_cast<uint16_t>(color);
+    size_t index = (y * MAX_WIDTH) + x;
+	
+	// TODO; This crashes.. but only sometimes?
+	//pixels16[index] = static_cast<uint16_t>(color);
+	
+	/*/* Write data as 8bit. #1#
+	pixels8[index * 2 + 0] = static_cast<uint8_t>(color);
+	pixels8[index * 2 + 1] = static_cast<uint8_t>(color >> 8);
+	
+	/* Write data as 4bit. #1# 
+	pixels4[index * 4 + 0] = static_cast<uint8_t>(color) & 0xf;
+	pixels4[index * 4 + 1] = static_cast<uint8_t>(color >> 4) & 0xf;
+	pixels4[index * 4 + 2] = static_cast<uint8_t>(color >> 8) & 0xf;
+	pixels4[index * 4 + 3] = static_cast<uint8_t>(color >> 12) & 0xf;*/
 }
 
-uint16_t Emulator::VRAM::getPixelRGB888(uint32_t x, uint32_t y) const {
+uint16_t Emulator::VRAM::getPixel(uint32_t x, uint32_t y) const {
     x %= MAX_WIDTH;
     y %= MAX_HEIGHT;
     
     size_t index = y * MAX_WIDTH + x;
-    return pixels[index];
+    return pixels16[index];
 }
 
-uint32_t Emulator::VRAM::getPixelBGR555(uint32_t x, uint32_t y) {
-    size_t index = y * MAX_WIDTH + x;
-    uint32_t color = pixels[index];
-    
-    uint8_t m = static_cast<uint8_t>((color & 0xFF000000) >> 24);
-    uint8_t r = static_cast<uint8_t>((color & 0x00FF0000) >> 16 + 3);
-    uint8_t g = static_cast<uint8_t>((color & 0x0000FF00) >> 8 + 3);
-    uint8_t b = static_cast<uint8_t>((color & 0x000000FF) >> 3);
-    
-    return static_cast<uint16_t>(m << 15 | b << 10 | g << 5 | r);
+uint16_t Emulator::VRAM::getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY) {
+    uint16_t texel = getPixel(pageX + x / 4, pageY + y);
+    uint32_t index = (texel >> (x % 4) * 4) & 0xF;
+    return getPixel(clutX + index, clutY);
+}
+
+uint16_t Emulator::VRAM::getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY) {
+    uint16_t texel = getPixel(pageX + x / 2, pageY + y);
+    uint32_t index = (texel >> (x % 2) * 8) & 0xFF;
+    return getPixel(clutX + index, clutY);
+}
+
+uint16_t Emulator::VRAM::getPixel16(uint32_t x, uint32_t y, uint32_t pageX, uint32_t pageY) {
+    return getPixel(x + pageX, y + pageY);
 }

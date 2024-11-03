@@ -3,84 +3,13 @@
 
 #include <array>
 #include <bitset>
-#include <iomanip>
 #include <iostream>
 #include <ostream>
 #include <set>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 
-//TODO Remove those
-std::string getInstructionName(uint32_t instruction) {
-    static const std::unordered_map<uint8_t, std::string> opcodeMap = {
-        {0x00, "SPECIAL"},
-        {0x01, "REGIMM"},
-        {0x02, "J"},
-        {0x03, "JAL"},
-        {0x04, "BEQ"},
-        {0x05, "BNE"},
-        {0x06, "BLEZ"},
-        {0x07, "BGTZ"},
-        {0x08, "ADDI"},
-        {0x09, "ADDIU"},
-        {0x0A, "SLTI"},
-        {0x0B, "SLTIU"},
-        {0x0C, "ANDI"},
-        {0x0D, "ORI"},
-        {0x0E, "XORI"},
-        {0x0F, "LUI"},
-        {0x20, "LB"},
-        {0x21, "LH"},
-        {0x22, "LWL"},
-        {0x23, "LW"},
-        {0x24, "LBU"},
-        {0x25, "LHU"},
-        {0x26, "LWR"},
-        {0x28, "SB"},
-        {0x29, "SH"},
-        {0x2A, "SWL"},
-        {0x2B, "SW"},
-        {0x2E, "SWR"},
-        {0x32, "LWC2"},
-        {0x3A, "SWC2"}
-    };
-    
-    uint8_t opcode = (instruction >> 26) & 0x3F;
-    auto it = opcodeMap.find(opcode);
-    if (it != opcodeMap.end()) {
-        return it->second;
-    } else {
-        return "UNKNOWN";
-    }
-}
-
-std::string getHex(uint32_t value) {
-    std::stringstream ss;
-    ss << "0x" << std::setfill('0') << std::setw(8) << std::hex << value;
-    return ss.str();
-}
-
-std::string getBinary(uint32_t value) {
-    std::string binary = std::bitset<32>(value).to_string();
-    
-    std::string shiftedBin = binary.substr(26);
-    
-    std::string results = std::bitset<6>(std::stoi(shiftedBin, nullptr, 2) & 0x3F).to_string();
-    
-    std::stringstream ss;
-    // wrong hex values but who cares about those
-    ss << "Binary; 0b" << results;
-    
-    return ss.str();
-}
-
-std::string getDetails(uint32_t value) {
-    std::string hex = getHex(value);
-    std::string binary = getBinary(value);
-    
-    return hex + " = " + binary;
-}
+#include "../Utils/Bitwise.h"
 
 /**
  * Byte - 8 bits or 1 byte
@@ -126,17 +55,56 @@ void CPU::executeNextInstruction() {
     branchSlot = false;
     
     // Check for interrupt
-    bool irqActive = (interconnect._irq.status & interconnect._irq.mask) != 0;
+    bool irqActive = (IRQ::status & interconnect._irq.mask);
     uint32_t cause = (this->cause | (static_cast<uint32_t>(irqActive) << 10));
     uint32_t pending = (cause & sr) & 0x700;
     bool irqEnabled = (sr & 1) != 0;
     
     bool causeInterrupt = (irqEnabled && pending) != 0;
     
-    if(causeInterrupt) {
+    if(irqActive) {
+        this->cause |= 0x400;
+    } else {
+        this->cause &= ~0x400;
+    }
+    
+    bool IEC = (sr & 0x1) == 1;
+    uint8_t IM = static_cast<uint8_t>(sr >> 8) & 0xFF;
+    uint8_t IP = static_cast<uint8_t>(this->cause >> 8) & 0xFF;
+    
+    if(IEC && (IM & IP) > 0) {
         printf("");
         exception(Interrupt);
     }
+    
+    /*if(causeInterrupt) {
+        uint32_t opcode = instruction.copOpcode();
+        
+        if (opcode & 0x10) {
+            // TODO; Handle command at instruction.op & 0x3f
+            auto cmd = instruction.op & 0x3F;
+            
+            printf("");
+            //return;
+        }
+        
+        if(instruction.func() == 0b010010) {
+            // GTE?
+            printf("");
+        }
+        
+        printf("");
+        exception(Interrupt);
+    } else {
+        uint32_t activeInterrupts = /*IRQ::status & #1#interconnect._irq.mask;
+        
+        for (int i = 0; i <= static_cast<int>(IRQ::Interrupt::Controller); i++) {
+            if (activeInterrupts & (1 << i)) {
+                IRQ::Interrupt activeInterrupt = static_cast<IRQ::Interrupt>(i);
+                printf("");
+            }
+        }
+    }*/
     
     // Executes the instruction
     decodeAndExecute(instruction);
@@ -377,7 +345,7 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     default:
         opillegal(instruction); // Illegal instruction
-        printf("Unhandled sub instruction %0x8. Function call was: %s\n", instruction.op, getBinary(instruction.subfunction().reg).c_str());
+        printf("Unhandled sub instruction %0x8. Function call was: %x\n", instruction.op, instruction.subfunction().reg);
         std::cerr << "";
         break;
     }
@@ -854,28 +822,27 @@ void CPU::oplb(Instruction& instruction) {
     int8_t v = static_cast<int8_t>(load8(addr));
     
     // Put the load in the delay slot
-    //load = {t, static_cast<uint32_t>(v)};
     setLoad(t, static_cast<uint32_t>(v));
 }
 
 void CPU::oplbu(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex t = instruction.t();
-    RegisterIndex s = instruction.s();
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = reg(s) + i;
     
     uint8_t v = load8(addr);
     
-    //load = {t, static_cast<uint32_t>(v)};
+    // Put the load in the delay slot
     setLoad(t, static_cast<uint32_t>(v));
 }
 
 // addiu $8, $zero, 0xb88
 void CPU::addiu(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
-    uint32_t t = instruction.t();
-    uint32_t s = instruction.s();
+    auto i = instruction.imm_se();
+    auto t = instruction.t();
+    auto s = instruction.s();
     
     uint32_t v = wrappingAdd(reg(s), i);
     
@@ -1003,14 +970,15 @@ void CPU::oplwc2(Instruction& instruction) {
     auto t = instruction.t();
     auto s = instruction.s();
     
-    auto addr = wrappingAdd(reg(s), i);
+    auto addr = reg(s) + i;
     
-    if(addr % 4 == 0) {
+    if((addr % 4) == 0) {
         uint32_t v = load32(addr);
         
         _cop2.setData(t, v);
-    } else
-        exception(LoadAddressError);
+    } else {
+        //exception(LoadAddressError);
+    }
 }
 
 void CPU::oplwc3(Instruction& instruction) {
@@ -1102,24 +1070,26 @@ void CPU::opcop0(Instruction& instruction) {
     // 0b0100nn where nn is the coprocessor number.
     
     switch (instruction.copOpcode()) {
-    case 0b00100: // COP0
-        opmtc0(instruction);
-        break;
     case 0b000000:
         opmfc0(instruction);
+        break;
+    case 0b00100:
+        opmtc0(instruction);
         break;
     case 0b10000:
         oprfe(instruction);
         break;
     default:
-        std::cout << "Unhandled COP0 instruction: " + getDetails(instruction.copOpcode()) << "\n";
-        throw std::runtime_error("Unhandled COP instruction: " + getDetails(instruction.copOpcode()));
+        printf("");
+        //std::cerr << "Unhandled COP0 instruction: " + std::to_string(instruction.copOpcode()) << "\n";
+        //throw std::runtime_error("Unhandled COP instruction: " + std::to_string((instruction.copOpcode())));
     }
 }
 
 // Doesn't exists
 void CPU::opcop1(Instruction& instruction) {
-    throw std::runtime_error("Unhandled coprocessor 1 instructions\n");
+    exception(CoprocessorError);
+    //throw std::runtime_error("Unhandled coprocessor 1 instructions\n");
 }
 
 void CPU::opcop2(Instruction& instruction) {
@@ -1150,14 +1120,14 @@ void CPU::opcop2(Instruction& instruction) {
         opctc2(instruction);
         break;
     default:
-        std::cerr << "Unhandled COP2 instruction: " + getDetails(instruction.copOpcode()) << "\n";
-        throw std::runtime_error("Unhandled COP instruction: " + getDetails(instruction.copOpcode()));
+        std::cerr << "Unhandled COP2 instruction: " + std::to_string((instruction.copOpcode())) << "\n";
+        throw std::runtime_error("Unhandled COP instruction: " + std::to_string((instruction.copOpcode())));
     }
 }
 
 // Doesn't exists
 void CPU::opcop3(Instruction& instruction) {
-    throw std::runtime_error("Unhandled coprocessor 3 instructions\n");
+    exception(CoprocessorError);
 }
 
 void CPU::opmtc0(Instruction& instruction) {
@@ -1177,21 +1147,23 @@ void CPU::opmtc0(Instruction& instruction) {
         }
         
         break;
-    case 12:
+    case 12: {
+        bool shouldInterrupt = (sr & 0x1) == 1;
+        bool cur = (v & 0x1) == 1;
+        
         sr = v;
-        break;
-    case 13: {
-        // cause register
-        /*if(v != 0) {
-            throw std::runtime_error("Unhandled write to cop0 register " + std::to_string(copr));
+        
+        uint32_t IM = (v >> 8) & 0x3;
+        uint32_t IP = (cause >> 8) & 0x3;
+        
+        if(!shouldInterrupt && cur && (IM & IP) > 0) {
+            pc = nextpc;
+            exception(Exception::Interrupt);
         }
-        */
         
-        // https://hitmen.c02.at/files/docs/psx/system.txt
-        // Bits 8-9 (Interrupt pending field) are writable
-        /*uint32_t mask = 0x300;  // Only bits 8 and 9 are writable
-        cause = (cause & ~mask) | (v & mask);*/
-        
+        break;
+    }
+    case 13: {
         cause &= ~0x300;
         cause |= v & 0x300;
         
@@ -1249,7 +1221,7 @@ void CPU::opmfc0(Instruction& instruction) {
          * SCPH-1001 (North America): 0x00000001
          * SCPH-7502 (Europe): 0x00000002
          */
-            
+        
         v = 0x00000001;
         break;
     default:
@@ -1268,8 +1240,8 @@ void CPU::oprfe(Instruction& instruction) {
         throw std::runtime_error("Invalid cop0 instruction; " + instruction.op);
     }
     
-    uint32_t mode = sr & 0x3f;
-    sr &= ~0xf;
+    uint32_t mode = sr & 0x3F;
+    sr &= ~0xF;
     sr |= mode >> 2;
 }
 

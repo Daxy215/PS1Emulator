@@ -162,6 +162,8 @@ namespace Emulator {
     public:
         Gpu();
 
+        void step(uint32_t cycles);
+        
         uint32_t status();
         
         // Handles writes to the GP0 command register
@@ -223,6 +225,7 @@ namespace Emulator {
         void renderRectangle(Position position, Color color, uint16_t width, uint16_t height);
         
         void gp0VarRectangleMonoOpaque(uint32_t val);
+        void gp0VarTexturedRectangleMonoOpaque(uint32_t val);
         void gp0DotRectangleMonoOpaque(uint32_t val);
         void gp08RectangleMonoOpaque(uint32_t val);
         void gp016RectangleMonoOpaque(uint32_t val);
@@ -260,7 +263,7 @@ namespace Emulator {
         // From VRAM to CPU
         void gp0ImageStore(uint32_t val);
         
-        void gp0VramToVram(uint32_t val);
+        void gp0VramToVram(uint32_t val) const;
         
         // Handles writes to the GP1 command register
         void gp1(uint32_t val);
@@ -291,9 +294,11 @@ namespace Emulator {
         
         // GP1(0x02): Acknowledge Interrupt
         void gp1AcknowledgeIrq(uint32_t val);
+
+        float getRefreshRate() const;
         
         // Retrieve value of the "read" register
-        uint32_t read(uint32_t addr);
+        uint32_t read();
         
     public:
         uint8_t pageBaseX;           // Texture page base X coordinate (4 bits, 64 byte increment)
@@ -334,13 +339,15 @@ namespace Emulator {
         uint16_t displayLineStart; // Display output first line relative to VSYNC
         uint16_t displayLineEnd; // Display output last line relative to VSYNC
         
-        Attributes curAttribute = {0, 0};
+        const float ntscVideoClock = 53693175.0f / 60.0f;
+        const float palVideoClock = 53203425.0f / 60.0f;
         
-        // Signals
-        // TODO; Rename to isReady instead of can. Would make more sense..
-        bool canSendVRAMToCPU;
-        bool canSendCPUToVRAM;
-        bool canReceiveDMABlock;
+        uint32_t _scanLine;
+        uint32_t _cycles;
+
+        bool isOddLine = false;
+        
+        Attributes curAttribute = {0, 0};
         
         uint32_t _read = 0;
         

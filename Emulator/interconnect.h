@@ -15,7 +15,9 @@
 #include "Memory/IRQ.h"
 #include "Memory/CDROM/CDROM.h"
 #include "Memory/IO/Joypad.h"
+#include "Memory/IO/SIO.h"
 #include "Memory/ScratchPad/ScratchPad.h"
+#include "Memory/Timers/Timers.h"
 #include "SPU/SPU.h"
 
 /**
@@ -45,6 +47,8 @@ class Interconnect {
 public:
     Interconnect(Ram ram, Bios bios, Dma dma, Emulator::Gpu gpu, Emulator::SPU spu)
         : ram(ram), _scratchPad(), bios(bios), dma(dma), gpu(gpu), spu(spu) {  }
+    
+    void step(uint32_t cycles);
     
     template<typename T>
     T load(uint32_t addr) {
@@ -89,7 +93,7 @@ public:
         if (auto offset = map::GPU.contains(abs_addr)) {
             switch (offset.value()) {
                 case 0:
-                    return gpu.read(offset.value());
+                    return gpu.read();
                 case 4: {
                     return gpu.status();
                 }
@@ -99,11 +103,7 @@ public:
         }
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
-            //printf("TIMERS control read %s\n", to_hex(abs_addr).c_str());
-            if(offset == 32)
-                return 5809;
-            
-            return 0;
+            return _timers.load(offset.value());
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
@@ -123,7 +123,7 @@ public:
         }
         
         if (auto _ = map::PADMEMCARD.contains(abs_addr)) {
-            return _joypad.load(abs_addr);
+            return _sio.load(abs_addr);
         }
         
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
@@ -235,11 +235,9 @@ public:
         }
         
         if (auto offset = map::TIMERS.contains(abs_addr)) {
-            if(offset == 32)
-                target = val;
+            _timers.store(offset.value(), val);
             
             return;
-            //throw std::runtime_error("Unhandled TIMERS control: 0x" + to_hex(offset.value()) + " <- 0x" + to_hex(val));
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
@@ -259,7 +257,7 @@ public:
         
         // Peripheral I/O Ports
         if (auto offset = map::PADMEMCARD.contains(abs_addr)) {
-            _joypad.store(abs_addr, val);
+            _sio.store(abs_addr, val);
             
             return;
         }
@@ -385,25 +383,8 @@ public:
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {
-            switch (abs_addr) {
-            case 0x1F802041:
-                
-                return;
-            
-            case 0x1F802023:
-            case 0x1F802080:
-                    
-                return;
-            
-            default:
-                std::cout << "[BUS] Write Unsupported to EXP2: " << std::hex << std::setw(8) << addr 
-                          << " Value: " << std::hex << std::setw(8) << val << std::endl;
-                    
-                return;
-            }
-            
-            throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
             return;
+            throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
         }
         
         throw std::runtime_error("Unhandled store into address 0x" + to_hex(addr) + ": 0x" + to_hex(val));
@@ -437,9 +418,12 @@ public:
     Ram ram;
     CDROM _cdrom;
     ScratchPad _scratchPad;
-    Joypad _joypad;
+    //Joypad _joypad;
+    Emulator::IO::SIO _sio;
     
     IRQ _irq;
+    
+    Emulator::IO::Timers _timers;
     
     CACHECONTROL _cacheControl = (0x001e988);
     
