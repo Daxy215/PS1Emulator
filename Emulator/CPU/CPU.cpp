@@ -55,14 +55,7 @@ void CPU::executeNextInstruction() {
     branchSlot = false;
     
     // Check for interrupt
-    bool irqActive = (IRQ::status & interconnect._irq.mask);
-    uint32_t cause = (this->cause | (static_cast<uint32_t>(irqActive) << 10));
-    uint32_t pending = (cause & sr) & 0x700;
-    bool irqEnabled = (sr & 1) != 0;
-    
-    bool causeInterrupt = (irqEnabled && pending) != 0;
-    
-    if(irqActive) {
+    if((IRQ::status & interconnect._irq.mask)) {
         this->cause |= 0x400;
     } else {
         this->cause &= ~0x400;
@@ -76,35 +69,6 @@ void CPU::executeNextInstruction() {
         printf("");
         exception(Interrupt);
     }
-    
-    /*if(causeInterrupt) {
-        uint32_t opcode = instruction.copOpcode();
-        
-        if (opcode & 0x10) {
-            // TODO; Handle command at instruction.op & 0x3f
-            auto cmd = instruction.op & 0x3F;
-            
-            printf("");
-            //return;
-        }
-        
-        if(instruction.func() == 0b010010) {
-            // GTE?
-            printf("");
-        }
-        
-        printf("");
-        exception(Interrupt);
-    } else {
-        uint32_t activeInterrupts = /*IRQ::status & #1#interconnect._irq.mask;
-        
-        for (int i = 0; i <= static_cast<int>(IRQ::Interrupt::Controller); i++) {
-            if (activeInterrupts & (1 << i)) {
-                IRQ::Interrupt activeInterrupt = static_cast<IRQ::Interrupt>(i);
-                printf("");
-            }
-        }
-    }*/
     
     // Executes the instruction
     decodeAndExecute(instruction);
@@ -1286,9 +1250,6 @@ void CPU::opgte(Instruction& instruction) {
 }
 
 void CPU::exception(const Exception exception) {
-    // Determine the exception handler address based on the 'BEV' bit
-    uint32_t handler = (sr & (1 << 22)) != 0 ? 0xbfc00180 : 0x80000080;
-    
     // Shift bits [5:0] of 'SR' two places to the left
     uint32_t mode = sr & 0x3f;
     
@@ -1309,6 +1270,9 @@ void CPU::exception(const Exception exception) {
         epc = currentpc;
         this->cause &= ~(1u << 31);
     }
+    
+    // Determine the exception handler address based on the 'BEV' bit
+    uint32_t handler = (sr & (1 << 22)) != 0 ? 0xbfc00180 : 0x80000080;
     
     // Exceptions don’t have a branch delay, we jump directly into the handler
     pc = handler;
@@ -1335,26 +1299,24 @@ char prev = 'f';
 int x = 0;
 
 void CPU::checkForTTY() {
-    uint32_t pc = this->pc & 0x1FFFFFFF;
+    //uint32_t pc = this->pc & 0x1FFFFFFF;
     
     if ((pc == 0x000000A0 || pc == 0x000000B0 || pc == 0x000000C0)) {
-        //uint32_t r9 = regs[9];
+        uint32_t r9 = regs[9];
         
         //if (r9 == 0x3C || r9 == 0x3D) {
-            //char ch = static_cast<char>(regs[4] & 0xFF);
-        
-        char ch = static_cast<char>(regs[4] & 0xFF);
-        
-        if(ch == 'n' && prev == ' ') {
-            if(++x == 9)
-                printf("");
-        }
-        
-        prev = ch;
-        
-        if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
-        std::cerr << ch;
-        }
+            char ch = static_cast<char>(regs[4] & 0xFF);
+            
+            if(ch == 'n' && prev == ' ') {
+                if(++x == 9)
+                    printf("");
+            }
+            
+            prev = ch;
+            
+            if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
+                std::cerr << ch;
+            }
         //}
     }
 }

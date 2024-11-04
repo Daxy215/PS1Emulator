@@ -1,5 +1,7 @@
 ﻿#include "Timer.h"
 
+#include "../IRQ.h"
+#include "../../GPU/Gpu.h"
 #include "../../Utils/Bitwise.h"
 
 /**
@@ -8,12 +10,159 @@
  * As a workaround: repeat reading the timer until the received value is the same (or slightly bigger) than the previous value.
  */
 
-Emulator::IO::Timer::Timer() {
+Emulator::IO::Timer::Timer(TimerType type) : _type(type) {
 	
 }
 
 void Emulator::IO::Timer::step(uint32_t cycles) {
-	counter += cycles;
+	_cycles += cycles;
+	
+	switch (_type) {
+	case TimerType::DotClock:
+		if(sync) {
+			switch (syncMode) {
+				case 0: { if (isInHBlank) return; break; }
+				case 1: { if (isInHBlank) counter = 0; break; }
+				case 2: { if (isInHBlank) counter = 0; if (!isInHBlank) return; break; }
+				case 3: {
+					if(!wasInHBlank && isInHBlank) {
+						sync = false;
+					} else {
+						return;
+					}
+				}
+			}
+		}
+		
+		if(source == 0 || source == 2) {
+			// Use System Clock
+			counter += _cycles;
+			_cycles = 0;
+		} else {
+			// Use Dot Clock
+			uint32_t dot = static_cast<uint32_t>(_cycles * 11 / 7 / this->dot);
+			counter += dot;
+			_cycles = 0;
+		}
+		
+		break;
+	case TimerType::HBlank:
+		if(sync) {
+			switch (syncMode) {
+				case 0: { if (isInVBlank) return; break; }
+				case 1: { if (isInVBlank) counter = 0; break; }
+				case 2: { if (isInVBlank) counter = 0; if (!isInHBlank) return; break; }
+				case 3: {
+					if(!wasInVBlank && isInHBlank) {
+						sync = false;
+					} else {
+						return;
+					}
+				}
+			}
+		}
+		
+		if(source == 0 || source == 2) {
+			// Use System Clock
+			counter += _cycles;
+			_cycles = 0;
+		} else {
+			if(!wasInHBlank && isInHBlank) counter++;
+		}
+		
+		break;
+	case TimerType::SystemClock8:
+		if(sync && (syncMode == 0 || syncMode == 3)) {
+			// Paused
+			return;
+		}
+		
+		if(source == 0 || source == 1) {
+			// Use System Clock
+			counter += _cycles;
+			_cycles = 0;
+		} else {
+			// Use System Clock / 8
+			counter += (_cycles / 8);
+			_cycles %= 8;
+		}
+		
+		break;
+	}
+	
+	handleInterrupt();
+}
+
+void Emulator::IO::Timer::syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot) {
+	this->wasInHBlank = isInHBlank;
+	this->wasInVBlank = isInVBlank;
+	
+	this->isInHBlank = isInHBlank;
+	this->isInVBlank = isInVBlank;
+	
+	this->dot = dot;
+}
+
+void Emulator::IO::Timer::handleInterrupt() {
+	bool shouldInterrupt = false;
+	
+	if(counter >= target) {
+		reachedTarget = true;
+		
+		if(resetType)
+			counter = 0;
+		
+		if(interruptTarget) {
+			shouldInterrupt = true;
+		}
+	}
+	
+	if(counter >= 0xFFFF) {
+		hasWrapped = true;
+		
+		if(!resetType) counter = 0;
+		
+		if(interruptWrap) {
+			shouldInterrupt = true;
+		}
+	}
+	
+	// Round up counter
+	counter &= 0xFFFF;
+	
+	if(!shouldInterrupt)
+		return;
+	
+	if(!interruptToggleMode) {
+		interrupt = false;
+	} else {
+		interrupt = !interrupt;
+	}
+	
+	bool trigger = interrupt == 0;
+	
+	if(!interruptMode) {
+		if(!wasIRQ && trigger) {
+			wasIRQ = true;
+		} else {
+			return;
+		}
+	}
+	
+	// Trigger interrupt based on timer counter
+	switch (_type) {
+	case TimerType::DotClock:
+		IRQ::trigger(IRQ::Timer0);
+		break;
+	case TimerType::HBlank:
+		IRQ::trigger(IRQ::Timer1);
+		break;
+	case TimerType::SystemClock8:
+		IRQ::trigger(IRQ::Timer2);
+		break;
+	}
+	
+	interrupt = true;
 }
 
 void Emulator::IO::Timer::setMode(uint16_t val) {
@@ -57,17 +206,17 @@ void Emulator::IO::Timer::setMode(uint16_t val) {
 	resetType = Utils::Bitwise::getBit(val, 3);
 	interruptTarget = Utils::Bitwise::getBit(val, 4);
 	interruptWrap = Utils::Bitwise::getBit(val, 5);
-	interruptRepeatMode = Utils::Bitwise::getBit(val, 6);
+	interruptMode = Utils::Bitwise::getBit(val, 6);
 	interruptToggleMode = Utils::Bitwise::getBit(val, 7);
 	
-	// I don't really get wtf this shit is
 	// Bits 8-9
 	source = (val & 0x0300) >> 8;
 	
 	// Bits 10-12 are read-only.
 	
-	// TODO; Make sure this is after writing
+	// Values resetted after write
 	interrupt = true;
+	wasIRQ = false;
 	
 	counter = 0;
 }
@@ -83,17 +232,16 @@ uint16_t Emulator::IO::Timer::getMode() {
 	mode |= (resetType) << 3;
 	mode |= (interruptTarget) << 4;
 	mode |= (interruptWrap) << 5;
-	mode |= (interruptRepeatMode) << 6;
+	mode |= (interruptMode) << 6;
 	mode |= (interruptToggleMode) << 7;
 	
 	// Bits 8-9
 	mode |= (source) << 8;
 	
-	mode |= (!interrupt) << 10;
+	mode |= (interrupt) << 10;
 	mode |= (reachedTarget) << 11;
 	mode |= (hasWrapped) << 12;
 	
-	// TODO; Make sure this is after reading
 	reachedTarget = false;
 	hasWrapped = false;
 	

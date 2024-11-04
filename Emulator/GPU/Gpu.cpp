@@ -36,19 +36,26 @@ Emulator::Gpu::Gpu()
 
 void Emulator::Gpu::step(uint32_t cycles) {
     /**
-     * The PSone/PAL video clock is the cpu clock multiplied by 11/7.
-     * CPU Clock   =  33.868800MHz (44100Hz*300h)
-     * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode
-     */
+      * The PSone/PAL video clock is the cpu clock multiplied by 11/7.
+      * CPU Clock   =  33.868800MHz (44100Hz*300h)
+      * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode
+      */
     _cycles += cycles * 11 / 7;
-    
-    uint32_t htiming = ((vmode == VMode::Pal) ? 3406 : 3413);
     
     /**
      * Horizontal Timings
      * PAL:  3406 video cycles per scanline (or 3406.1 or so?)
      * NTSC: 3413 video cycles per scanline (or 3413.6 or so?)
      */
+    uint32_t htiming = ((vmode == VMode::Pal) ? 3406 : 3413);
+    
+    /**
+    * Vertical Timings
+    * PAL:  314 scanlines per frame (13Ah)
+    * NTSC: 263 scanlines per frame (107h)
+    */
+    uint32_t vtiming = ((vmode == VMode::Pal) ? 314 : 263);
+    
     if(_cycles >= htiming) {
         _cycles -= htiming;
         _scanLine++;
@@ -57,13 +64,6 @@ void Emulator::Gpu::step(uint32_t cycles) {
             isOddLine = (_scanLine & 0x1) != 0;
         }
         
-        uint32_t vtiming = ((vmode == VMode::Pal) ? 314 : 263);
-        
-        /**
-         * Vertical Timings
-         * PAL:  314 scanlines per frame (13Ah)
-         * NTSC: 263 scanlines per frame (107h)
-         */
         if(_scanLine >= vtiming) {
             _scanLine = 0;
             
@@ -76,6 +76,22 @@ void Emulator::Gpu::step(uint32_t cycles) {
             IRQ::trigger(IRQ::VBlank);
         }
     }
+    
+    // Update timings for the timers
+    
+    /**
+     * Dots per scanline are, depending on horizontal resolution, and on PAL/NTSC:
+     * 320pix/PAL: 3406/8  = 425.75 dots     320pix/NTSC: 3413/8  = 426.625 dots
+     * 640pix/PAL: 3406/4  = 851.5 dots      640pix/NTSC: 3413/4  = 853.25 dots
+     * 256pix/PAL: 3406/10 = 340.6 dots      256pix/NTSC: 3413/10 = 341.3 dots
+     * 512pix/PAL: 3406/5  = 681.2 dots      512pix/NTSC: 3413/5  = 682.6 dots
+     * 368pix/PAL: 3406/7  = 486.5714 dots   368pix/NTSC: 3413/7  = 487.5714 dots
+     */
+    
+    isInHBlank = _cycles < displayHorizStart || _cycles > displayHorizEnd;
+    isInVBlank = _scanLine < displayHorizStart || _scanLine > displayHorizEnd;
+    
+    dot = dotCycles[hres.value];
 }
 
 uint32_t Emulator::Gpu::status() {
@@ -1088,8 +1104,9 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#gp108h-display-mode
     
     uint8_t hr1 = static_cast<uint8_t>(val & 3);
-    uint8_t hr2 = static_cast<uint8_t>((val >> 6) & 1);
+    uint8_t hr2 = static_cast<uint8_t>((val >> 6)/* & 1*/);
     
+    // Resolutions: 256, 320, 512, 640, 368
     hres = HorizontalRes::fromFields(hr1, hr2);
     
     vres = (val & 0x4) != 0 ? VerticalRes::Y480Lines : VerticalRes::Y240Lines;
@@ -1099,6 +1116,7 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     
     field = static_cast<Field>(interlaced);
     
+    // Reverse flag?
     if ((val & 0x80) != 0) {
         std::cout << "Unsupported display mode: " << std::hex << val << '\n';
     }

@@ -191,7 +191,7 @@ namespace Emulator {
         void gp0Nop(uint32_t val) {
             // NOP
         }
-
+        
         // TODO; Move to a utils class
         static inline bool get_bit(uint32_t num, int b) {
             return num & (1 << b);
@@ -217,7 +217,7 @@ namespace Emulator {
         
         // GP0(0x38): gp0QuadShadedOpaque
         void gp0QuadShadedOpaque(uint32_t val);
-
+        
         // GP0(0x3C): Shaded Texture Opaque Quad
         void gp0QuadTexturedShadedOpaque(uint32_t val);
         
@@ -245,7 +245,7 @@ namespace Emulator {
         void gp0TriangleTexturedOpaque(uint32_t val);
         
         void gp0TriangleRawTexturedOpaque(uint32_t val);
-
+        
         // GP0(0x2C): Quad Raw Texture Blend Opqaue
         void gp0QuadTextureBlendOpaque(uint32_t val);
         
@@ -294,7 +294,7 @@ namespace Emulator {
         
         // GP1(0x02): Acknowledge Interrupt
         void gp1AcknowledgeIrq(uint32_t val);
-
+        
         float getRefreshRate() const;
         
         // Retrieve value of the "read" register
@@ -339,17 +339,25 @@ namespace Emulator {
         uint16_t displayLineStart; // Display output first line relative to VSYNC
         uint16_t displayLineEnd; // Display output last line relative to VSYNC
         
+        uint32_t _read = 0;
+        
         const float ntscVideoClock = 53693175.0f / 60.0f;
         const float palVideoClock = 53203425.0f / 60.0f;
         
-        uint32_t _scanLine;
-        uint32_t _cycles;
-
+        uint32_t _scanLine = 0;
+        uint32_t _cycles = 0;
+        
+        bool isInHBlank = false;
+        bool isInVBlank = false;
+        uint32_t dot = 1;
+        
         bool isOddLine = false;
         
-        Attributes curAttribute = {0, 0};
+        // 10, 8, 5, 4, 7
+        uint32_t dotCycles[5] = { 10, 8, 5, 4, 7};
         
-        uint32_t _read = 0;
+    private:
+        Attributes curAttribute = {0, 0};
         
     public:
         // Buffer containing the current GP0 command

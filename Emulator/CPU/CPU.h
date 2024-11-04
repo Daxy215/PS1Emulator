@@ -305,7 +305,7 @@ public:
     void store32(uint32_t addr, uint32_t val);
     void store16(uint32_t addr, uint16_t val);
     void store8(uint32_t addr, uint8_t val);
-    
+
     // Helper functions
     static uint32_t wrappingAdd(uint32_t a, uint32_t b);
     static uint32_t wrappingSub(uint32_t a, uint32_t b);

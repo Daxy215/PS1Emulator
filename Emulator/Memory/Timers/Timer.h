@@ -2,25 +2,39 @@
 #include <cstdint>
 
 namespace Emulator {
+	class Gpu;
+}
+
+namespace Emulator {
 	namespace IO {
-		enum Clock {
+		enum class TimerType {
+			DotClock,
+			HBlank,
+			SystemClock8,
+		};
+		
+		enum class Clock {
 			SystemClock,
 			SystemClock8,
-			Dotclock,
+			DotClock,
 			HBlank,
 		};
 		
 		class Timer {
 		public:
-			Timer();
+			Timer(TimerType type);
 			
 			void step(uint32_t cycles);
+			void syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot);
+			
+			void handleInterrupt();
 			
 			void setMode(uint16_t val);
 			uint16_t getMode();
 			
 		public:
-			uint16_t counter = 0;
+			uint32_t _cycles = 0;
+			uint32_t counter = 0;
 			uint16_t target = 0;
 			
 			// 0 = Free Run, 1 = Sync via Bit1-2
@@ -65,7 +79,7 @@ namespace Emulator {
 			 * 0 = One-shot
 			 * 1 = Repeatedly
 			 */
-			bool interruptRepeatMode = false;
+			bool interruptMode = false;
 			
 			/**
 			 * 0 = Short Bit 10 = 0 Pulse
@@ -77,9 +91,8 @@ namespace Emulator {
 			 *  For Counter 0: 0 or 2 = System Clock, 1 or 3 = Dotclock
 			 *  For Counter 1: 0 or 2 = System Clock, 1 or 3 = HBlank
 			 *  For Counter 2: 0 or 1 = System Clock, 2 or 3 = System Clock / 8
-			 *  ??????? wtf r those/
 			 */
-			uint8_t source;
+			uint8_t source = 0;
 			
 			/**
 			 * 0 = Yes
@@ -95,6 +108,20 @@ namespace Emulator {
 			 */
 			bool reachedTarget = false;
 			bool hasWrapped = false;
+			
+		private:
+			bool isInHBlank = false;
+			bool isInVBlank = false;
+			uint32_t dot = 1;
+			
+			bool wasInHBlank = false;
+			bool wasInVBlank = false;
+			
+			bool wasIRQ = false;
+			
+		private:
+			TimerType _type;
+			
 		};
 	}
 }

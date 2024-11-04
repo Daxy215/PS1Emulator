@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include <cstdint>
-#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <sstream>
@@ -14,7 +13,6 @@
 #include "Range.h"
 #include "Memory/IRQ.h"
 #include "Memory/CDROM/CDROM.h"
-#include "Memory/IO/Joypad.h"
 #include "Memory/IO/SIO.h"
 #include "Memory/ScratchPad/ScratchPad.h"
 #include "Memory/Timers/Timers.h"
@@ -46,8 +44,10 @@ union CACHECONTROL {
 class Interconnect {
 public:
     Interconnect(Ram ram, Bios bios, Dma dma, Emulator::Gpu gpu, Emulator::SPU spu)
-        : ram(ram), _scratchPad(), bios(bios), dma(dma), gpu(gpu), spu(spu) {  }
-    
+        : ram(ram), _scratchPad(), _timers(), bios(bios), dma(dma), gpu(gpu), spu(spu) {
+        
+    }
+
     void step(uint32_t cycles);
     
     template<typename T>
@@ -170,8 +170,8 @@ public:
             throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
-        //return 0;
-        throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
+        return 0;
+        //throw std::runtime_error("Unhandled load at address 0x" + to_hex(addr));
     }
     
     template<typename T>

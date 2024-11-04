@@ -3,7 +3,6 @@
 
 #include "Timer.h"
 
-
 namespace Emulator {
 	namespace IO {
 		class Timers {
@@ -11,6 +10,7 @@ namespace Emulator {
 			Timers();
 			
 			void step(uint32_t cycles);
+			void sync(bool isInHBlank, bool isInVBlank, uint32_t dot);
 			
 			uint32_t load(uint32_t addr);
 			void store(uint32_t addr, uint32_t val);
@@ -23,7 +23,7 @@ namespace Emulator {
 			 * Counter 1: GPU h-blanking
 			 * Counter 3: System clock / 8
 			 */
-			Timer timers[3];
+			Timer* timers[3];
 		};
 	}
 }

@@ -12,6 +12,7 @@ void Interconnect::step(uint32_t cycles) {
     _cdrom.step(cycles);
     _sio.step(cycles);
     
+    _timers.sync(gpu.isInHBlank, gpu.isInVBlank, gpu.dot);
     _timers.step(cycles);
 }
 

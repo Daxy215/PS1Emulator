@@ -511,7 +511,7 @@ int main(int argc, char* argv[]) {
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_1) == GLFW_PRESS) {
 			IRQ::trigger(IRQ::Interrupt::VBlank);
 		}
-				
+		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_2) == GLFW_PRESS) {
 			IRQ::trigger(IRQ::Interrupt::GPU);
 		}
