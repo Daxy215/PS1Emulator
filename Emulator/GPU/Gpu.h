@@ -35,10 +35,11 @@ namespace Emulator {
     // Video output horizontal resolution
     struct HorizontalRes {
         uint32_t value;
+        uint32_t hr1, hr2;
         
         static HorizontalRes fromFields(uint32_t hr1, uint32_t hr2) {
             uint32_t hr = (hr2 & 1) | ((hr1 & 3) << 1);
-            return HorizontalRes{hr};
+            return HorizontalRes{hr, hr1, hr2};
         }
         
         uint32_t intoStatus() const {
@@ -345,7 +346,7 @@ namespace Emulator {
         const float palVideoClock = 53203425.0f / 60.0f;
         
         uint32_t _scanLine = 0;
-        uint32_t _cycles = 0;
+        double _cycles = 0;
         
         bool isInHBlank = false;
         bool isInVBlank = false;

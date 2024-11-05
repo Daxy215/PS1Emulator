@@ -459,7 +459,7 @@ void runCPU(CPU& cpu) {
 	
     while (true) {
     	while(cyclesDelta < cyclesPerFrame) {
-    		if (cpu.pc != 0x80030000 || false) {
+    		if (cpu.pc != 0x80030000 || true) {
     			cpu.executeNextInstruction();
     		} else {
     			handleLoadExe(cpu);
@@ -467,7 +467,7 @@ void runCPU(CPU& cpu) {
             
     		cpu.interconnect.step(1);
     		
-    		cyclesDelta++;
+    		cyclesDelta += 1;
     	}
 		
     	cyclesDelta -= cyclesPerFrame;

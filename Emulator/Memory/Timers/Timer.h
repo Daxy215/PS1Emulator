@@ -33,8 +33,8 @@ namespace Emulator {
 			uint16_t getMode();
 			
 		public:
-			uint32_t _cycles = 0;
-			uint32_t counter = 0;
+			double _cycles = 0;
+			double counter = 0;
 			uint16_t target = 0;
 			
 			// 0 = Free Run, 1 = Sync via Bit1-2

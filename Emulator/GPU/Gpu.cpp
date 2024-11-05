@@ -40,7 +40,25 @@ void Emulator::Gpu::step(uint32_t cycles) {
       * CPU Clock   =  33.868800MHz (44100Hz*300h)
       * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode
       */
-    _cycles += cycles * 11 / 7;
+    
+    /**
+      *  NTSC mode on NTSC video clock
+      *  Interlaced:     59.940 Hz
+      *  Non-interlaced: 59.826 Hz
+      *  
+      *  PAL mode on PAL video clock
+      *  Interlaced:     50.000 Hz
+      *  Non-interlaced: 49.761 Hz
+      *  
+      *  NTSC mode on PAL video clock
+      *  Interlaced:     59.393 Hz
+      *  Non-interlaced: 59.280 Hz
+      *  
+      *  PAL mode on NTSC video clock
+      *  Interlaced:     50.460 Hz
+      *  Non-interlaced: 50.219 Hz
+      */
+    _cycles += (/*static_cast<double>(*/cycles * 11 / 7);
     
     /**
      * Horizontal Timings
@@ -63,35 +81,35 @@ void Emulator::Gpu::step(uint32_t cycles) {
         if(vres != VerticalRes::Y480Lines) {
             isOddLine = (_scanLine & 0x1) != 0;
         }
+    }
+    
+    if(_scanLine >= vtiming) {
+        _scanLine = 0;
         
-        if(_scanLine >= vtiming) {
-            _scanLine = 0;
-            
-            if(interlaced && vres == VerticalRes::Y480Lines) {
-                isOddLine = !isOddLine;
-                field = static_cast<Field>(!isOddLine);
-            }
-            
-            // TODO; This shouldn't always occur
-            IRQ::trigger(IRQ::VBlank);
+        if(interlaced && vres == VerticalRes::Y480Lines) {
+            isOddLine = !isOddLine;
+            field = static_cast<Field>(!isOddLine);
         }
+        
+        // TODO; This shouldn't always occur
+        IRQ::trigger(IRQ::VBlank);
     }
     
     // Update timings for the timers
     
     /**
      * Dots per scanline are, depending on horizontal resolution, and on PAL/NTSC:
-     * 320pix/PAL: 3406/8  = 425.75 dots     320pix/NTSC: 3413/8  = 426.625 dots
-     * 640pix/PAL: 3406/4  = 851.5 dots      640pix/NTSC: 3413/4  = 853.25 dots
      * 256pix/PAL: 3406/10 = 340.6 dots      256pix/NTSC: 3413/10 = 341.3 dots
+     * 320pix/PAL: 3406/8  = 425.75 dots     320pix/NTSC: 3413/8  = 426.625 dots
      * 512pix/PAL: 3406/5  = 681.2 dots      512pix/NTSC: 3413/5  = 682.6 dots
+     * 640pix/PAL: 3406/4  = 851.5 dots      640pix/NTSC: 3413/4  = 853.25 dots
      * 368pix/PAL: 3406/7  = 486.5714 dots   368pix/NTSC: 3413/7  = 487.5714 dots
      */
     
     isInHBlank = _cycles < displayHorizStart || _cycles > displayHorizEnd;
-    isInVBlank = _scanLine < displayHorizStart || _scanLine > displayHorizEnd;
+    isInVBlank = _scanLine < displayLineStart || _scanLine > displayLineEnd;
     
-    dot = dotCycles[hres.value];
+    dot = dotCycles[hres.hr2 << 2 | hres.hr1];
 }
 
 uint32_t Emulator::Gpu::status() {
