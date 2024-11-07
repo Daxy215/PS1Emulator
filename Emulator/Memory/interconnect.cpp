@@ -20,8 +20,6 @@ void Interconnect::step(uint32_t cycles) {
 uint32_t Interconnect::loadInstruction(uint32_t addr) {
     uint32_t abs_addr = map::maskRegion(addr);
     
-    Emulator::Timers::Scheduler::tick(1);
-    
     if (auto offset = map::RAM.contains(abs_addr)) {
         return ram.load<uint32_t>(offset.value());
     }
@@ -108,7 +106,7 @@ void Interconnect::dmaBlock(Port port) {
         uint32_t curAddr = addr & 0x1FFFFE;
         
         switch (channel.direction) {
-        case FromRam: {
+            case FromRam: {
                 uint32_t srcWord = ram.load<uint32_t>(curAddr);
                 
                 switch (port) {
@@ -122,7 +120,7 @@ void Interconnect::dmaBlock(Port port) {
                 }
                 break;
             }
-        case ToRam: {
+            case ToRam: {
                 uint32_t srcWord = 0;
                 
                 switch(port) {
@@ -158,7 +156,7 @@ void Interconnect::dmaBlock(Port port) {
                     break;
                 }
                 
-                ram.store<uint32_t>(curAddr, srcWord);    
+                ram.store<uint32_t>(curAddr, srcWord);
                 
                 break;
             }
@@ -166,6 +164,9 @@ void Interconnect::dmaBlock(Port port) {
         
         addr = CPU::wrappingAdd(addr, increment);
         remsz.value() -= 1;
+        
+        // TODO;
+        Emulator::Timers::Scheduler::tick(1);
     }
     
     channel.done(dma, port);

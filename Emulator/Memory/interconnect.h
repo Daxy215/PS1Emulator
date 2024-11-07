@@ -131,13 +131,6 @@ public:
         }
         
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
-            // Gets called right before it prints the boot-id.
-            // I guess this is used as a checker? Or something?
-            /*if(_ == 132) {
-                //   1F000084h 2Ch Pre-Boot ID  ("Licensed by Sony Computer Entertainment Inc.")
-                return 0;
-            }*/
-            
             T r = 0;
             
             for(size_t i = 0; i < sizeof(T); i++) {
@@ -168,7 +161,7 @@ public:
                 throw std::runtime_error("Unhandled cache control access (" + std::to_string(sizeof(T)) + ")");
             }
             
-            throw std::runtime_error("Unhandled CACHE_CONTROL load at address 0x" + to_hex(addr));
+            return _cacheControl.val;
         }
         
         if (auto _ = map::EXPANSION2.contains(abs_addr)) {

@@ -27,6 +27,7 @@ void CPU::executeNextInstruction() {
      */
     
     //uint32_t pc = this->pc;
+    Emulator::Timers::Scheduler::tick(4);
     Instruction instruction = Instruction(interconnect.loadInstruction(pc));
     //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str()) << "\n";
     
@@ -84,6 +85,8 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     
     //std::cerr << "Processing; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.func()) << " PC; " << pc << '\n';
     //printf("Processing CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
+    
+    Emulator::Timers::Scheduler::tick(1);
     
     checkForTTY();
     
@@ -1278,7 +1281,8 @@ void CPU::exception(const Exception exception) {
     pc = handler;
     nextpc = wrappingAdd(pc, 4);
     
-    //std::cerr << "EXCEPTION OCCURRED!!" << cause << "\n";
+    if(exception != 8)
+        std::cerr << "EXCEPTION OCCURRED!!" << exception << "\n";
 }
 
 void CPU::opSyscall(Instruction& instruction) {
@@ -1314,9 +1318,9 @@ void CPU::checkForTTY() {
             
             prev = ch;
             
-            if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
+            //if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
                 std::cerr << ch;
-            }
+            //}
         //}
     }
 }
