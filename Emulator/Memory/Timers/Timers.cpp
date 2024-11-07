@@ -1,5 +1,7 @@
 ﻿#include "Timers.h"
 
+#include <cmath>
+
 Emulator::IO::Timers::Timers()
 	: timers{ new Timer(TimerType::DotClock), new Timer(TimerType::HBlank), new Timer(TimerType::SystemClock8) } {
 	
@@ -26,7 +28,7 @@ uint32_t Emulator::IO::Timers::load(uint32_t addr) {
 	switch (addr & 0xF) {
 		case 0: {
 			// Counter (R/W)
-			return static_cast<uint16_t>(timer.counter);
+			return static_cast<uint16_t>(round(timer.counter));
 			
 			break;
 		}

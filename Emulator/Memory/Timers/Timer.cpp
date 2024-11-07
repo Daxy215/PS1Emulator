@@ -35,7 +35,12 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 					} else {
 						return;
 					}
+					
+					break;
 				}
+			default:
+				printf("");
+				break;
 			}
 		}
 		
@@ -62,6 +67,8 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 					} else {
 						return;
 					}
+					
+					break;
 				}
 			}
 		}
@@ -135,7 +142,7 @@ void Emulator::IO::Timer::handleInterrupt() {
 	
 	// Round up counter
 	//counter &= 0xFFFF;
-	Utils::modf(counter, 0xFFFF);
+	//Utils::modf(counter, 0xFFFF);
 	
 	if(!shouldInterrupt)
 		return;
@@ -245,7 +252,7 @@ uint16_t Emulator::IO::Timer::getMode() {
 	// Bits 8-9
 	mode |= (source) << 8;
 	
-	mode |= (!interrupt) << 10;
+	mode |= (interrupt) << 10;
 	mode |= (reachedTarget) << 11;
 	mode |= (hasWrapped) << 12;
 	

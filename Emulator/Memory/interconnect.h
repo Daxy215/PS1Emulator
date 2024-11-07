@@ -7,16 +7,16 @@
 #include <string>
 
 #include "Bios.h"
-#include "DMA/Dma.h"
-#include "GPU/Gpu.h"
+#include "../DMA/Dma.h"
+#include "../GPU/Gpu.h"
 #include "Ram.h"
 #include "Range.h"
-#include "Memory/IRQ.h"
-#include "Memory/CDROM/CDROM.h"
-#include "Memory/IO/SIO.h"
-#include "Memory/ScratchPad/ScratchPad.h"
-#include "Memory/Timers/Timers.h"
-#include "SPU/SPU.h"
+#include "../Memory/IRQ.h"
+#include "../Memory/CDROM/CDROM.h"
+#include "../Memory/IO/SIO.h"
+#include "../Memory/ScratchPad/ScratchPad.h"
+#include "../Memory/Timers/Timers.h"
+#include "../SPU/SPU.h"
 
 /**
  * This class is used to allow the BIOS to communicate with the CPU! :D
@@ -150,12 +150,13 @@ public:
             return _ramSize;
         }
         
-        if (auto _ = map::MEMCONTROL.contains(abs_addr)) {
+        if (auto offset = map::MEMCONTROL.contains(abs_addr)) {
             if (sizeof(T) != 4) {
                 throw std::runtime_error("Unhandled MEM_CONTROL access (" + std::to_string(sizeof(T)) + ")");
             }
             
-            throw std::runtime_error("Unhandled MEM_CONTROL load at address 0x" + to_hex(addr));
+            uint32_t index = (offset.value() >> 2);
+            return memControl[index];
         }
         
         if (auto _ = map::CACHECONTROL.contains(abs_addr)) {
@@ -277,88 +278,8 @@ public:
                 throw std::runtime_error("Unbalanced MEM_CONTROL access (" + std::to_string(sizeof(T)) + ")");
             }
             
-            switch (offset.value()) {
-                case 0:
-                    if (val != 0x1f000000) {
-                        throw std::runtime_error("Bad expansion 1 base address: 0x" + to_hex(val));
-                    }
-                    
-                    break;
-                case 4:
-                    if (val != 0x1f802000) {
-                        throw std::runtime_error("Bad expansion 2 base address: 0x" + to_hex(val));
-                    }
-                    
-                    break;
-                
-                case 8: {
-                    /*
-                     * 1F801008h - Expansion 1 Delay/Size (usually 0013243Fh) (512Kbytes, 8bit bus)
-                     */
-                    
-                    
-                    
-                    break;
-                }
-                
-                case 12: {
-                    /*
-                     * 1F80100Ch - Expansion 3 Delay/Size (usually 00003022h) (1 byte)
-                     */
-                    
-                    
-                    
-                    break;
-                }
-                
-                case 16: {
-                    // 1F801010h - BIOS ROM Delay/Size (usually 0013243Fh) (512Kbytes, 8bit bus)
-                    
-                    
-                    
-                    break;
-                }
-                
-                case 20: {
-                    // 1F801014h - SPU Delay/Size (200931E1h) (use 220931E1h for SPU-RAM reads)
-                    
-                    // Ignoring SPU for now
-                    
-                    break;
-                }
-                
-                case 24: {
-                    // 1F801018h - CDROM Delay/Size (00020843h or 00020943h)
-                    
-                    break;
-                }
-                
-                case 28: {
-                    /*
-                     * 1F80101Ch - Expansion 2 Delay/Size (usually 00070777h) (128 bytes, 8bit bus)
-                     */
-                    
-                    break;
-                }
-                
-                case 32: {
-                    /*
-                     * 1F801020h - COM_DELAY / COMMON_DELAY (00031125h or 0000132Ch or 00001325h)
-                     * 0-3   COM0 - Recovery period cycles
-                     * 4-7   COM1 - Hold period cycles
-                     * 8-11  COM2 - Floating release cycles
-                     * 12-15 COM3 - Strobe active-going edge delay
-                     * 16-31 Unknown/unused (read: always 0000h)
-                     */
-                    
-                    
-                    
-                    break;
-                }
-                default:
-                    throw std::runtime_error("Unhandled write to MEM_CONTROL register 0x" + to_hex(offset.value()) + ": 0x" + to_hex(val));
-                    break;
-            }
+            uint32_t index = (offset.value() >> 2);
+            memControl[index] = val;
             
             return;
         }
@@ -387,7 +308,8 @@ public:
             throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
         }
         
-        throw std::runtime_error("Unhandled store into address 0x" + to_hex(addr) + ": 0x" + to_hex(val));
+        return;
+        //throw std::runtime_error("Unhandled store into address 0x" + to_hex(addr) + ": 0x" + to_hex(val));
     }
     
     // DMA register read
@@ -410,9 +332,8 @@ private:
     uint32_t expansion2Base = 0;
     
     uint32_t _ramSize = 0;
-
-    // Timers - TODO; Move to a class
-    uint32_t target = 0;
+    
+    uint32_t memControl[9];
     
 public:
     Ram ram;

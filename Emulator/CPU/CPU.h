@@ -4,7 +4,7 @@
 #include <optional>
 
 #include "Instruction.h"
-#include "../interconnect.h"
+#include "../Memory/interconnect.h"
 #include "COP/COP2.h"
 
 class Instruction;

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "Emulator/Bios.h"
+#include "Emulator/Memory/Bios.h"
 #include "Emulator/CPU/CPU.h"
 #include "Emulator/SPU/SPU.h"
 #include "Utility/FileSystem/FileManager.h"
@@ -389,6 +389,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // TODO; Just black?
 	
@@ -424,8 +425,11 @@ void handleLoadExe(CPU& cpu) {
 	 * could be that I have many unimlemented memory locations?
 	 * 
 	 * The test seems to fully run while it's commented out.
+	 * 
+	 * Okay so I found out that the issue IS actually caused by,
+	 * the timers being wrong or the VBlank interrupt.
 	 */
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/timers/timers.exe"); // Freezes..
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/timers/timers.exe"); // Freezes..
 	
 	Exe exe;
 	memcpy(&exe, data.data(), sizeof(exe));
@@ -454,22 +458,22 @@ void handleLoadExe(CPU& cpu) {
 }
 
 void runCPU(CPU& cpu) {
-	int cyclesPerFrame = 564480; // 33.868 MHz / 60 FPS
+	int cyclesPerFrame = 565046; // 33.868 MHz / 60 FPS
+	//int cyclesPerFrame = 44100; // 44100Hz / 1 FPS
 	int cyclesDelta = 0;
 	
     while (true) {
-    	while(cyclesDelta < cyclesPerFrame) {
-    		if (cpu.pc != 0x80030000 || true) {
+    	while(cyclesDelta <= cyclesPerFrame) {
+    		if (cpu.pc != 0x80030000 || 1) {
     			cpu.executeNextInstruction();
     		} else {
     			handleLoadExe(cpu);
     		}
-            
+			
     		cpu.interconnect.step(1);
-    		
-    		cyclesDelta += 1;
+    		cyclesDelta++;
     	}
-		
+    	
     	cyclesDelta -= cyclesPerFrame;
     }
 }
@@ -481,6 +485,7 @@ int main(int argc, char* argv[]) {
 	
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
+    //Bios bios = Bios("BIOS/openbios.bin");
     Dma dma;
 	
     // TODO; Texture loading

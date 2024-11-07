@@ -14,7 +14,7 @@ public:
         
         T v = 0;
         for (size_t i = 0; i < sizeof(T); i++) {
-            v |= static_cast<T>(data[offset + i]) << (i * 8);
+            v |= static_cast<uint32_t>(data[offset + i]) << (i * 8);
         }
         
         return v;

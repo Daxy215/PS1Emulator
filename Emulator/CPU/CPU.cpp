@@ -941,7 +941,7 @@ void CPU::oplwc2(Instruction& instruction) {
         
         _cop2.setData(t, v);
     } else {
-        //exception(LoadAddressError);
+        exception(LoadAddressError);
     }
 }
 
@@ -1302,7 +1302,7 @@ void CPU::checkForTTY() {
     //uint32_t pc = this->pc & 0x1FFFFFFF;
     
     if ((pc == 0x000000A0 || pc == 0x000000B0 || pc == 0x000000C0)) {
-        uint32_t r9 = regs[9];
+        //uint32_t r9 = regs[9];
         
         //if (r9 == 0x3C || r9 == 0x3D) {
             char ch = static_cast<char>(regs[4] & 0xFF);

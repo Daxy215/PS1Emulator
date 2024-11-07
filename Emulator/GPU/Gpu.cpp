@@ -38,27 +38,10 @@ void Emulator::Gpu::step(uint32_t cycles) {
     /**
       * The PSone/PAL video clock is the cpu clock multiplied by 11/7.
       * CPU Clock   =  33.868800MHz (44100Hz*300h)
-      * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode
+      * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode?
       */
     
-    /**
-      *  NTSC mode on NTSC video clock
-      *  Interlaced:     59.940 Hz
-      *  Non-interlaced: 59.826 Hz
-      *  
-      *  PAL mode on PAL video clock
-      *  Interlaced:     50.000 Hz
-      *  Non-interlaced: 49.761 Hz
-      *  
-      *  NTSC mode on PAL video clock
-      *  Interlaced:     59.393 Hz
-      *  Non-interlaced: 59.280 Hz
-      *  
-      *  PAL mode on NTSC video clock
-      *  Interlaced:     50.460 Hz
-      *  Non-interlaced: 50.219 Hz
-      */
-    _cycles += (/*static_cast<double>(*/cycles * 11 / 7);
+    _cycles += round(cycles * (11 / 7));
     
     /**
      * Horizontal Timings
@@ -79,20 +62,20 @@ void Emulator::Gpu::step(uint32_t cycles) {
         _scanLine++;
         
         if(vres != VerticalRes::Y480Lines) {
-            isOddLine = (_scanLine & 0x1) != 0;
-        }
-    }
-    
-    if(_scanLine >= vtiming) {
-        _scanLine = 0;
-        
-        if(interlaced && vres == VerticalRes::Y480Lines) {
-            isOddLine = !isOddLine;
-            field = static_cast<Field>(!isOddLine);
+            isOddLine = (_scanLine & 0x1);
         }
         
-        // TODO; This shouldn't always occur
-        IRQ::trigger(IRQ::VBlank);
+        if(_scanLine >= vtiming) {
+            _scanLine = 0;
+            
+            if(interlaced && vres == VerticalRes::Y480Lines) {
+                isOddLine = !isOddLine;
+                field = static_cast<Field>(!isOddLine);
+            }
+            
+            // TODO; This shouldn't always occur?
+             IRQ::trigger(IRQ::VBlank);
+        }
     }
     
     // Update timings for the timers
@@ -107,6 +90,11 @@ void Emulator::Gpu::step(uint32_t cycles) {
      */
     
     isInHBlank = _cycles < displayHorizStart || _cycles > displayHorizEnd;
+    
+    if(isInHBlank) {
+        printf("");
+    }
+    
     isInVBlank = _scanLine < displayLineStart || _scanLine > displayLineEnd;
     
     dot = dotCycles[hres.hr2 << 2 | hres.hr1];
@@ -417,8 +405,38 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         }
+        case 0x64: {
+            // GP0(64h) - Textured Rectangle, variable size, opaque, texture-blending
+            
+            curAttribute = { 0, 1 };
+            
+            gp0CommandRemaining = 4;
+            Gp0CommandMethod = &Gpu::gp0VarTexturedRectangleMonoOpaque;
+            
+            break;
+        }
         case 0x65: {
             // GP0(65h) - Textured Rectangle, variable size, opaque, raw-texture
+            
+            gp0CommandRemaining = 4;
+            Gp0CommandMethod = &Gpu::gp0VarTexturedRectangleMonoOpaque;
+            
+            break;
+        }
+        case 0x66: {
+            // GP0(66h) - Textured Rectangle, variable size, semi-transp, texture-blendin
+            
+            curAttribute = { 1, 1 };
+            
+            gp0CommandRemaining = 4;
+            Gp0CommandMethod = &Gpu::gp0VarTexturedRectangleMonoOpaque;
+            
+            break;
+        }
+        case 0x67: {
+            // GP0(67h) - Textured Rectangle, variable size, semi-transp, raw-texture
+            
+            curAttribute = { 1, 0 };
             
             gp0CommandRemaining = 4;
             Gp0CommandMethod = &Gpu::gp0VarTexturedRectangleMonoOpaque;
@@ -547,6 +565,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             // Reset current attributes
             curAttribute = {0, 0};
         }
+        
         break;
     case VRam:
         // Draws 2 pixels at a time

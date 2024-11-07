@@ -3,9 +3,10 @@
 #include <bitset>
 #include <string>
 
-#include "CPU/CPU.h"
 #include "Ram.h"
-#include "GPU/VRAM.h"
+
+#include "../CPU/CPU.h"
+#include "../GPU/VRAM.h"
 
 void Interconnect::step(uint32_t cycles) {
     gpu.step(cycles);
