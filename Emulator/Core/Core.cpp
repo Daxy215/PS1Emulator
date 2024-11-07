@@ -3,10 +3,10 @@
 #include <iostream>
 #include <fstream>
 
-#include "Emulator/Memory/Bios.h"
-#include "Emulator/CPU/CPU.h"
-#include "Emulator/SPU/SPU.h"
-#include "Utility/FileSystem/FileManager.h"
+#include "../CPU/CPU.h"
+#include "../Memory/Bios.h"
+#include "../SPU/SPU.h"
+#include "../Utils/FileSystem/FileManager.h"
 
 /*
 #define GLFW_DLL
