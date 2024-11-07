@@ -17,6 +17,22 @@ void Interconnect::step(uint32_t cycles) {
     _timers.step(cycles);
 }
 
+uint32_t Interconnect::loadInstruction(uint32_t addr) {
+    uint32_t abs_addr = map::maskRegion(addr);
+    
+    Emulator::Timers::Scheduler::tick(1);
+    
+    if (auto offset = map::RAM.contains(abs_addr)) {
+        return ram.load<uint32_t>(offset.value());
+    }
+    
+    if (auto offset = map::BIOS.contains(abs_addr)) {
+        return bios.load<uint32_t>(offset.value());
+    }
+    
+    throw std::runtime_error("Unhandled PC load!");
+}
+
 uint32_t Interconnect::dmaReg(uint32_t offset) {
     uint32_t major = (offset & 0x70) >> 4;
     uint32_t minor = offset & 0xF;

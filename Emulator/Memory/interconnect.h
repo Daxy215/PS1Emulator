@@ -10,6 +10,7 @@
 #include "../GPU/Gpu.h"
 #include "Memories/Ram.h"
 #include "Range.h"
+#include "../Core/Scheduler.h"
 #include "../Memory/IRQ.h"
 #include "../Memory/CDROM/CDROM.h"
 #include "../Memory/IO/SIO.h"
@@ -46,12 +47,16 @@ public:
         : ram(ram), _scratchPad(), _timers(), bios(bios), dma(dma), gpu(gpu), spu(spu) {
         
     }
-
+    
     void step(uint32_t cycles);
+    
+    uint32_t loadInstruction(uint32_t addr);
     
     template<typename T>
     T load(uint32_t addr) {
         uint32_t abs_addr = map::maskRegion(addr);
+        
+        Emulator::Timers::Scheduler::tick(2);
         
         if (auto offset = map::RAM.contains(abs_addr)) {
             return ram.load<T>(offset.value());

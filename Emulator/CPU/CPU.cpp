@@ -27,7 +27,7 @@ void CPU::executeNextInstruction() {
      */
     
     //uint32_t pc = this->pc;
-    Instruction instruction = Instruction(load32(pc));
+    Instruction instruction = Instruction(interconnect.loadInstruction(pc));
     //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str()) << "\n";
     
     // Save the address of the current instruction to save in

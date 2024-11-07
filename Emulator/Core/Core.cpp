@@ -16,6 +16,7 @@
 #include <iostream>
 
 // To avoid, "gl.h included before "glew.h"
+#include "Scheduler.h"
 #include "../GPU/VRAM.h"
 #include "../GPU/Rendering/renderer.h"
 
@@ -453,9 +454,9 @@ void handleLoadExe(CPU& cpu) {
 }
 
 void runCPU(CPU& cpu) {
-	int cyclesPerFrame = 565046; // 33.868 MHz / 60 FPS
+	uint32_t cyclesPerFrame = 565046; // 33.868 MHz / 60 FPS
 	//int cyclesPerFrame = 44100; // 44100Hz / 1 FPS
-	int cyclesDelta = 0;
+	uint32_t cyclesDelta = 0;
 	
     while (true) {
     	while(cyclesDelta <= cyclesPerFrame) {
@@ -465,8 +466,8 @@ void runCPU(CPU& cpu) {
     			handleLoadExe(cpu);
     		}
 			
-    		cpu.interconnect.step(1);
-    		cyclesDelta++;
+    		cpu.interconnect.step(Emulator::Timers::Scheduler::getTicks());
+    		cyclesDelta += Emulator::Timers::Scheduler::getTicks();
     	}
     	
     	cyclesDelta -= cyclesPerFrame;
