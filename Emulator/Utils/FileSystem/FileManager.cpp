@@ -3,9 +3,7 @@
 #include <fstream>
 #include <iostream>
 
-std::vector<uint8_t> FileManager::loadFile(const std::string& path) {
-	//std::string filename = "ROMS/Tests/psxtest_cpx.exe";
-	
+std::vector<uint8_t> Emulator::Utils::FileManager::loadFile(const std::string& path) {
 	std::ifstream stream(path.c_str(), std::ios::binary | std::ios::ate);
     
 	if (!stream.good()) {

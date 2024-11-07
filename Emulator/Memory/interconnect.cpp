@@ -3,7 +3,7 @@
 #include <bitset>
 #include <string>
 
-#include "Ram.h"
+#include "Memories/Ram.h"
 
 #include "../CPU/CPU.h"
 #include "../GPU/VRAM.h"

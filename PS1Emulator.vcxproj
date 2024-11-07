@@ -235,6 +235,7 @@
       <AdditionalIncludeDirectories>..\libs\glfw-3.4.bin.WIN64\include;..\libs\glew-2.2.0\include</AdditionalIncludeDirectories>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
+    <ClCompile Include="Emulator\Core\Scheduler.cpp" />
     <ClCompile Include="Emulator\CPU\COP\COP0.cpp" />
     <ClCompile Include="Emulator\CPU\COP\COP2.cpp" />
     <ClCompile Include="Emulator\CPU\CPU.cpp">
@@ -541,7 +542,7 @@
     <ClCompile Include="Emulator\GPU\Rendering\Buffer.cpp" />
     <ClCompile Include="Emulator\GPU\Rendering\Renderer.cpp" />
     <ClCompile Include="Emulator\GPU\VRAM.cpp" />
-    <ClCompile Include="Emulator\Memory\Bios.cpp">
+    <ClCompile Include="Emulator\Memory\Bios\Bios.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <Optimization>Disabled</Optimization>
@@ -771,7 +772,7 @@
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
     <ClCompile Include="Emulator\Memory\IO\SIO.cpp" />
-    <ClCompile Include="Emulator\Memory\Ram.cpp">
+    <ClCompile Include="Emulator\Memory\Memories\Ram.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <Optimization>Disabled</Optimization>
@@ -846,7 +847,7 @@
       <AdditionalIncludeDirectories>..\libs\glfw-3.4.bin.WIN64\include;..\libs\glew-2.2.0\include</AdditionalIncludeDirectories>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
-    <ClCompile Include="Emulator\Memory\ScratchPad\ScratchPad.cpp">
+    <ClCompile Include="Emulator\Memory\Memories\ScratchPad.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <Optimization>Disabled</Optimization>
@@ -1000,6 +1001,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Emulator\Core\Scheduler.h" />
     <ClInclude Include="Emulator\CPU\COP\COP0.h" />
     <ClInclude Include="Emulator\CPU\COP\COP2.h" />
     <ClInclude Include="Emulator\CPU\CPU.h" />
@@ -1011,7 +1013,7 @@
     <ClInclude Include="Emulator\GPU\Rendering\Buffer.h" />
     <ClInclude Include="Emulator\GPU\Rendering\Renderer.h" />
     <ClInclude Include="Emulator\GPU\VRAM.h" />
-    <ClInclude Include="Emulator\Memory\Bios.h" />
+    <ClInclude Include="Emulator\Memory\Bios\Bios.h" />
     <ClInclude Include="Emulator\Memory\CDROM\CDROM.h" />
     <ClInclude Include="Emulator\Memory\CDROM\Disk.h" />
     <ClInclude Include="Emulator\Memory\CDROM\Sector.h" />
@@ -1020,9 +1022,9 @@
     <ClInclude Include="Emulator\Memory\IO\Joypad.h" />
     <ClInclude Include="Emulator\Memory\IO\SIO.h" />
     <ClInclude Include="Emulator\Memory\IRQ.h" />
-    <ClInclude Include="Emulator\Memory\Ram.h" />
+    <ClInclude Include="Emulator\Memory\Memories\Ram.h" />
     <ClInclude Include="Emulator\Memory\Range.h" />
-    <ClInclude Include="Emulator\Memory\ScratchPad\ScratchPad.h" />
+    <ClInclude Include="Emulator\Memory\Memories\ScratchPad.h" />
     <ClInclude Include="Emulator\Memory\Timers\Timer.h" />
     <ClInclude Include="Emulator\Memory\Timers\Timers.h" />
     <ClInclude Include="Emulator\SPU\SPU.h" />

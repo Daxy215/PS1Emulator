@@ -4,13 +4,10 @@
 #include <fstream>
 
 #include "../CPU/CPU.h"
-#include "../Memory/Bios.h"
+#include "../Memory/Bios/Bios.h"
 #include "../SPU/SPU.h"
 #include "../Utils/FileSystem/FileManager.h"
 
-/*
-#define GLFW_DLL
-*/
 #include <GLFW/glfw3.h>
 
 //#define _CRTDBG_MAP_ALLOC
@@ -18,11 +15,9 @@
 #include <thread>
 #include <iostream>
 
-#include "Emulator/GPU/VRAM.h"
-#include "Emulator/GPU/Rendering/renderer.h"
-
-//#include "Emulator/interconnect.h"
-//#include "Emulator/Ram.h"
+// To avoid, "gl.h included before "glew.h"
+#include "../GPU/VRAM.h"
+#include "../GPU/Rendering/renderer.h"
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // ! Please note most of the stuff here isn't really written by me,    !
@@ -389,7 +384,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
+	std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // TODO; Just black?
 	

@@ -1,20 +1,19 @@
 ﻿#pragma once
 
 #include <cstdint>
-#include <iostream>
 #include <optional>
 #include <sstream>
 #include <string>
 
-#include "Bios.h"
+#include "Bios/Bios.h"
 #include "../DMA/Dma.h"
 #include "../GPU/Gpu.h"
-#include "Ram.h"
+#include "Memories/Ram.h"
 #include "Range.h"
 #include "../Memory/IRQ.h"
 #include "../Memory/CDROM/CDROM.h"
 #include "../Memory/IO/SIO.h"
-#include "../Memory/ScratchPad/ScratchPad.h"
+#include "../Memory/Memories/ScratchPad.h"
 #include "../Memory/Timers/Timers.h"
 #include "../SPU/SPU.h"
 
