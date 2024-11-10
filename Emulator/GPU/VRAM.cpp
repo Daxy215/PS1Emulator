@@ -14,7 +14,8 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 	
 	for(int x = 0; x < 1024; x++) {
 		for(int y = 0; y < 512; y++) {
-			setPixel(x, y, 0x63FE);
+			// Yellow = ((31 << 11) | (63 << 5) | (0)) = 0xFFE0
+			setPixel(x, y, ((255 << 11) | (0 << 5) | (0)));
 		}
 	}
 	
@@ -26,8 +27,13 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, ptr16);
+	
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, &ptr16);
+	
+	GLenum error = glGetError();
+	if (error != GL_NO_ERROR) {
+		std::cerr << "OpenGL error after glTexSubImage2D: " << error << '\n';
+	}
 }
 
 void Emulator::VRAM::store(uint32_t val) {
@@ -59,31 +65,15 @@ void Emulator::VRAM::stepTransfer() {
 }
 
 void Emulator::VRAM::endTransfer() {
+	//glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, textureID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, ptr16);
 	
-	/*// Create a buffer to hold our pixel data
-	GLuint pixelBuffer;
-	glGenBuffers(1, &pixelBuffer);
-    
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixelBuffer);
-    
-	// Allocate memory for our pixel data
-	glBufferData(GL_PIXEL_UNPACK_BUFFER, 1024 * 512 * 4, ptr4, GL_DYNAMIC_COPY);
-    
-	// Copy the pixel data to the buffer
-	glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, 1024 * 512 * 4, ptr4);
-    
-	// Update the texture
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 4096, 512, 0, GL_RED, GL_UNSIGNED_BYTE, &pixelBuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, &ptr16);
 	
-	auto f = glGetUniformLocation(Renderer::program, "texture_sample4");
-	glUniform1i(f, 0);
-	
-	// Clean up
-	glDeleteBuffers(1, &pixelBuffer);
-	
-	std::cerr << "Uploaded textur2es " << std::to_string(f) << "\n";*/
+	GLenum error = glGetError();
+	if (error != GL_NO_ERROR) {
+		std::cerr << "OpenGL error after glTexSubImage2D: " << error << '\n';
+	}
 }
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {

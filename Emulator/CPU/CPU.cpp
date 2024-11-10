@@ -88,7 +88,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     
     Emulator::Timers::Scheduler::tick(1);
     
-    checkForTTY();
+    //checkForTTY();
     
     switch (instruction.func()) {
         case 0b000000:
