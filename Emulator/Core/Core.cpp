@@ -330,6 +330,8 @@ struct Exe {
 void handleLoadExe(CPU& cpu) {
 	std::cerr << "Loading test EXE file\n";
 	
+	using namespace Emulator::Utils;
+	
 	// Tests
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADD/CPUADD.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/CPU/ADDI/CPUADDI.exe"); // Passed
@@ -377,7 +379,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
-	std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
 	
 	// Other stuff
@@ -392,20 +394,24 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+	// It's drawing the cube(obviously no textures),
+	// though, idk where im fucking up bc its never checking,
+	// for the controller's inputs. So, I can't really fully test it..
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
 	
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/access-time/access-time.exe"); // TODO; All timings return 4
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/access-time/access-time.exe"); // TODO; All timings return 4
+	//std ::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/cop/cop.exe"); // TODO; Fails some tests?
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/io-access-bitwidth/io-access-bitwidth.exe"); // TODO; Fails many tests
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/dma/otc-test/otc-test.exe"); // TODO; Fails many tests
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/animated-triangle/animated-triangle.exe"); // TODO; Needs GTE
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 99999999 MB/s lol
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // TODO; Idrk draws a bunch of stuff, but many commands aren't implemented
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 20000-30000 MB/s lol
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Passes but no textures
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/quad/quad.exe"); //
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/version-detect/version-detect.exe"); // Not really a tested but I suppose (0* GPU version 2 [New 208pin GPU (LATE-PU-8 and up)])
-	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // Missing GP0 Commands
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Wrong address somewhere :)
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/triangle/triangle.exe");
 	
 	/**
@@ -461,13 +467,13 @@ void runCPU(CPU& cpu) {
 	
     while (true) {
     	while(cyclesDelta <= cyclesPerFrame) {
-    		if (cpu.pc != 0x80030000 || 1) {
+    		if (cpu.pc != 0x80030000 || 0) {
     			cpu.executeNextInstruction();
     		} else {
     			handleLoadExe(cpu);
     		}
 			
-    		cpu.interconnect.step(Emulator::Timers::Scheduler::getTicks());
+    		cpu.interconnect.step(1);
     		cyclesDelta += Emulator::Timers::Scheduler::getTicks();
     	}
 		
@@ -480,7 +486,6 @@ void runCPU(CPU& cpu) {
 int main(int argc, char* argv[]) {
 	// Was used for debuging
 	//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-	std::cerr << "Starting up..\n";
 	
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");

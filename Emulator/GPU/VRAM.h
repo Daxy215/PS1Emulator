@@ -35,7 +35,7 @@ namespace Emulator {
         
         // Pixel stuff...
         void drawPixel(uint32_t pixel);
-        void setPixel(uint32_t x, uint32_t y, uint32_t color) const;
+        void setPixel(uint32_t x, uint32_t y, uint32_t color);
         
         uint16_t getPixel(uint32_t x, uint32_t y) const;
         

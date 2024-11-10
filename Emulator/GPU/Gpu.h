@@ -265,10 +265,12 @@ namespace Emulator {
         // Helper function
         void renderRectangle(Position position, Color color, uint16_t width, uint16_t height);
         
+        // y tf do these say "MonoOpaque"???????
         void gp0VarRectangleMonoOpaque(uint32_t val);
         void gp0VarTexturedRectangleMonoOpaque(uint32_t val);
         void gp0DotRectangleMonoOpaque(uint32_t val);
         void gp08RectangleMonoOpaque(uint32_t val);
+        void gp08RectangleTexturedOpaqu(uint32_t val);
         void gp016RectangleMonoOpaque(uint32_t val);
         
         // TODO; Testing

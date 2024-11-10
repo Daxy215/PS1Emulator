@@ -96,8 +96,8 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 			// Use System Clock / 8
 			counter += (_cycles / 8);
 			
-			_cycles /= 8;
-			//_cycles = Utils::modf(_cycles, 8);
+			//_cycles /= 8;
+			_cycles = Utils::modf(_cycles, 8);
 		}
 		
 		break;

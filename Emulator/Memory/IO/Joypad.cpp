@@ -2,150 +2,102 @@
 
 #include <iostream>
 
-Joypad::Joypad() : controllers{} {
+Joypad::Joypad() {
 	
 }
 
-void Joypad::update() {
+void Joypad::step(uint32_t cycles) {
 	
 }
 
-void Joypad::updateConnectedControllers() {
-	//TODO; I'm too lazy
-	/*if(controllers[0] && controllers[1] != nullptr) {
-		std::cerr << "Max numbers of controllers reached!\n";
-		return;
-	}
-	*/
+uint16_t Joypad::load(uint32_t val) {
+	/**
+      *   Send Reply Comment
+      * 01h  Hi-Z  Controller address
+      * 42h  idlo  Receive ID bit0..7 (variable) and Send Read Command (ASCII "B")
+      * TAP  idhi  Receive ID bit8..15 (usually/always 5Ah)
+      * MOT  swlo  Receive Digital Switches bit0..7
+      * MOT  swhi  Receive Digital Switches bit8..15
+      * --- transfer stops here for digital pad (or analog pad in digital mode) ---
+      * 00h  adc0  Receive Analog Input 0 (if any) (eg. analog joypad or mouse)
+      * 00h  adc1  Receive Analog Input 1 (if any) (eg. analog joypad or mouse)
+      * --- transfer stops here for analog mouse ----------------------------------
+      * 00h  adc2  Receive Analog Input 2 (if any) (eg. analog joypad)
+      * 00h  adc3  Receive Analog Input 3 (if any) (eg. analog joypad)
+      * --- transfer stops here for analog pad (in analog mode) -------------------
+      * --- transfer stops here for nonstandard devices (steering/twist/paddle) ---
+      */
 	
-	// Get connected controllers
-	int slot = 0;
+	// TODO; https://psx-spx.consoledev.net/controllersandmemorycards/#controller-and-memory-card-multitap-adaptor
 	
-	/*for (int i = 0; i < SDL_NumJoysticks(); i++) {
-		if (SDL_IsGameController(i)) {
-			SDL_GameController* controller = SDL_GameControllerOpen(i);
-
-			// TODO; Handle disconnection
-			if (controller) {
-				std::cout << "Controller connected: " << SDL_GameControllerName(controller) << '\n';
+	switch (_mode) {
+		case Idle: {
+			if(val == 0x01) {
+				_mode = Connected;
+				_interrupt = true;
 				
-				attachController(slot, {*controller});
+				return 0xFF;
+			} else {
+				// Clear data buffer
+				std::queue<uint8_t> empty;
+				std::swap(data, empty);
 				
-				if(++slot >= 2) {
-					std::cerr << "Max numbers of controllers reached!\n";
-					return;
-				}
+				_interrupt = false;
 				
-				break;
+				return 0xFF;
+			}
+			
+			break;
+		}
+		
+		case Transfering: {
+			uint8_t d = data.front();
+			data.pop();
+			
+			_interrupt = !data.empty();
+			
+			if(!_interrupt)
+				_mode = Idle;
+			
+			return d;
+		}
+		
+		case Connected: {
+			if(val == 0x42) {
+				_mode = Transfering;
+				_interrupt = true;
+				
+				uint8_t b0 = TYPE & 0xFF;
+				uint8_t b1 = (TYPE >> 8) & 0xFF;
+				
+				// Buttons.. I hope 0 means nothing is pressed?
+				uint8_t b2 = (_buttons) & 0xFF;
+				uint8_t b3 = (_buttons >> 8) & 0xFF;
+				
+				data.push(b0);
+				data.push(b1);
+				data.push(b2);
+				data.push(b3);
+				
+				uint16_t d = data.front();
+				data.pop();
+				
+				return d;
+			} else {
+				_mode = Idle;
+				
+				// Clear data buffer
+				std::queue<uint8_t> empty;
+				std::swap(data, empty);
+				
+				_interrupt = false;
+				
+				return 0xFF;
 			}
 		}
-	}*/
-}
-
-uint32_t Joypad::load(uint32_t offset) {
-	if (offset == 0x1F801040) {
-		// JOY_TX_DATA (R) - Read the next value in RX FIFO
-		uint32_t value = 0xFFFFFFFF;
-		
-		return value;
-	}
-	
-	return 0x1;
-}
-
-void Joypad::store(uint32_t offset, uint32_t val) {
-	if (offset == 0x1F801040) {
-		// JOY_TX_DATA (W) - Write the value to be transmitted
-		
-		txData = val;
-		rxData = 0xFF;		
 	}
 }
 
-/*
-// TODO; Maybe use SDL_GameControllerGetButton instead?
-void Joypad::handleButtonEvent(SDL_ControllerButtonEvent& event) {
-	bool buttonPressed = event.state == SDL_PRESSED;
-	
-	// TODO; For now only use controller[0] if it exists
-	ControllerState controllerState = controllers[0];
-	
-	if(!controllerState._controller)
-		return;
-	
-	switch (event.button) {
-	case SDL_CONTROLLER_BUTTON_A:
-		controllerState.buttons[BUTTON_CROSS] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_B:
-		controllerState.buttons[BUTTON_CIRCLE] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_X:
-		controllerState.buttons[BUTTON_SQUARE] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_Y:
-		controllerState.buttons[BUTTON_TRIANGLE] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
-		controllerState.buttons[BUTTON_L1] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
-		controllerState.buttons[BUTTON_R1] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_BACK:
-		controllerState.buttons[BUTTON_SELECT] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_START:
-		controllerState.buttons[BUTTON_START] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_DPAD_UP:
-		controllerState.buttons[DPAD_UP] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-		controllerState.buttons[DPAD_DOWN] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
-		controllerState.buttons[DPAD_LEFT] = buttonPressed;
-		break;
-	case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
-		controllerState.buttons[DPAD_RIGHT] = buttonPressed;
-		break;
-	}
-}
-
-void Joypad::handleAxisEvent(SDL_ControllerAxisEvent& event) {
-	// TODO; For now only use controller[0] if it exists
-	ControllerState controllerState = controllers[0];
-	
-	if(!controllerState._controller)
-		return;
-	
-	switch (event.axis) {
-	case SDL_CONTROLLER_AXIS_LEFTX:
-		controllerState.axisLeftX = event.value;
-		break;
-	case SDL_CONTROLLER_AXIS_LEFTY:
-		controllerState.axisLeftY = event.value;
-		break;
-	case SDL_CONTROLLER_AXIS_RIGHTX:
-		controllerState.axisRightX = event.value;
-		break;
-	case SDL_CONTROLLER_AXIS_RIGHTY:
-		controllerState.axisRightY = event.value;
-		break;
-	}
-}
-*/
-
-void Joypad::attachController(int slot, const ControllerState& controller) {
-	if (slot < 0 || slot >= 2)
-		return;
-	
-	controllers[slot] = controller;
-}
-
-void Joypad::detachController(int slot) {
-	if (slot < 0 || slot >= 2) return;
-	
-	//controllers[slot].free();
+void Joypad::reset() {
+	_mode = Idle;
 }

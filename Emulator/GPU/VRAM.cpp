@@ -9,8 +9,8 @@
 
 Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 	ptr16 = new uint16_t[1024 * 512];
-	ptr8  = new uint8_t[1024 * 512 * 2];
-	ptr4  = new uint8_t[1024 * 512 * 4];
+	/*ptr8  = new uint8_t[1024 * 512 * 2];
+	ptr4  = new uint8_t[1024 * 512 * 4];*/
 	
 	for(int x = 0; x < 1024; x++) {
 		for(int y = 0; y < 512; y++) {
@@ -28,7 +28,7 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, &ptr16);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, &ptr16);
 	
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR) {
@@ -53,8 +53,8 @@ void Emulator::VRAM::store(uint32_t val) {
 
 void Emulator::VRAM::beginTransfer(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t imgSize) {
     transferData = {x, y, width, height, imgSize};
-    printf("Started drawing at x=%d y=%d - w=%d h=%d\n", x, y, width, height);
-    std::cerr << "";
+    /*printf("Started drawing at x=%d y=%d - w=%d h=%d\n", x, y, width, height);
+    std::cerr << "";*/
 }
 
 void Emulator::VRAM::stepTransfer() {
@@ -66,14 +66,14 @@ void Emulator::VRAM::stepTransfer() {
 
 void Emulator::VRAM::endTransfer() {
 	//glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, textureID);
+	/*glBindTexture(GL_TEXTURE_2D, textureID);
 	
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, &ptr16);
 	
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR) {
 		std::cerr << "OpenGL error after glTexSubImage2D: " << error << '\n';
-	}
+	}*/
 }
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {
@@ -85,20 +85,20 @@ void Emulator::VRAM::drawPixel(uint32_t pixel) {
     stepTransfer();
 }
 
-void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) const {
+void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
     size_t index = (y * MAX_WIDTH) + x;
 	
 	ptr16[index] = static_cast<uint16_t>(color);
 	
 	/* Write data as 8bit. */
-	ptr8[index * 2 + 0] = static_cast<uint8_t>(color);
+	/*ptr8[index * 2 + 0] = static_cast<uint8_t>(color);
 	ptr8[index * 2 + 1] = static_cast<uint8_t>(color >> 8);
 	
-	/* Write data as 4bit. */
+	/* Write data as 4bit. #1#
 	ptr4[index * 4 + 0] = static_cast<uint8_t>(color) & 0xF;
 	ptr4[index * 4 + 1] = static_cast<uint8_t>(color >> 4) & 0xF;
 	ptr4[index * 4 + 2] = static_cast<uint8_t>(color >> 8) & 0xF;
-	ptr4[index * 4 + 3] = static_cast<uint8_t>(color >> 12) & 0xF;
+	ptr4[index * 4 + 3] = static_cast<uint8_t>(color >> 12) & 0xF;*/
 }
 
 uint16_t Emulator::VRAM::getPixel(uint32_t x, uint32_t y) const {

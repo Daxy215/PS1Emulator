@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #include "../Memory/IRQ.h"
 
@@ -484,6 +485,46 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         }
+        case 0x74: {
+            // GP0(74h) - Textured Rectangle, 8x8, opaque, texture-blending
+            
+            curAttribute = {0, 1};
+            
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp08RectangleTexturedOpaqu;
+            
+            break;
+        }
+        case 0x75: {
+            // GP0(75h) - Textured Rectangle, 8x8, opaque, raw-texture
+            
+            curAttribute = {0, 0};
+            
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp08RectangleTexturedOpaqu;
+            
+            break;
+        }
+        case 0x76: {
+            // GP0(76h) - Textured Rectangle, 8x8, semi-transparent, texture-blending
+            
+            curAttribute = {1, 1};
+            
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp08RectangleTexturedOpaqu;
+            
+            break;
+        }
+        case 0x77: {
+            // GP0(77h) - Textured Rectangle, 8x8, semi-transparent, raw-texture
+            
+            curAttribute = {1, 0};
+            
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp08RectangleTexturedOpaqu;
+            
+            break;
+        }
         case 0x78: {
             // GP0(78h) - Monochrome Rectangle (16x16) (opaque)
             
@@ -783,7 +824,9 @@ void Emulator::Gpu::gp0VarTexturedRectangleMonoOpaque(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0(gp0Command.index(1));
     
-    uint32_t sizeData = gp0Command.index(2);
+    // UV data at index 2
+    
+    uint32_t sizeData = gp0Command.index(3);
     
     uint16_t width = sizeData & 0xFFFF;
     uint16_t height = sizeData >> 16;
@@ -801,6 +844,15 @@ void Emulator::Gpu::gp0DotRectangleMonoOpaque(uint32_t val) {
 void Emulator::Gpu::gp08RectangleMonoOpaque(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0(gp0Command.index(1));
+    
+    renderRectangle(position, color, 8, 8);
+}
+
+void Emulator::Gpu::gp08RectangleTexturedOpaqu(uint32_t val) {
+    Color color = Color::fromGp0(gp0Command.index(0));
+    Position position = Position::fromGp0(gp0Command.index(1));
+    
+    // UV data at index 2
     
     renderRectangle(position, color, 8, 8);
 }

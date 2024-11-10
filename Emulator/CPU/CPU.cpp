@@ -88,7 +88,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     
     Emulator::Timers::Scheduler::tick(1);
     
-    //checkForTTY();
+    checkForTTY();
     
     switch (instruction.func()) {
         case 0b000000:
@@ -644,8 +644,10 @@ void CPU::oplw(Instruction& instruction) {
         
         // Put the load in the delay slot
         setLoad(t, v);
-    } else
+    } else {
+        //printf("wtf\n");
         exception(LoadAddressError);
+    }
 }
 
 void CPU::oplwl(Instruction& instruction) {
@@ -939,7 +941,7 @@ void CPU::oplwc2(Instruction& instruction) {
         
         _cop2.setData(t, v);
     } else {
-        exception(LoadAddressError);
+        //exception(LoadAddressError);
     }
 }
 
