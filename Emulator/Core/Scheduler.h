@@ -14,6 +14,7 @@ namespace Emulator {
 			}
 			
 			static uint32_t getTicks() { return Scheduler::ticks; }
+			static void resetTicks() { Scheduler::ticks = 0; }
 			
 		private:
 			inline static uint32_t ticks = 0;

@@ -17,7 +17,6 @@
 
 // To avoid, "gl.h included before "glew.h"
 #include "Scheduler.h"
-#include "../GPU/VRAM.h"
 #include "../GPU/Rendering/renderer.h"
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -378,14 +377,14 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
+	std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
 	
 	// Other stuff
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
-	std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // TODO; Just black?
 	
@@ -406,6 +405,8 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 99999999 MB/s lol
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // TODO; Idrk draws a bunch of stuff, but many commands aren't implemented
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/version-detect/version-detect.exe"); // Not really a tested but I suppose (0* GPU version 2 [New 208pin GPU (LATE-PU-8 and up)])
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // Missing GP0 Commands
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/triangle/triangle.exe");
 	
 	/**
 	 * Idk where exactly the cause but,
@@ -425,7 +426,7 @@ void handleLoadExe(CPU& cpu) {
 	 * Okay so I found out that the issue IS actually caused by,
 	 * the timers being wrong or the VBlank interrupt.
 	 */
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/timers/timers.exe"); // Freezes..
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/timers/timers.exe"); // Freezes..
 	
 	Exe exe;
 	memcpy(&exe, data.data(), sizeof(exe));
@@ -469,7 +470,8 @@ void runCPU(CPU& cpu) {
     		cpu.interconnect.step(Emulator::Timers::Scheduler::getTicks());
     		cyclesDelta += Emulator::Timers::Scheduler::getTicks();
     	}
-    	
+		
+    	Emulator::Timers::Scheduler::resetTicks();
     	cyclesDelta -= cyclesPerFrame;
     }
 }
@@ -478,6 +480,7 @@ void runCPU(CPU& cpu) {
 int main(int argc, char* argv[]) {
 	// Was used for debuging
 	//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	std::cerr << "Starting up..\n";
 	
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
@@ -509,48 +512,7 @@ int main(int argc, char* argv[]) {
 		gpu.renderer->display();
 		glfwPollEvents();
 		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_1) == GLFW_PRESS) {
-			IRQ::trigger(IRQ::Interrupt::VBlank);
-		}
-		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_2) == GLFW_PRESS) {
-			IRQ::trigger(IRQ::Interrupt::GPU);
-		}
-		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_3) == GLFW_PRESS) {
-			IRQ::trigger(IRQ::Interrupt::CDROM);
-		}
-		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_4) == GLFW_PRESS) {
-			IRQ::trigger(IRQ::Interrupt::Timer0);
-		}
-		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_5) == GLFW_PRESS) {
-			IRQ::trigger(IRQ::Interrupt::Timer1);
-		}
-		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_6) == GLFW_PRESS) {
-			IRQ::trigger(IRQ::Interrupt::Timer2);
-		}
-		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_7) == GLFW_PRESS) {
-			IRQ::trigger(IRQ::Interrupt::PadMemCard);
-		}
-		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_F) == GLFW_PRESS) {
-			gpu.renderer->display();
-		}
-		
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_G) == GLFW_PRESS) {
-			glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT);
-			
-			gpu.vram->endTransfer();
-			
-			glfwSwapBuffers(gpu.renderer->window);
-		}
-		
-		std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
+		//std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
     }
 	
 	thr.join();

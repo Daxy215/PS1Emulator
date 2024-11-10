@@ -117,7 +117,7 @@ namespace Emulator {
             
         }
         
-        static Position fromGp0P(uint32_t val) {
+        static Position fromGp0(uint32_t val) {
             float x = static_cast<float>(static_cast<int16_t>(val));
             float y = static_cast<float>(static_cast<int16_t>(val >> 16));
             
@@ -145,17 +145,57 @@ namespace Emulator {
         GLubyte r, g, b;
     };
     
+    struct UV {
+        static UV fromGp0(uint32_t val, uint32_t page, uint16_t textureDepth) {
+            textureDepth = (textureDepth == 0) ? 4 : (textureDepth == 1) ? 8 : 16;
+            
+            uint16_t u = static_cast<uint16_t>((val) & 0xFF);
+            uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
+            
+            uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
+            uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);
+            
+            float r = 16 / textureDepth;
+            float ux = (pageX * r + u) / (1024.0f * r);
+            float vc = (pageY + v) / 512.0f;
+            
+            return {ux, vc};
+        }
+        
+        float u = 0, v = 0;
+    };
+    
     struct Attributes {
         Attributes() = default;
         
-        Attributes(GLubyte isSemiTransparent, GLubyte blendTexture)
+        Attributes(GLubyte isSemiTransparent, GLubyte blendTexture, GLubyte useTextures = 0)
             : isSemiTransparent(isSemiTransparent),
-              blendTexture(blendTexture) {
+              blendTexture(blendTexture),
+              useTextures(useTextures)
+              /*clutX(0),
+              clutY(0),
+              pageX(0),
+              pageY(0)*/ {
             
+        }
+        
+        void setTextureParameters(uint32_t clut, uint32_t page) {
+            uint16_t c = static_cast<uint16_t>(clut >> 16);
+            uint16_t p = static_cast<uint16_t>(page >> 16);
+            
+            /*clutX = static_cast<uint16_t>((c & 0x3F) << 4);
+            clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
+            
+            pageX = static_cast<uint16_t>((p & 0xF) << 6);
+            pageY = static_cast<uint16_t>(((p >> 4) & 1) << 8);*/
         }
         
         GLubyte isSemiTransparent = 0;
         GLubyte blendTexture = 0;
+        GLubyte useTextures = 0;
+        
+        /*GLushort clutX = 0, clutY = 0;
+        GLushort pageX = 0, pageY = 0;*/
     };
     
     // GPU structure
@@ -358,7 +398,7 @@ namespace Emulator {
         uint32_t dotCycles[5] = { 10, 8, 5, 4, 7};
         
     private:
-        Attributes curAttribute = {0, 0};
+        Attributes curAttribute = {0, 0, 0};
         
     public:
         // Buffer containing the current GP0 command

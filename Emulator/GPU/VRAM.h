@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+// https://www.reddit.com/r/EmuDev/comments/fmhtcn/article_the_ps1_gpu_texture_pipeline_and_how_to/
+
 namespace Emulator {
     class Gpu;
     
@@ -56,9 +58,10 @@ namespace Emulator {
         // Maybe move this to a struct?
         uint32_t pbo4, pbo8, pbo16;
         uint32_t texture4, texture8, texture16;
+        unsigned int textureID = 0;
         
-        uint8_t* pixels4;
-        uint8_t* pixels8;
-        uint16_t* pixels16;
+        uint8_t* ptr4;
+        uint8_t* ptr8;
+        uint16_t* ptr16;
     };
 }

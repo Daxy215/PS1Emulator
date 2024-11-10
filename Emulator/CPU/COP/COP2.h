@@ -3,7 +3,7 @@
 
 class Instruction;
 
-class COP2 {
+class COP2{
 public:
 	void setControl(uint32_t r, uint32_t val);
 	uint32_t getControl(uint32_t r);
@@ -59,5 +59,5 @@ private:
 	int16_t zsf3 = 0; // COPR-61
 	int16_t zsf4 = 0; // COPR-62
 	
-	uint32_t gte[32];
+	uint32_t gte[32] = { };
 };

@@ -18,7 +18,7 @@
  */
 void CPU::executeNextInstruction() {
     // R0 is "hardwired" to 0
-    //regs[0] = 0;
+    regs[0] = 0;
     
     /**
      * First amazing error, here I got "0x1300083c" which means..
@@ -476,11 +476,6 @@ void CPU::opslti(Instruction& instruction) {
     uint32_t v = (static_cast<int32_t>(reg(s))) < i;
     
     set_reg(t, static_cast<uint32_t>(v));
-    
-    /*int32_t result = static_cast<int32_t>(reg(s) & 0xFFFFFFFF) < i;
-    
-    printf("Setting %x as %x\n", t.reg, result);
-    set_reg(t, static_cast<uint32_t>(result));*/
 }
 
 void CPU::opslt(Instruction& instruction) {
@@ -1281,7 +1276,7 @@ void CPU::exception(const Exception exception) {
     pc = handler;
     nextpc = wrappingAdd(pc, 4);
     
-    if(exception != 8)
+    if(exception != 8 && exception != 0)
         std::cerr << "EXCEPTION OCCURRED!!" << exception << "\n";
 }
 
@@ -1318,9 +1313,9 @@ void CPU::checkForTTY() {
             
             prev = ch;
             
-            //if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
+            if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
                 std::cerr << ch;
-            //}
+            }
         //}
     }
 }

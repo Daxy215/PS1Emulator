@@ -48,7 +48,7 @@ struct Buffer {
         }
         
         if (!map) {
-            //throw std::runtime_error("buffer not mapped");
+            throw std::runtime_error("buffer not mapped");
             return;
         }
         

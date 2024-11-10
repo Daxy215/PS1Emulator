@@ -8,6 +8,8 @@
 
 #include "../Gpu.h"
 
+GLuint Emulator::Renderer::program = 0;
+
 Emulator::Renderer::Renderer() {
     if (!glfwInit()) {
         std::cerr << "GLFW could not initialize: " << glewGetErrorString(0) << " \n";
@@ -17,10 +19,11 @@ Emulator::Renderer::Renderer() {
     // Set all the required options for GLFW
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
-    //glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Necessary on macOS
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     
-    window = glfwCreateWindow(1024, 512, "PSX", NULL, NULL);
+    window = glfwCreateWindow(1024, 512, "PSX", nullptr, nullptr);
     
     if (window == nullptr) {
         glfwTerminate();
@@ -28,6 +31,13 @@ Emulator::Renderer::Renderer() {
     }
     
     glfwMakeContextCurrent(window);
+    
+    /*if (GL_ARB_debug_output) {
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // Ensures errors are raised as soon as they occur
+        glDebugMessageCallback(openglDebugCallback, nullptr);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+    }*/
     
     //glewExperimental = GL_TRUE;
     GLenum err = glewInit();
@@ -46,6 +56,7 @@ Emulator::Renderer::Renderer() {
     fragmentShader = compileShader(fragmentSource.c_str(), GL_FRAGMENT_SHADER);
     
     program = linkProgram(vertexShader, fragmentShader);
+    glUseProgram(program);
     
     // Generate buffers & arrays
     glGenVertexArrays(1, &VAO);
@@ -73,6 +84,17 @@ Emulator::Renderer::Renderer() {
     // Link the buffer and the given index.
     glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
     
+    // UV Buffer
+    uvs.create();
+    
+    index = getProgramAttrib(program, "texCoords");
+    
+    // Enable the attributes in the shader
+    glEnableVertexAttribArray(index);
+    
+    // Link the buffer and the given index.
+    glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Position), nullptr);
+    
     // Attributes buffer
     attributes.create();
     
@@ -82,23 +104,25 @@ Emulator::Renderer::Renderer() {
     glEnableVertexAttribArray(index);
     
     // Link the attributes to the buffer with offsets
-    glVertexAttribIPointer(index, 2, GL_UNSIGNED_BYTE, 0, nullptr);
+    // Needs to be split up
+    glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
     
-    glUseProgram(program);
+    textureDepthUni = glGetUniformLocation(program, "texture_depth");
+    glUniform1i(textureDepthUni, 4);
     
     // Uniforms
     offsetUni = glGetUniformLocation(program, "offset");
-    glUniform2i(offsetUni, 0, 0);
+    setDrawingOffset(0, 0);
     
     drawingUni = glGetUniformLocation(program, "drawingArea");
-    glUniform2i(drawingUni, 1024, 512);
+    setDrawingArea(1024, 512);
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     GLenum ersr = glGetError();
     if (ersr!= GL_NO_ERROR) {
-        std::cerr << "OpenGL Error con: " << ersr << '\n';
+        std::cerr << "OpenGLSS Error con: " << ersr << '\n';
     }
 }
 
@@ -109,7 +133,7 @@ void Emulator::Renderer::display() {
     
     GLenum ersr = glGetError();
     if (ersr!= GL_NO_ERROR) {
-        std::cerr << "OpenGL Error con: " << glewGetErrorString(ersr) << '\n';
+        std::cerr << "OpenGL Error con: " << std::to_string(ersr) << '\n';
     }
 }
 
@@ -118,9 +142,9 @@ void Emulator::Renderer::draw() {
     //glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
     
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT);
     
-    glUseProgram(program);
+    //glUseProgram(program);
     //glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
@@ -144,12 +168,12 @@ void Emulator::Renderer::draw() {
     //nVertices = 0;
 }
 
-void Emulator::Renderer::pushLine(Emulator::Position* positions, Emulator::Color* colors, Attributes attributes) {
+void Emulator::Renderer::pushLine(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Attributes attributes) {
     // TODO;
     throw std::runtime_error("Error; Unsupported line rendering.");
 }
 
-void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors, Attributes attributes) {
+void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Attributes attributes) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
         //nVertices = 0;
@@ -160,12 +184,13 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
     for(int i = 0; i < 3; i++) {
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
+        if(attributes.useTextures) this->uvs.set(nVertices, uvs[i]);
         this->attributes.set(nVertices, attributes);
         nVertices++;
     }
 }
 
-void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color* colors, Attributes attributes) {
+void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Attributes attributes) {
     if(nVertices + 6 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
         //nVertices = 0;
@@ -177,50 +202,43 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
     // [2, 3, 0]
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[2]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[3]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     // [3, 0, 1]
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[3]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[1]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
-    
-    /*for(int i = 0; i < 3; i++) {
-        this->positions.set(nVertices, positions[i]);
-        this->colors.set(nVertices, colors[i]);
-        nVertices++;
-    }
-    
-    // Second triangle
-    for(int i = 1; i < 4; i++) {
-        this->positions.set(nVertices, positions[i]);
-        this->colors.set(nVertices, colors[i]);
-        nVertices++;
-    }*/
 }
 
-void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::Color* colors, Attributes attributes) {
+void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Attributes attributes) {
     /*
      * From my knowledgeable, PS1 doesn't split,
      * rectangles into 2 trinagles, however,
@@ -245,16 +263,19 @@ void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::
     // [0, 1, 2]
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[1]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[2]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
@@ -262,18 +283,55 @@ void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::
     // [0, 2, 3]
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[2]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
+    if(attributes.useTextures) this->uvs.set(nVertices, uvs[3]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
+}
+
+void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
+    glUniform2i(offsetUni, x, y);
+}
+
+void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
+    glUniform2i(drawingUni, right, bottom);
+}
+
+void Emulator::Renderer::setTextureDepth(int textureDepth) {
+    //glUniform1ui for uint
+    //glUniform1i(textureDepthUni, textureDepth);
+}
+
+void Emulator::Renderer::updateVramTextures(uint32_t texture4, uint32_t texture8, uint32_t texture16) {
+    // Use the shader program
+    /*glUseProgram(program);
+    
+    // Upload texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture4);
+    GLint textureSample4Loc = glGetUniformLocation(program, "texture_sample4");
+    glUniform1i(textureSample4Loc, 0);*/
+    
+    /*glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, texture8);
+    GLint textureSample8Loc = glGetUniformLocation(program, "texture_sample8");
+    glUniform1i(textureSample8Loc, 1);
+    
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, texture16);
+    GLint textureSample16Loc = glGetUniformLocation(program, "texture_sample16");
+    glUniform1i(textureSample16Loc, 2);*/
 }
 
 GLuint Emulator::Renderer::compileShader(const char* source, GLenum shaderType) {
@@ -310,6 +368,17 @@ GLuint Emulator::Renderer::linkProgram(GLuint vertexShader, GLuint fragmentShade
     }
     
     return program;
+}
+
+GLuint Emulator::Renderer::getProgramAttrib(GLuint program, const std::string& attr) {
+    GLint index = glGetAttribLocation(program, attr.c_str());
+    
+    if (index < 0) {
+        std::cerr << "Attribute " << attr << " was not found in the program\n";
+        return -1;
+    }
+    
+    return static_cast<GLuint>(index);
 }
 
 std::string Emulator::Renderer::getShaderSource(const std::string& path) {
@@ -349,4 +418,45 @@ GLuint Emulator::Renderer::createFrameBuffer(GLsizei width, GLsizei height, GLui
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     return framebuffer;
+}
+
+void APIENTRY Emulator::Renderer::openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
+                                GLsizei length, const GLchar* message, const void* userParam) {
+    
+     // Filter out certain messages, if desired
+    if (id == 131169 || id == 131185 || id == 131218 || id == 131204) return;
+    
+    std::cerr << "OpenGL Debug Message (" << id << "): " << message << std::endl;
+    
+    switch (source) {
+        case GL_DEBUG_SOURCE_API:             std::cerr << "Source: API"; break;
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   std::cerr << "Source: Window System"; break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER: std::cerr << "Source: Shader Compiler"; break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY:     std::cerr << "Source: Third Party"; break;
+        case GL_DEBUG_SOURCE_APPLICATION:     std::cerr << "Source: Application"; break;
+        case GL_DEBUG_SOURCE_OTHER:           std::cerr << "Source: Other"; break;
+    }
+    std::cerr << std::endl;
+    
+    switch (type) {
+        case GL_DEBUG_TYPE_ERROR:               std::cerr << "Type: Error"; break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: std::cerr << "Type: Deprecated Behaviour"; break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  std::cerr << "Type: Undefined Behaviour"; break;
+        case GL_DEBUG_TYPE_PORTABILITY:         std::cerr << "Type: Portability"; break;
+        case GL_DEBUG_TYPE_PERFORMANCE:         std::cerr << "Type: Performance"; break;
+        case GL_DEBUG_TYPE_MARKER:              std::cerr << "Type: Marker"; break;
+        case GL_DEBUG_TYPE_PUSH_GROUP:          std::cerr << "Type: Push Group"; break;
+        case GL_DEBUG_TYPE_POP_GROUP:           std::cerr << "Type: Pop Group"; break;
+        case GL_DEBUG_TYPE_OTHER:               std::cerr << "Type: Other"; break;
+    }
+    std::cerr << std::endl;
+    
+    switch (severity) {
+        case GL_DEBUG_SEVERITY_HIGH:         std::cerr << "Severity: high"; break;
+        case GL_DEBUG_SEVERITY_MEDIUM:       std::cerr << "Severity: medium"; break;
+        case GL_DEBUG_SEVERITY_LOW:          std::cerr << "Severity: low"; break;
+        case GL_DEBUG_SEVERITY_NOTIFICATION: std::cerr << "Severity: notification"; break;
+    }
+    
+    std::cerr << std::endl << std::endl;
 }
