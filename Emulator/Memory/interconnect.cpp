@@ -9,12 +9,12 @@
 #include "../GPU/VRAM.h"
 
 void Interconnect::step(uint32_t cycles) {
-    gpu.step(2);
-    _cdrom.step(cycles);
-    _sio.step(cycles);
+    gpu.step(3);
+    _cdrom.step(1);
+    _sio.step(1);
     
     _timers.sync(gpu.isInHBlank, gpu.isInVBlank, gpu.dot);
-    _timers.step(2);
+    _timers.step(cycles);
 }
 
 uint32_t Interconnect::loadInstruction(uint32_t addr) {

@@ -96,8 +96,8 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 			// Use System Clock / 8
 			counter += (_cycles / 8);
 			
-			//_cycles /= 8;
-			_cycles = Utils::modf(_cycles, 8);
+			_cycles /= 8;
+			//_cycles = Utils::modf(_cycles, 8);
 		}
 		
 		break;
@@ -142,7 +142,7 @@ void Emulator::IO::Timer::handleInterrupt() {
 	
 	// Round up counter
 	//counter &= 0xFFFF;
-	//Utils::modf(counter, 0xFFFF);
+	Utils::modf(counter, 0xFFFF);
 	
 	if(!shouldInterrupt)
 		return;
@@ -164,7 +164,7 @@ void Emulator::IO::Timer::handleInterrupt() {
 	}
 	
 	// Trigger interrupt based on timer counter
-	switch (_type) {
+	/*switch (_type) {
 	case TimerType::DotClock:
 		IRQ::trigger(IRQ::Timer0);
 		break;
@@ -174,7 +174,7 @@ void Emulator::IO::Timer::handleInterrupt() {
 	case TimerType::SystemClock8:
 		IRQ::trigger(IRQ::Timer2);
 		break;
-	}
+	}*/
 	
 	interrupt = true;
 }

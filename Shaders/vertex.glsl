@@ -10,7 +10,7 @@ in uvec3 attributes;
 //in uint textureAttributes[4];
 
 out vec3 color;
-flat out vec2 UVs;
+out vec2 UVs;
 
 // Not sure how to forward data,
 // to the Fragment shader right away..

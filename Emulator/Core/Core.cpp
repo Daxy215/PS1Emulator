@@ -460,12 +460,60 @@ void handleLoadExe(CPU& cpu) {
 	cpu.branchSlot = false;
 }
 
-void runCPU(CPU& cpu) {
-	uint32_t cyclesPerFrame = 565046; // 33.868 MHz / 60 FPS
-	//int cyclesPerFrame = 44100; // 44100Hz / 1 FPS
-	uint32_t cyclesDelta = 0;
+// This is stolen from:
+// https://github.com/BluestormDNA/ProjectPSX/blob/master/ProjectPSX/Core/ProjectPSX.cs#L56
+
+// I really don't understand timings..
+void runFrame(CPU& cpu) {
+	const int PSX_MHZ = 33868800;
+	const int SYNC_CYCLES = 100;
+	const int MIPS_UNDERCLOCK = 3; //Testing: This compensates the ausence of HALT instruction on MIPS Architecture, may broke some games.
+	const int CYCLES_PER_FRAME = PSX_MHZ / 60;
+	const int SYNC_LOOPS = (CYCLES_PER_FRAME / (SYNC_CYCLES * MIPS_UNDERCLOCK)) + 1;
 	
-    while (true) {
+	uint32_t sync = 0;
+	for (int i = 0; i < SYNC_LOOPS; i++) {
+		while (sync < SYNC_CYCLES) {
+			cpu.executeNextInstruction();
+			sync += 1;
+		}
+		
+		sync -= SYNC_CYCLES;
+		cpu.interconnect.step(SYNC_CYCLES * MIPS_UNDERCLOCK + 1);
+		cpu.handleInterrupts();
+		Emulator::Timers::Scheduler::resetTicks();
+	}
+}
+
+void runCPU(CPU& cpu) {
+	using namespace std::chrono_literals;
+	
+	// we use a fixed timestep of 1 / (60 fps) = 16 milliseconds
+	constexpr std::chrono::nanoseconds timestep(16ms);
+	
+	using clock = std::chrono::high_resolution_clock;
+	
+	std::chrono::nanoseconds lag(0ns);
+	auto time_start = clock::now();
+	
+	while(true) {
+		auto delta_time = clock::now() - time_start;
+		time_start = clock::now();
+		lag += std::chrono::duration_cast<std::chrono::nanoseconds>(delta_time);
+		
+		// update game logic as lag permits
+		while(lag >= timestep) {
+			lag -= timestep;
+			
+			runFrame(cpu);
+		}
+	}
+	
+	/*uint32_t cyclesPerFrame = 565046; // 33.868 MHz / 60 FPS
+	//int cyclesPerFrame = 44100; // 44100Hz / 1 FPS
+	uint32_t cyclesDelta = 0;*/
+	
+    /*while (true) {
     	while(cyclesDelta <= cyclesPerFrame) {
     		if (cpu.pc != 0x80030000 || 0) {
     			cpu.executeNextInstruction();
@@ -479,7 +527,7 @@ void runCPU(CPU& cpu) {
 		
     	Emulator::Timers::Scheduler::resetTicks();
     	cyclesDelta -= cyclesPerFrame;
-    }
+    }*/
 }
 
 // TODO; Use GLM for GTE
@@ -510,17 +558,19 @@ int main(int argc, char* argv[]) {
 	// TODO; LWR is bugged? Wrong value
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
-	std::thread thr(runCPU, std::ref(cpu));
+	//std::thread thr(runCPU, std::ref(cpu));
 	
 	while(!glfwWindowShouldClose(gpu.renderer->window)) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		gpu.renderer->display();
 		glfwPollEvents();
 		
+		runFrame(cpu);
+		
 		//std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
     }
 	
-	thr.join();
+	//thr.join();
 	
 	glfwTerminate();
     

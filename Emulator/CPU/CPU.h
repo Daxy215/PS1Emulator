@@ -45,6 +45,8 @@ public:
     void executeNextInstruction();
     void decodeAndExecute(Instruction& instruction);
     void decodeAndExecuteSubFunctions(Instruction& instruction);
+
+    void handleInterrupts();
     
     // Instructions
     // TODO; Please move those in a different class future me!

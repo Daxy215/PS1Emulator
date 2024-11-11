@@ -1,7 +1,7 @@
 #version 330 core
 
 in vec3 color;
-flat in vec2 UVs;
+in vec2 UVs;
 
 /**
  * 0 = isSemiTransparent
@@ -50,11 +50,6 @@ vec4 sample_texel() {
 }
 
 void main() {
-    // vec4 texelColor = vec4(0, 0, 0, 0);
-    //if(int(attr.z) == 1) {
-        //texelColor = sample_texel();
-    //}
-    
     // Apply transparenty
     float alpha = (float(attr.x) == 1) ? 0.5 : 1.0;
     

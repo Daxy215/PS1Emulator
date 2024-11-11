@@ -41,7 +41,7 @@ void Emulator::Gpu::step(uint32_t cycles) {
       * CPU Clock   =  33.868800MHz (44100Hz*300h)
       * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode?
       */
-    _cycles += round(cycles * (11 / 7));
+    _cycles += (cycles * 11 / 7);
     
     /**
      * Horizontal Timings
@@ -95,7 +95,7 @@ void Emulator::Gpu::step(uint32_t cycles) {
         printf("");
     }
     
-    isInVBlank = _scanLine < displayLineStart || _scanLine >= displayLineEnd;
+    isInVBlank = _scanLine < displayLineStart || _scanLine > displayLineEnd;
     
     dot = dotCycles[hres.hr2 << 2 | hres.hr1];
 }

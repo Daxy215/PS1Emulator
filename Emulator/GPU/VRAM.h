@@ -42,6 +42,8 @@ namespace Emulator {
         uint16_t getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
         uint16_t getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
         uint16_t getPixel16(uint32_t x, uint32_t y, uint32_t pageX, uint32_t pageY);
+
+        uint16_t RGB555_to_RGB565(uint16_t color);
         
     private:
         TransferData transferData = {};

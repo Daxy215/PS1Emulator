@@ -388,7 +388,7 @@ namespace Emulator {
         const float palVideoClock = 53203425.0f / 60.0f;
         
         uint32_t _scanLine = 0;
-        double _cycles = 0;
+        uint32_t _cycles = 0;
         
         bool isInHBlank = false;
         bool isInVBlank = false;

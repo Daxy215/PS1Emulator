@@ -55,22 +55,6 @@ void CPU::executeNextInstruction() {
     delaySlot = branchSlot;
     branchSlot = false;
     
-    // Check for interrupt
-    if((IRQ::status & interconnect._irq.mask)) {
-        this->cause |= 0x400;
-    } else {
-        this->cause &= ~0x400;
-    }
-    
-    bool IEC = (sr & 0x1) == 1;
-    uint8_t IM = static_cast<uint8_t>(sr >> 8) & 0xFF;
-    uint8_t IP = static_cast<uint8_t>(this->cause >> 8) & 0xFF;
-    
-    if(IEC && (IM & IP) > 0) {
-        printf("");
-        exception(Interrupt);
-    }
-    
     // Executes the instruction
     decodeAndExecute(instruction);
     
@@ -315,6 +299,33 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         printf("Unhandled sub instruction %0x8. Function call was: %x\n", instruction.op, instruction.subfunction().reg);
         std::cerr << "";
         break;
+    }
+}
+
+void CPU::handleInterrupts() {
+    uint32_t maskedPC = pc;
+    uint32_t load = interconnect.loadInstruction(maskedPC);
+    
+    uint32_t instr = load >> 26;
+    
+    if(instr == 0x12) {
+        // COP2 MTC2
+        return;
+    }
+    
+    // Check for interrupt
+    if((IRQ::status & interconnect._irq.mask)) {
+        this->cause |= 0x400;
+    } else {
+        this->cause &= ~0x400;
+    }
+    
+    bool IEC = (sr & 0x1) == 1;
+    uint8_t IM = static_cast<uint8_t>(sr >> 8) & 0xFF;
+    uint8_t IP = static_cast<uint8_t>(this->cause >> 8) & 0xFF;
+    
+    if(IEC && (IM & IP) > 0) {
+        exception(Interrupt);
     }
 }
 
@@ -645,8 +656,8 @@ void CPU::oplw(Instruction& instruction) {
         // Put the load in the delay slot
         setLoad(t, v);
     } else {
-        //printf("wtf\n");
-        exception(LoadAddressError);
+        printf("wtf\n");
+        //exception(LoadAddressError);
     }
 }
 

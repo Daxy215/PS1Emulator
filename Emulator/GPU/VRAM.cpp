@@ -9,15 +9,17 @@
 
 Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 	ptr16 = new uint16_t[1024 * 512];
+	std::fill(ptr16, ptr16 + (1024 * 512), ((31 << 11) | (63 << 5) | (0)));
+	
 	/*ptr8  = new uint8_t[1024 * 512 * 2];
 	ptr4  = new uint8_t[1024 * 512 * 4];*/
 	
-	for(int x = 0; x < 1024; x++) {
+	/*for(int x = 0; x < 1024; x++) {
 		for(int y = 0; y < 512; y++) {
 			// Yellow = ((31 << 11) | (63 << 5) | (0)) = 0xFFE0
-			setPixel(x, y, ((255 << 11) | (0 << 5) | (0)));
+			setPixel(x, y, 0xF800);
 		}
-	}
+	}*/
 	
 	glGenTextures(1, &textureID);
 	glActiveTexture(GL_TEXTURE0);
@@ -28,7 +30,7 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, &ptr16);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, ptr16);
 	
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR) {
@@ -65,15 +67,19 @@ void Emulator::VRAM::stepTransfer() {
 }
 
 void Emulator::VRAM::endTransfer() {
+	//std::fill(ptr16, ptr16 + (1024 * 512), ((31 << 11) | (63 << 5) | (255)));
+	
 	//glActiveTexture(GL_TEXTURE0);
 	/*glBindTexture(GL_TEXTURE_2D, textureID);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, &ptr16);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, &ptr16);*/
+	
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, ptr16);
 	
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR) {
 		std::cerr << "OpenGL error after glTexSubImage2D: " << error << '\n';
-	}*/
+	}
 }
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {
@@ -86,9 +92,9 @@ void Emulator::VRAM::drawPixel(uint32_t pixel) {
 }
 
 void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
-    size_t index = (y * MAX_WIDTH) + x;
+    size_t index = y * MAX_WIDTH + x;
 	
-	ptr16[index] = static_cast<uint16_t>(color);
+	ptr16[index] = RGB555_to_RGB565(static_cast<uint16_t>(color));
 	
 	/* Write data as 8bit. */
 	/*ptr8[index * 2 + 0] = static_cast<uint8_t>(color);
@@ -123,4 +129,16 @@ uint16_t Emulator::VRAM::getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint3
 
 uint16_t Emulator::VRAM::getPixel16(uint32_t x, uint32_t y, uint32_t pageX, uint32_t pageY) {
     return getPixel(x + pageX, y + pageY);
+}
+
+uint16_t Emulator::VRAM::RGB555_to_RGB565(uint16_t color) {
+	uint16_t red = (color & 0x7C00) >> 10;
+	uint16_t green = (color & 0x03E0) >> 5;
+	uint16_t blue = color & 0x001F;
+    
+	uint16_t red565 = red;
+	uint16_t green565 = green << 1;
+	uint16_t blue565 = blue;
+	
+	return (red565 << 11) | (green565 << 5) | blue565;
 }
