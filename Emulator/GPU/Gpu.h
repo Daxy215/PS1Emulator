@@ -171,7 +171,7 @@ namespace Emulator {
         Attributes(GLubyte isSemiTransparent, GLubyte blendTexture, GLubyte useTextures = 0)
             : isSemiTransparent(isSemiTransparent),
               blendTexture(blendTexture),
-              useTextures(useTextures)
+              useTextureMode(useTextures)
               /*clutX(0),
               clutY(0),
               pageX(0),
@@ -190,9 +190,20 @@ namespace Emulator {
             pageY = static_cast<uint16_t>(((p >> 4) & 1) << 8);*/
         }
         
+        bool useTextures() {
+            return (useTextureMode != 0);
+        }
+        
         GLubyte isSemiTransparent = 0;
         GLubyte blendTexture = 0;
-        GLubyte useTextures = 0;
+        
+        /**
+         * I'm too lazy to create an enum
+         * 0 = No texture,
+         * 1 = Texture,
+         * 2 = Texture + color
+         */
+        GLubyte useTextureMode = 0;
         
         /*GLushort clutX = 0, clutY = 0;
         GLushort pageX = 0, pageY = 0;*/

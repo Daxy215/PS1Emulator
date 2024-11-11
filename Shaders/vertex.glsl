@@ -28,10 +28,10 @@ void main() {
     * Converts VRAM coordinates (0; drawingArea.x, 0; drawingArea.y)
     * to OpenGL coordinates (-1;1, -1,1)
     */
-    float xPos = ((position.x / float(drawingArea.x/*1024*/)) * 2.0) - 1.0; 
+    float xPos = ((position.x / float(drawingArea.x)) * 2.0) - 1.0; 
     
     // VRAM puts 0 at the top, OpenGL at the bottom..
-    float yPos = 1.0 - ((position.y / float(drawingArea.y/*512*/)) * 2.0);
+    float yPos = 1.0 - ((position.y / float(drawingArea.y)) * 2.0);
     
     // Set the final position
     gl_Position.xyzw = vec4(xPos, yPos, 0.0, 1.0);

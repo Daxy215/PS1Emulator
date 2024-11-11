@@ -6,7 +6,7 @@ in vec2 UVs;
 /**
  * 0 = isSemiTransparent
  * 1 = blendTexture
- * 2 = useTextures
+ * 2 = useTextures ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
  */
 flat in uvec3 attr;
 
@@ -52,6 +52,8 @@ vec4 sample_texel() {
 void main() {
     // Apply transparenty
     float alpha = (float(attr.x) == 1) ? 0.5 : 1.0;
+    
+    // TODO; Implement attr.z == 2, texture + color
     
     if (int(attr.z) == 0) { 
         fragColor = vec4(color, alpha);

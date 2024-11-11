@@ -115,7 +115,7 @@ Emulator::Renderer::Renderer() {
     setDrawingOffset(0, 0);
     
     drawingUni = glGetUniformLocation(program, "drawingArea");
-    setDrawingArea(1024, 512);
+    glUniform2i(drawingUni, 1024, 512);
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -184,7 +184,7 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
     for(int i = 0; i < 3; i++) {
         this->positions.set(nVertices, positions[i]);
         this->colors.set(nVertices, colors[i]);
-        if(attributes.useTextures) this->uvs.set(nVertices, uvs[i]);
+        if(attributes.useTextures()) this->uvs.set(nVertices, uvs[i]);
         this->attributes.set(nVertices, attributes);
         nVertices++;
     }
@@ -202,38 +202,38 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
     // [2, 3, 0]
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[2]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[2]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[3]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[3]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[0]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     // [3, 0, 1]
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[3]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[3]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[0]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[1]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[1]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
 }
@@ -263,19 +263,19 @@ void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::
     // [0, 1, 2]
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[0]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[1]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[1]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[2]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[2]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
@@ -283,29 +283,29 @@ void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::
     // [0, 2, 3]
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[0]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[2]);
     this->colors.set(nVertices, colors[2]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[2]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[2]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
     
     this->positions.set(nVertices, positions[3]);
     this->colors.set(nVertices, colors[3]);
-    if(attributes.useTextures) this->uvs.set(nVertices, uvs[3]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[3]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
 }
 
 void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
-    glUniform2i(offsetUni, x, y);
+    glUniform2i(offsetUni, 0, 0);
 }
 
 void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
-    glUniform2i(drawingUni, right, bottom);
+    //glUniform2i(drawingUni, right, bottom);
 }
 
 void Emulator::Renderer::setTextureDepth(int textureDepth) {

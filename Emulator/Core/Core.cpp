@@ -397,7 +397,7 @@ void handleLoadExe(CPU& cpu) {
 	// It's drawing the cube(obviously no textures),
 	// though, idk where im fucking up bc its never checking,
 	// for the controller's inputs. So, I can't really fully test it..
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
 	
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/access-time/access-time.exe"); // TODO; All timings return 4
 	//std ::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
@@ -408,7 +408,7 @@ void handleLoadExe(CPU& cpu) {
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/animated-triangle/animated-triangle.exe"); // TODO; Needs GTE
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 20000-30000 MB/s lol
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Passes but no textures
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Passes but no textures
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/quad/quad.exe"); //
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/version-detect/version-detect.exe"); // Not really a tested but I suppose (0* GPU version 2 [New 208pin GPU (LATE-PU-8 and up)])
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Wrong address somewhere :)
@@ -474,7 +474,12 @@ void runFrame(CPU& cpu) {
 	uint32_t sync = 0;
 	for (int i = 0; i < SYNC_LOOPS; i++) {
 		while (sync < SYNC_CYCLES) {
-			cpu.executeNextInstruction();
+			if (cpu.pc != 0x80030000 || 0) {
+				cpu.executeNextInstruction();
+			} else {
+				handleLoadExe(cpu);
+			}
+			
 			sync += 1;
 		}
 		
