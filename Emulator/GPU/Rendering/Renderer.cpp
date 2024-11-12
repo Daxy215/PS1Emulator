@@ -93,7 +93,7 @@ Emulator::Renderer::Renderer() {
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Position), nullptr);
+    glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, sizeof(UV), nullptr);
     
     // Attributes buffer
     attributes.create();
@@ -107,9 +107,6 @@ Emulator::Renderer::Renderer() {
     // Needs to be split up
     glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
     
-    textureDepthUni = glGetUniformLocation(program, "texture_depth");
-    glUniform1i(textureDepthUni, 4);
-    
     // Uniforms
     offsetUni = glGetUniformLocation(program, "offset");
     setDrawingOffset(0, 0);
@@ -117,6 +114,9 @@ Emulator::Renderer::Renderer() {
     drawingUni = glGetUniformLocation(program, "drawingArea");
     glUniform2i(drawingUni, 1024, 512);
     
+    textureDepthUni = glGetUniformLocation(program, "texture_depth");
+    glUniform1i(textureDepthUni, 0);
+        
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
@@ -310,7 +310,7 @@ void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
 
 void Emulator::Renderer::setTextureDepth(int textureDepth) {
     //glUniform1ui for uint
-    //glUniform1i(textureDepthUni, textureDepth);
+    glUniform1i(textureDepthUni, textureDepth);
 }
 
 void Emulator::Renderer::updateVramTextures(uint32_t texture4, uint32_t texture8, uint32_t texture16) {

@@ -474,7 +474,7 @@ void runFrame(CPU& cpu) {
 	uint32_t sync = 0;
 	for (int i = 0; i < SYNC_LOOPS; i++) {
 		while (sync < SYNC_CYCLES) {
-			if (cpu.pc != 0x80030000 || 0) {
+			if (cpu.pc != 0x80030000 || 1) {
 				cpu.executeNextInstruction();
 			} else {
 				handleLoadExe(cpu);

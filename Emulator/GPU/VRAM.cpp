@@ -9,28 +9,50 @@
 
 Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 	ptr16 = new uint16_t[1024 * 512];
-	std::fill(ptr16, ptr16 + (1024 * 512), ((31 << 11) | (63 << 5) | (0)));
+	/*int width = 1024;
+	int height = 512;
+	int blockSize = 16;
 	
-	/*ptr8  = new uint8_t[1024 * 512 * 2];
-	ptr4  = new uint8_t[1024 * 512 * 4];*/
-	
-	/*for(int x = 0; x < 1024; x++) {
-		for(int y = 0; y < 512; y++) {
-			// Yellow = ((31 << 11) | (63 << 5) | (0)) = 0xFFE0
-			setPixel(x, y, 0xF800);
+	for (int y = 0; y < height; y += blockSize) {
+		for (int x = 0; x < width; x += blockSize) {
+			uint16_t red = (x / blockSize) % 32;        // Red component (5 bits)
+			uint16_t green = (y / blockSize) % 64;      // Green component (6 bits)
+			uint16_t blue = ((x + y) / blockSize) % 32; // Blue component (5 bits)
+			uint16_t color = (red << 11) | (green << 5) | blue;
+			
+			// Fill the block with this color
+			for (int j = 0; j < blockSize; ++j) {
+				for (int i = 0; i < blockSize; ++i) {
+					int pixelIndex = (y + j) * width + (x + i);
+					if (pixelIndex < width * height) {
+						ptr16[pixelIndex] = color;
+					}
+				}
+			}
 		}
 	}*/
 	
-	glGenTextures(1, &textureID);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, textureID);
+	std::fill(ptr16, ptr16 + (1024 * 512), 0);
 	
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	/*ptr4 = new uint8_t[4096 * 512 * 4];
+	std::fill(ptr4, ptr4 + (4096 * 512 * 4), ((31 << 11) | (63 << 5) | (0)));*/
+	
+	glGenTextures(1, &texture16);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture16);
+	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, ptr16);
+	
+	/*glGenTextures(1, &texture4);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texture4);
+	
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_BYTE, ptr4);*/
 	
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR) {
@@ -74,7 +96,15 @@ void Emulator::VRAM::endTransfer() {
 	
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, &ptr16);*/
 	
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, texture16);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 512, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, ptr16);
+	
+	/*
+	//glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texture4);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 4096, 512, 0, GL_RGB, GL_UNSIGNED_BYTE, ptr4);
+	*/
 	
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR) {
@@ -98,13 +128,13 @@ void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
 	
 	/* Write data as 8bit. */
 	/*ptr8[index * 2 + 0] = static_cast<uint8_t>(color);
-	ptr8[index * 2 + 1] = static_cast<uint8_t>(color >> 8);
+	ptr8[index * 2 + 1] = static_cast<uint8_t>(color >> 8);*/
 	
-	/* Write data as 4bit. #1#
-	ptr4[index * 4 + 0] = static_cast<uint8_t>(color) & 0xF;
-	ptr4[index * 4 + 1] = static_cast<uint8_t>(color >> 4) & 0xF;
-	ptr4[index * 4 + 2] = static_cast<uint8_t>(color >> 8) & 0xF;
-	ptr4[index * 4 + 3] = static_cast<uint8_t>(color >> 12) & 0xF;*/
+	/* Write data as 4bit. */
+	/*ptr4[index * 4 + 0] = static_cast<uint8_t>(RGB555_to_RGB565(static_cast<uint16_t>(color))) & 0xF;
+	ptr4[index * 4 + 1] = static_cast<uint8_t>(RGB555_to_RGB565(static_cast<uint16_t>(color)) >> 4) & 0xF;
+	ptr4[index * 4 + 2] = static_cast<uint8_t>(RGB555_to_RGB565(static_cast<uint16_t>(color)) >> 8) & 0xF;
+	ptr4[index * 4 + 3] = static_cast<uint8_t>(RGB555_to_RGB565(static_cast<uint16_t>(color)) >> 12) & 0xF;*/
 }
 
 uint16_t Emulator::VRAM::getPixel(uint32_t x, uint32_t y) const {

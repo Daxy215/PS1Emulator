@@ -59,8 +59,7 @@ namespace Emulator {
     public:
         // Maybe move this to a struct?
         uint32_t pbo4, pbo8, pbo16;
-        uint32_t texture4, texture8, texture16;
-        unsigned int textureID = 0;
+        unsigned int texture4, texture8, texture16;
         
         uint8_t* ptr4;
         uint8_t* ptr8;

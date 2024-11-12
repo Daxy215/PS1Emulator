@@ -146,11 +146,14 @@ namespace Emulator {
     };
     
     struct UV {
-        static UV fromGp0(uint32_t val, uint32_t page, uint16_t textureDepth) {
+        static UV fromGp0(uint32_t val, uint32_t clut, uint32_t page, uint16_t textureDepth) {
             textureDepth = (textureDepth == 0) ? 4 : (textureDepth == 1) ? 8 : 16;
             
             uint16_t u = static_cast<uint16_t>((val) & 0xFF);
             uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
+            
+            float clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
+            float clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
             
             uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
             uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);
@@ -159,10 +162,30 @@ namespace Emulator {
             float ux = (pageX * r + u) / (1024.0f * r);
             float vc = (pageY + v) / 512.0f;
             
-            return {ux, vc};
+            return {ux, vc, clutX, clutY};
+        }
+        
+        static UV fromGp0(uint32_t val, uint32_t clut, uint16_t pageX, uint16_t pageY, uint16_t textureDepth) {
+            textureDepth = (textureDepth == 0) ? 4 : (textureDepth == 1) ? 8 : 16;
+            
+            uint16_t u = static_cast<uint16_t>((val) & 0xFF);
+            uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
+            
+            float clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
+            float clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
+            
+            /*uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
+            uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);*/
+            
+            float r = 16 / textureDepth;
+            float ux = (pageX * r + u) / (1024.0f * r);
+            float vc = (pageY + v) / 512.0f;
+            
+            return {ux, vc, clutX, clutY};
         }
         
         float u = 0, v = 0;
+        float clutX, clutY;
     };
     
     struct Attributes {
@@ -274,7 +297,7 @@ namespace Emulator {
         void gp0QuadTexturedShadedOpaque(uint32_t val);
         
         // Helper function
-        void renderRectangle(Position position, Color color, uint16_t width, uint16_t height);
+        void renderRectangle(Position position, Color color, UV uv, uint16_t width, uint16_t height);
         
         // y tf do these say "MonoOpaque"???????
         void gp0VarRectangleMonoOpaque(uint32_t val);

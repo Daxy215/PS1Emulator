@@ -2,15 +2,14 @@
 
 in vec2 vertexPosition;
 in uvec3 vertexColor;
-in vec2 texCoords;
+in vec4 texCoords;
 
 // Idk how to pass structs?
 // Not really good with GLSL
 in uvec3 attributes;
-//in uint textureAttributes[4];
 
 out vec3 color;
-out vec2 UVs;
+out vec4 UVs;
 
 // Not sure how to forward data,
 // to the Fragment shader right away..

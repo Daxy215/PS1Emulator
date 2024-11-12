@@ -418,7 +418,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x64: {
             // GP0(64h) - Textured Rectangle, variable size, opaque, texture-blending
             
-            curAttribute = { 0, 1 };
+            curAttribute = { 0, 1, 2 };
             
             gp0CommandRemaining = 4;
             Gp0CommandMethod = &Gpu::gp0VarTexturedRectangleMonoOpaque;
@@ -428,6 +428,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x65: {
             // GP0(65h) - Textured Rectangle, variable size, opaque, raw-texture
             
+            curAttribute = { 0, 0, 2};
+            
             gp0CommandRemaining = 4;
             Gp0CommandMethod = &Gpu::gp0VarTexturedRectangleMonoOpaque;
             
@@ -436,7 +438,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x66: {
             // GP0(66h) - Textured Rectangle, variable size, semi-transp, texture-blendin
             
-            curAttribute = { 1, 1 };
+            curAttribute = { 1, 1, 2 };
             
             gp0CommandRemaining = 4;
             Gp0CommandMethod = &Gpu::gp0VarTexturedRectangleMonoOpaque;
@@ -492,7 +494,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x74: {
             // GP0(74h) - Textured Rectangle, 8x8, opaque, texture-blending
             
-            curAttribute = {0, 1};
+            curAttribute = {0, 1, 2};
             
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp08RectangleTexturedOpaqu;
@@ -502,7 +504,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x75: {
             // GP0(75h) - Textured Rectangle, 8x8, opaque, raw-texture
             
-            curAttribute = {0, 0};
+            curAttribute = {0, 0, 2};
             
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp08RectangleTexturedOpaqu;
@@ -512,7 +514,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x76: {
             // GP0(76h) - Textured Rectangle, 8x8, semi-transparent, texture-blending
             
-            curAttribute = {1, 1};
+            curAttribute = {1, 1, 2};
             
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp08RectangleTexturedOpaqu;
@@ -522,7 +524,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x77: {
             // GP0(77h) - Textured Rectangle, 8x8, semi-transparent, raw-texture
             
-            curAttribute = {1, 0};
+            curAttribute = {1, 0, 2};
             
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp08RectangleTexturedOpaqu;
@@ -799,19 +801,16 @@ void Emulator::Gpu::gp0QuadTexturedShadedOpaque(uint32_t val) {
     uint16_t p = static_cast<uint16_t>(gp0Command.index(4) >> 16);
     
     UV uvs[] = {
-        UV::fromGp0(gp0Command.index(2), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(5), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(8), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(11), p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(2), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(5), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(8), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(11), c, p, static_cast<uint16_t>(textureDepth)),
     };
-    
-    uint16_t clutX = static_cast<uint16_t>((c & 0x3F) << 4);
-    uint16_t clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
     
     renderer->pushQuad(positions, colors, uvs, curAttribute);
 }
 
-void Emulator::Gpu::renderRectangle(Position position, Color color, uint16_t width, uint16_t height) {
+void Emulator::Gpu::renderRectangle(Position position, Color color, UV uv, uint16_t width, uint16_t height) {
     Position positions[4] = {
         position,
         {position.x + width, position.y},
@@ -820,8 +819,9 @@ void Emulator::Gpu::renderRectangle(Position position, Color color, uint16_t wid
     };
     
     Color colors[4] = { color, color, color, color };
+    UV uvs[4] = { uv, uv, uv, uv };
     
-    renderer->pushRectangle(positions, colors, {}, curAttribute);
+    renderer->pushRectangle(positions, colors, uvs, curAttribute);
 }
 
 void Emulator::Gpu::gp0VarRectangleMonoOpaque(uint32_t val) {
@@ -833,51 +833,58 @@ void Emulator::Gpu::gp0VarRectangleMonoOpaque(uint32_t val) {
     uint16_t width = sizeData & 0xFFFF;
     uint16_t height = sizeData >> 16;
     
-    renderRectangle(position, color, width, height);
+    renderRectangle(position, color, {}, width, height);
 }
 
+// 65
 void Emulator::Gpu::gp0VarTexturedRectangleMonoOpaque(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0(gp0Command.index(1));
     
-    // UV data at index 2
+    uint16_t c = static_cast<uint16_t>(gp0Command.index(2) >> 16);
+    
+    // Text page
+    UV uv = UV::fromGp0(gp0Command.index(2), c, pageBaseX, pageBaseY * 255, static_cast<int>(textureDepth));
     
     uint32_t sizeData = gp0Command.index(3);
     
     uint16_t width = sizeData & 0xFFFF;
     uint16_t height = sizeData >> 16;
     
-    renderRectangle(position, color, width, height);
+    renderRectangle(position, color, uv, width, height);
 }
 
 void Emulator::Gpu::gp0DotRectangleMonoOpaque(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0(gp0Command.index(1));
     
-    renderRectangle(position, color, 1, 1);
+    renderRectangle(position, color, {}, 1, 1);
 }
 
 void Emulator::Gpu::gp08RectangleMonoOpaque(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0(gp0Command.index(1));
     
-    renderRectangle(position, color, 8, 8);
+    renderRectangle(position, color, {}, 8, 8);
 }
 
 void Emulator::Gpu::gp08RectangleTexturedOpaqu(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0(gp0Command.index(1));
     
-    // UV data at index 2
+    uint16_t c = static_cast<uint16_t>(gp0Command.index(2) >> 16);
+    uint16_t p = static_cast<uint16_t>(gp0Command.index(4) >> 16);
     
-    renderRectangle(position, color, 8, 8);
+    UV uv = UV::fromGp0(gp0Command.index(2), c, p, static_cast<int>(textureDepth));
+    
+    renderRectangle(position, color, uv, 8, 8);
 }
 
 void Emulator::Gpu::gp016RectangleMonoOpaque(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0(gp0Command.index(1));
     
-    renderRectangle(position, color, 16, 16);
+    renderRectangle(position, color, {}, 16, 16);
 }
 
 void Emulator::Gpu::gp0Rectangle(uint32_t val) {
@@ -954,13 +961,10 @@ void Emulator::Gpu::gp0TriangleTexturedOpaque(uint32_t val) {
     uint16_t p = static_cast<uint16_t>(gp0Command.index(4) >> 16);
     
     UV uvs[] = {
-        UV::fromGp0(gp0Command.index(2), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(4), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(6), p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(2), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(4), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(6), c, p, static_cast<uint16_t>(textureDepth)),
     };
-    
-    uint16_t clutX = static_cast<uint16_t>((c & 0x3F) << 4);
-    uint16_t clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
     
     renderer->pushTriangle(positions, colors, uvs, curAttribute);
 }
@@ -983,13 +987,10 @@ void Emulator::Gpu::gp0TriangleRawTexturedOpaque(uint32_t val) {
     uint16_t p = static_cast<uint16_t>(gp0Command.index(4) >> 16);
     
     UV uvs[] = {
-        UV::fromGp0(gp0Command.index(2), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(4), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(6), p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(2), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(4), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(6), c, p, static_cast<uint16_t>(textureDepth)),
     };
-    
-    uint16_t clutX = static_cast<uint16_t>((c & 0x3F) << 4);
-    uint16_t clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
     
     renderer->pushTriangle(positions, colors, uvs, curAttribute);
 }
@@ -1014,14 +1015,11 @@ void Emulator::Gpu::gp0QuadTextureBlendOpaque(uint32_t val) {
     uint16_t p = static_cast<uint16_t>(gp0Command.index(4) >> 16);
     
     UV uvs[] = {
-        UV::fromGp0(gp0Command.index(2), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(4), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(6), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(8), p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(2), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(4), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(6), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(8), c, p, static_cast<uint16_t>(textureDepth)),
     };
-    
-    uint16_t clutX = static_cast<uint16_t>((c & 0x3F) << 4);
-    uint16_t clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
     
     renderer->pushQuad(positions, colors, uvs, curAttribute);
 }
@@ -1047,14 +1045,11 @@ void Emulator::Gpu::gp0QuadRawTextureBlendOpaque(uint32_t val) {
     uint16_t p = static_cast<uint16_t>(gp0Command.index(4) >> 16);
     
     UV uvs[] = {
-        UV::fromGp0(gp0Command.index(2), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(4), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(6), p, static_cast<uint16_t>(textureDepth)),
-        UV::fromGp0(gp0Command.index(8), p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(2), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(4), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(6), c, p, static_cast<uint16_t>(textureDepth)),
+        UV::fromGp0(gp0Command.index(8), c, p, static_cast<uint16_t>(textureDepth)),
     };
-    
-    uint16_t clutX = static_cast<uint16_t>((c & 0x3F) << 4);
-    uint16_t clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
     
     renderer->pushQuad(positions, colors, uvs, curAttribute);
 }
