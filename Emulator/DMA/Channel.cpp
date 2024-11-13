@@ -1,6 +1,6 @@
 ﻿#include "Channel.h"
 
-#include <stdexcept>
+//#include <stdexcept>
 
 #include "Dma.h"
 #include "../Memory/IRQ.h"
@@ -38,7 +38,7 @@ void Channel::setControl(uint32_t val) {
 		sync = LinkedList;
 		break;
 	default:
-		throw std::runtime_error("Unknown DMA sync mode; " + ((val >> 9) & 3));
+		//throw std::runtime_error("Unknown DMA sync mode; " + ((val >> 9) & 3));
 		
 		break;
 	}

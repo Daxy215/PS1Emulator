@@ -3,11 +3,14 @@
 #ifndef GPU_H
 #define GPU_H
 
+#include <assert.h>
 #include <cstdint>
 #include <functional>
 #include <stdexcept>
 #include <string>
 #include <GL/glew.h>
+
+#include "vram.h"
 
 // TODO; Please redo this shitty code WTF IS THIS ;-;
 
@@ -109,131 +112,142 @@ namespace Emulator {
         VRam,
     };
     
-    // TODO; Change this back to GLint
-    struct Position {
-        Position() = default;
-        
-        Position(float x, float y) : x(x), y(y) {
-            
-        }
-        
-        static Position fromGp0(uint32_t val) {
-            float x = static_cast<float>(static_cast<int16_t>(val));
-            float y = static_cast<float>(static_cast<int16_t>(val >> 16));
-            
-            return {x, y};
-        }
-        
-        float x, y;
-    };
-    
-    struct Color {
-        Color() = default;
-        
-        Color(GLubyte r, GLubyte g, GLubyte b) : r(r), g(g), b(b) {
-            
-        }
-        
-        static Color fromGp0(uint32_t val) {
-            uint8_t r = static_cast<uint8_t>(val);
-            uint8_t g = static_cast<uint8_t>(val >> 8);
-            uint8_t b = static_cast<uint8_t>(val >> 16);
-            
-            return {r, g, b};
-        }
-        
-        GLubyte r, g, b;
-    };
-    
-    struct UV {
-        static UV fromGp0(uint32_t val, uint32_t clut, uint32_t page, uint16_t textureDepth) {
-            textureDepth = (textureDepth == 0) ? 4 : (textureDepth == 1) ? 8 : 16;
-            
-            uint16_t u = static_cast<uint16_t>((val) & 0xFF);
-            uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
-            
-            float clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
-            float clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
-            
-            uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
-            uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);
-            
-            float r = 16 / textureDepth;
-            float ux = (pageX * r + u) / (1024.0f * r);
-            float vc = (pageY + v) / 512.0f;
-            
-            return {ux, vc, clutX, clutY};
-        }
-        
-        static UV fromGp0(uint32_t val, uint32_t clut, uint16_t pageX, uint16_t pageY, uint16_t textureDepth) {
-            textureDepth = (textureDepth == 0) ? 4 : (textureDepth == 1) ? 8 : 16;
-            
-            uint16_t u = static_cast<uint16_t>((val) & 0xFF);
-            uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
-            
-            float clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
-            float clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
-            
-            /*uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
-            uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);*/
-            
-            float r = 16 / textureDepth;
-            float ux = (pageX * r + u) / (1024.0f * r);
-            float vc = (pageY + v) / 512.0f;
-            
-            return {ux, vc, clutX, clutY};
-        }
-        
-        float u = 0, v = 0;
-        float clutX, clutY;
-    };
-    
-    struct Attributes {
-        Attributes() = default;
-        
-        Attributes(GLubyte isSemiTransparent, GLubyte blendTexture, GLubyte useTextures = 0)
-            : isSemiTransparent(isSemiTransparent),
-              blendTexture(blendTexture),
-              useTextureMode(useTextures)
-              /*clutX(0),
-              clutY(0),
-              pageX(0),
-              pageY(0)*/ {
-            
-        }
-        
-        void setTextureParameters(uint32_t clut, uint32_t page) {
-            uint16_t c = static_cast<uint16_t>(clut >> 16);
-            uint16_t p = static_cast<uint16_t>(page >> 16);
-            
-            /*clutX = static_cast<uint16_t>((c & 0x3F) << 4);
-            clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
-            
-            pageX = static_cast<uint16_t>((p & 0xF) << 6);
-            pageY = static_cast<uint16_t>(((p >> 4) & 1) << 8);*/
-        }
-        
-        bool useTextures() {
-            return (useTextureMode != 0);
-        }
-        
-        GLubyte isSemiTransparent = 0;
-        GLubyte blendTexture = 0;
-        
-        /**
-         * I'm too lazy to create an enum
-         * 0 = No texture,
-         * 1 = Texture,
-         * 2 = Texture + color
-         */
-        GLubyte useTextureMode = 0;
-        
-        /*GLushort clutX = 0, clutY = 0;
-        GLushort pageX = 0, pageY = 0;*/
-    };
-    
     // GPU structure
     class Gpu {
+    public:
+        // TODO; Change this back to GLint
+        struct Position {
+            Position() = default;
+            
+            Position(float x, float y) : x(x), y(y) {
+                
+            }
+            
+            static Position fromGp0(uint32_t val) {
+                float x = static_cast<float>(static_cast<int16_t>(val));
+                float y = static_cast<float>(static_cast<int16_t>(val >> 16));
+                
+                return {x, y};
+            }
+            
+            float x, y;
+        };
+        
+        struct Color {
+            Color() = default;
+            
+            Color(GLubyte r, GLubyte g, GLubyte b) : r(r), g(g), b(b) {
+                
+            }
+            
+            static Color fromGp0(uint32_t val) {
+                uint8_t r = static_cast<uint8_t>(val);
+                uint8_t g = static_cast<uint8_t>(val >> 8);
+                uint8_t b = static_cast<uint8_t>(val >> 16);
+                
+                return {r, g, b};
+            }
+            
+            GLubyte r, g, b;
+        };
+        
+        struct UV {
+            static UV fromGp0(uint32_t val, uint32_t clut, uint32_t page, Gpu& gpu) {
+                uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
+                
+                uint16_t u = static_cast<uint16_t>((val) & 0xFF);
+                uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
+                
+                float clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
+                float clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
+                
+                uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
+                uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);
+                
+                // Calculate clut based on depth
+                calculateClut(u, v, clutX, clutY, pageX, pageY, depth, gpu);
+                
+                float r = 16 / depth;
+                float ux = (pageX * r + u) / (1024.0f * r);
+                float vc = (pageY + v) / 512.0f;
+                
+                return {ux, vc, clutX, clutY};
+            }
+            
+            static UV fromGp0(uint32_t val, uint32_t clut, uint16_t pageX, uint16_t pageY, Gpu& gpu) {
+                uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
+                
+                uint16_t u = static_cast<uint16_t>((val) & 0xFF);
+                uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
+                
+                float clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
+                float clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
+                
+                /*uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
+                uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);*/
+                
+                float r = 16 / depth;
+                float ux = (pageX * r + u) / (1024.0f * r);
+                float vc = (pageY + v) / 512.0f;
+                
+                return {ux, vc, clutX, clutY};
+            }
+            
+            static void calculateClut(uint16_t x, uint16_t y, float cX, float cY, uint16_t pX, uint16_t pY, uint16_t depth, Gpu& gpu) {
+                // TODO; Imma only do 4 bits for now, as that's what's the bios uses
+                assert(depth == 4);
+                
+                gpu.vram->getPixel4(x, y, cX, cY, pX, pY);
+            }
+            
+            uint32_t u = 0, v = 0;
+            uint32_t clutX, clutY;
+        };
+        
+        struct Attributes {
+            Attributes() = default;
+            
+            Attributes(GLubyte isSemiTransparent, GLubyte blendTexture, GLubyte useTextures = 0)
+                : isSemiTransparent(isSemiTransparent),
+                  blendTexture(blendTexture),
+                  useTextureMode(useTextures)
+                  /*clutX(0),
+                  clutY(0),
+                  pageX(0),
+                  pageY(0)*/ {
+                
+            }
+            
+            void setTextureParameters(uint32_t clut, uint32_t page) {
+                uint16_t c = static_cast<uint16_t>(clut >> 16);
+                uint16_t p = static_cast<uint16_t>(page >> 16);
+                
+                /*clutX = static_cast<uint16_t>((c & 0x3F) << 4);
+                clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
+                
+                pageX = static_cast<uint16_t>((p & 0xF) << 6);
+                pageY = static_cast<uint16_t>(((p >> 4) & 1) << 8);*/
+            }
+            
+            bool useTextures() {
+                return (useTextureMode != 0);
+            }
+            
+            GLubyte isSemiTransparent = 0;
+            GLubyte blendTexture = 0;
+            
+            /**
+             * I'm too lazy to create an enum
+             * 0 = No texture,
+             * 1 = Texture,
+             * 2 = Texture + color
+             */
+            GLubyte useTextureMode = 0;
+            
+            /*GLushort clutX = 0, clutY = 0;
+            GLushort pageX = 0, pageY = 0;*/
+        };
+        
     public:
         Gpu();
 

@@ -1,7 +1,6 @@
 ﻿
-#include <stdexcept>
-// Pre-channel Data
-//TODO; Make this a class
+//#include <stdexcept>
+
 // DMA transfer direction
 enum Direction {
 	FromRam,
@@ -61,7 +60,7 @@ struct PortC {
 		case 4: return Spu;
 		case 5: return Pio;
 		case 6: return Otc;
-		default: throw std::runtime_error("Invalid port; " + index);
+		//default: throw std::runtime_error("Invalid port; " + index);
 		}
 	}
 };

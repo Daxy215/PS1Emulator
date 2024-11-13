@@ -491,29 +491,6 @@ void runFrame(CPU& cpu) {
 }
 
 void runCPU(CPU& cpu) {
-	using namespace std::chrono_literals;
-	
-	// we use a fixed timestep of 1 / (60 fps) = 16 milliseconds
-	constexpr std::chrono::nanoseconds timestep(16ms);
-	
-	using clock = std::chrono::high_resolution_clock;
-	
-	std::chrono::nanoseconds lag(0ns);
-	auto time_start = clock::now();
-	
-	while(true) {
-		auto delta_time = clock::now() - time_start;
-		time_start = clock::now();
-		lag += std::chrono::duration_cast<std::chrono::nanoseconds>(delta_time);
-		
-		// update game logic as lag permits
-		while(lag >= timestep) {
-			lag -= timestep;
-			
-			runFrame(cpu);
-		}
-	}
-	
 	/*uint32_t cyclesPerFrame = 565046; // 33.868 MHz / 60 FPS
 	//int cyclesPerFrame = 44100; // 44100Hz / 1 FPS
 	uint32_t cyclesDelta = 0;*/
@@ -533,6 +510,11 @@ void runCPU(CPU& cpu) {
     	Emulator::Timers::Scheduler::resetTicks();
     	cyclesDelta -= cyclesPerFrame;
     }*/
+}
+
+double clockToMilliseconds(clock_t ticks){
+	// units/(units/time) => time (seconds) * 1000 = milliseconds
+	return (ticks/(double)CLOCKS_PER_SEC)*1000.0;
 }
 
 // TODO; Use GLM for GTE
@@ -565,15 +547,60 @@ int main(int argc, char* argv[]) {
 	
 	//std::thread thr(runCPU, std::ref(cpu));
 	
+	int frames = 0, fps = 0;
+	double frameTime = 0;
+	std::chrono::steady_clock::time_point firstTime;
+	std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
+	double passedTime = 0;
+	double unprocessedTime = 0;
+	const double UPDATE_CAP = 1.0/60.0;
+	
+	bool render = false;
+	
 	while(!glfwWindowShouldClose(gpu.renderer->window)) {
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		render = false;
+		
+		firstTime = std::chrono::steady_clock::now();
+		passedTime = std::chrono::duration_cast<std::chrono::nanoseconds> (firstTime - lastTime).count() / 1000000000.0;//firstTime - lastTime;
+		lastTime = firstTime;
+		unprocessedTime += passedTime;
+		frameTime += passedTime;
+		
+		while(unprocessedTime >= UPDATE_CAP) {
+			unprocessedTime -= UPDATE_CAP;
+			render = true;
+			
+			if(frameTime >= 1.0) {
+				frameTime = 0;
+				fps = frames;
+				frames = 0;
+				
+				std::cerr << "FPS: " << std::to_string(fps) << "\n";
+			}
+ 		}
+		
+		if(render) {
+			gpu.renderer->display();
+			glfwPollEvents();
+			
+			runFrame(cpu);
+			
+			frames++;
+		} else {
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+	}
+	
+	/*while(!glfwWindowShouldClose(gpu.renderer->window)) {
+		/*glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		gpu.renderer->display();
+		#1#
 		glfwPollEvents();
 		
 		runFrame(cpu);
 		
 		//std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
-    }
+    }*/
 	
 	//thr.join();
 	

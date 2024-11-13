@@ -21,10 +21,13 @@ out vec4 fragColor;
 
 uniform int texture_depth;
 
-/*uniform sampler2D texture_sample8;
-uniform sampler2D texture_sample4;*/
+uniform sampler2D texture_sample4;
+uniform sampler2D texture_sample8;
 uniform sampler2D texture_sample16;
-//uniform sampler2D texture_sample4;
+
+layout(std140) uniform clut {
+    float data[16];
+};
 
 /*
 vec4 sample_texel() {
@@ -56,16 +59,29 @@ vec4 sample_texel() {
      * T15Bit = 2,
      */
     if (texture_depth == 0) {
-        vec4 index = texture(texture_sample16, UVs.xy);
+        vec4 index = texture(texture_sample4, UVs.xy);
         int texelIndex = int(index.r * 255.0);
         
-        float clutX = UVs.z + 1;
+        float clutX = UVs.z;
         float clutY = UVs.w;
         
         // The coordinates of the clut in the texture
         vec2 coords = vec2((clutX + float(texelIndex)) / 1024.0, clutY / 512.0);
         
-        return texture2D(texture_sample16, coords, 0.0);
+        return texture2D(texture_sample4, coords, 0.0);
+    } else if(texture_depth == 1) {
+        vec4 index = texture(texture_sample8, UVs.xy);
+        int texelIndex = int(index.r * 255.0);
+        
+        float clutX = UVs.z;
+        float clutY = UVs.w;
+        
+        // The coordinates of the clut in the texture
+        vec2 coords = vec2((clutX + float(texelIndex)) / 1024.0, clutY / 512.0);
+        
+        return texture2D(texture_sample8, coords, 0.0);
+    } else if(texture_depth == 2) {
+        return texture2D(texture_sample16, UVs.xy, 0.0);
     }
     
     return vec4(1, 0, 0, 1);

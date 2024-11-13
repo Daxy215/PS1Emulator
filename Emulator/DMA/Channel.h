@@ -1,13 +1,12 @@
 ﻿#pragma once
 
-#include <cstdint>
+//#include <cstdint>
 #include <optional>
 
 #include "Attributes.h"
 
 class Dma;
-// TODO; Im too lazy.. move to a class
-// Per-channel data
+
 class Channel {
 public:
     uint32_t control();

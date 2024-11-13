@@ -71,7 +71,7 @@ Emulator::Renderer::Renderer() {
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Position), nullptr);
+    glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Gpu::Position), nullptr);
     
     // Color buffer
     colors.create();
@@ -93,7 +93,7 @@ Emulator::Renderer::Renderer() {
     glEnableVertexAttribArray(index);
     
     // Link the buffer and the given index.
-    glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, sizeof(UV), nullptr);
+    glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, sizeof(Gpu::UV), nullptr);
     
     // Attributes buffer
     attributes.create();
@@ -116,7 +116,7 @@ Emulator::Renderer::Renderer() {
     
     textureDepthUni = glGetUniformLocation(program, "texture_depth");
     glUniform1i(textureDepthUni, 0);
-        
+    
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
@@ -142,6 +142,7 @@ void Emulator::Renderer::draw() {
     //glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
     
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     //glClear(GL_COLOR_BUFFER_BIT);
     
     //glUseProgram(program);
@@ -168,12 +169,12 @@ void Emulator::Renderer::draw() {
     //nVertices = 0;
 }
 
-void Emulator::Renderer::pushLine(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Attributes attributes) {
+void Emulator::Renderer::pushLine(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
     // TODO;
     throw std::runtime_error("Error; Unsupported line rendering.");
 }
 
-void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Attributes attributes) {
+void Emulator::Renderer::pushTriangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
         //nVertices = 0;
@@ -190,7 +191,7 @@ void Emulator::Renderer::pushTriangle(Emulator::Position* positions, Emulator::C
     }
 }
 
-void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Attributes attributes) {
+void Emulator::Renderer::pushQuad(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
     if(nVertices + 6 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
         //nVertices = 0;
@@ -238,7 +239,7 @@ void Emulator::Renderer::pushQuad(Emulator::Position* positions, Emulator::Color
     nVertices++;
 }
 
-void Emulator::Renderer::pushRectangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Attributes attributes) {
+void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
     /*
      * From my knowledgeable, PS1 doesn't split,
      * rectangles into 2 trinagles, however,

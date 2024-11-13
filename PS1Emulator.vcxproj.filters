@@ -18,9 +18,6 @@
     <ClCompile Include="..\libs\glew-2.2.0\src\glew.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Emulator\CPU\COP\COP0.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Emulator\CPU\COP\COP2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -92,9 +89,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Emulator\CPU\COP\COP0.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Emulator\CPU\COP\COP2.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "Buffer.h"
+#include "../Gpu.h"
 
 #ifdef _WIN32
 #ifndef APIENTRY
@@ -10,14 +11,13 @@
 #endif
 #endif
 
+namespace Emulator {
+    class Gpu;
+}
+
 class GLFWwindow;
 
 namespace Emulator {
-    struct Position;
-    struct Color;
-    struct UV;
-    struct Attributes;
-    
     class Renderer {
     public:
         Renderer();
@@ -28,10 +28,10 @@ namespace Emulator {
         void draw();
         
     public:
-        void pushLine(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Emulator::Attributes attributes);
-        void pushTriangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Emulator::Attributes attributes);
-        void pushQuad(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Emulator::Attributes attributes);
-        void pushRectangle(Emulator::Position* positions, Emulator::Color* colors, Emulator::UV* uvs, Emulator::Attributes attributes);
+        void pushLine(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
+        void pushTriangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
+        void pushQuad(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
+        void pushRectangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
         
         void setDrawingOffset(int16_t x, int16_t y);
         void setDrawingArea(int16_t right, int16_t bottom);
@@ -73,16 +73,16 @@ namespace Emulator {
         GLint textureDepthUni;
         
         // Buffer contains the vertices positions
-        Buffer<Position> positions;
+        Buffer<Gpu::Position> positions;
         
         // Buffer contains the vertices colors
-        Buffer<Color> colors;
+        Buffer<Gpu::Color> colors;
         
         // Buffer contains the texture coordinates
-        Buffer<UV> uvs;
+        Buffer<Gpu::UV> uvs;
         
         // Buffer contains the vertices attributes
-        Buffer<Attributes> attributes;
+        Buffer<Gpu::Attributes> attributes;
         
         // Current number of vertices in the buffers
         uint32_t nVertices;
