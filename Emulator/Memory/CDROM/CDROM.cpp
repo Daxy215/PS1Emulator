@@ -101,7 +101,7 @@ void CDROM::store<uint32_t>(uint32_t addr, uint32_t val) {
 				//5   SMEN Want Command Start Interrupt on Next Command(0 = No change, 1 = Yes)
 				//6   BFWR...
 				//7   BFRD Want Data(0 = No / Reset Data Fifo, 1 = Yes / Load Data Fifo)
-				if((val & 0b10000000) != 0) {
+				if((val & 0b1000000) != 0) {
 					if(!_sector.isEmpty()) {
 						_sector.set(_readSector.read());
 					} else {

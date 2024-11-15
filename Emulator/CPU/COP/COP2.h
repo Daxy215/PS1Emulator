@@ -1,9 +1,9 @@
 ﻿#pragma once
-#include <cstdint>
+#include <stdint.h>
 
 class Instruction;
 
-class COP2{
+class COP2 {
 public:
 	void setControl(uint32_t r, uint32_t val);
 	uint32_t getControl(uint32_t r);

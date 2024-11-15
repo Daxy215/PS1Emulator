@@ -10,7 +10,6 @@
 
 #include <GLFW/glfw3.h>
 
-//#define _CRTDBG_MAP_ALLOC
 #include <chrono>
 #include <thread>
 #include <iostream>

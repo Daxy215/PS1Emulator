@@ -1,7 +1,6 @@
 ﻿#include "CPU.h"
 //#include "Instruction.h"
 
-#include <array>
 #include <bitset>
 #include <iostream>
 #include <ostream>
@@ -18,7 +17,7 @@
  */
 void CPU::executeNextInstruction() {
     // R0 is "hardwired" to 0
-    regs[0] = 0;
+    //regs[0] = 0;
     
     /**
      * First amazing error, here I got "0x1300083c" which means..
@@ -59,7 +58,7 @@ void CPU::executeNextInstruction() {
     decodeAndExecute(instruction);
     
     // regs = outRegs;
-    std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
+    //std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
 }
 
 void CPU::decodeAndExecute(Instruction& instruction) {
@@ -302,9 +301,10 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
     }
 }
 
+// This is also stolen straight up from
+// https://github.com/BluestormDNA/ProjectPSX/blob/master/ProjectPSX/Core/CPU.cs#L128
 void CPU::handleInterrupts() {
-    uint32_t maskedPC = pc;
-    uint32_t load = interconnect.loadInstruction(maskedPC);
+    uint32_t load = interconnect.loadInstruction(pc);
     
     uint32_t instr = load >> 26;
     
@@ -648,7 +648,7 @@ void CPU::oplw(Instruction& instruction) {
     auto t = instruction.t();
     auto s = instruction.s();
     
-    auto addr = wrappingAdd(reg(s), i);
+    auto addr = reg(s) +  i;
     
     if(addr % 4 == 0) {
         uint32_t v = load32(addr);
@@ -671,7 +671,8 @@ void CPU::oplwl(Instruction& instruction) {
     // This instruction bypasses the load delay restriction:
     // this instruction will merge the new contents,
     // with the value that is currently being loaded if needed.
-    uint32_t curv = outRegs[static_cast<size_t>(t)];
+    //uint32_t curv = outRegs[static_cast<size_t>(t)];
+    uint32_t curv = reg(t);
     
     // Next we load the *aligned* word containing the first address byte
     uint32_t alignedAddr = addr & ~3;
@@ -713,7 +714,8 @@ void CPU::oplwr(Instruction& instruction) {
     // This instruction bypasses the load delay restriction:
     // this instruction will merge the new contents,
     // with the value that is currently being loaded if needed.
-    uint32_t curv = outRegs[static_cast<size_t>(t)];
+    //uint32_t curv = outRegs[static_cast<size_t>(t)];
+    uint32_t curv = reg(t);
     
     // Next we load the *aligned* word containing the first address byte
     uint32_t alignedAddr = addr & ~3;

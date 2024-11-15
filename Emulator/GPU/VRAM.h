@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 // https://www.reddit.com/r/EmuDev/comments/fmhtcn/article_the_ps1_gpu_texture_pipeline_and_how_to/
 

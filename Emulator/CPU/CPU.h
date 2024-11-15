@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include <cstdint>
+#include <stdint.h>
 #include <optional>
 
 #include "Instruction.h"
@@ -38,7 +38,7 @@ enum Exception {
 
 class CPU {
 public:
-    CPU(Interconnect interconnect) : currentpc(0), nextpc(pc + 4), outRegs{}, regs{}, interconnect(interconnect) {
+    CPU(Interconnect interconnect) : currentpc(0), nextpc(pc + 4), regs{}, interconnect(interconnect) {
         
     }
     
@@ -289,10 +289,10 @@ public:
     }
     
     void set_reg(uint32_t index, RegisterIndex val) {
-        outRegs[index] = val;
+        regs[index] = val;
         
         // We need to always rest R0 to 0
-        outRegs[0] = {0};
+        regs[0] = {0};
     }
     
     void setLoad(RegisterIndex index, uint32_t val) {
@@ -352,7 +352,7 @@ public:
     
     // Load delay slot emulation.
     // Contains output of the current instruction
-    RegisterIndex outRegs[32];
+    //RegisterIndex outRegs[32];
     
     // Load initiated by the current instruction
     Load load = {{0}, 0};

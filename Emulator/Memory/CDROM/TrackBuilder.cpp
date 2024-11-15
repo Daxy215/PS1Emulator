@@ -8,7 +8,6 @@
 void TrackBuilder::parseFile(const std::string& filePath) {
 	std::filesystem::path path = filePath;
 	
-	/*
 	switch (path.extension()) {
 		case "cue": {
 			parseCueFile(filePath);
@@ -23,7 +22,7 @@ void TrackBuilder::parseFile(const std::string& filePath) {
 		
 		default:
 			throw std::runtime_error("Unsupported disk type");
-	}*/
+	}
 }
 
 void TrackBuilder::parseCueFile(const std::string& path) {

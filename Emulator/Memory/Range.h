@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include <array>
-#include <cstdint>
+#include <stdint.h>
 #include <optional>
 
 #ifndef MAP_H
@@ -70,7 +70,7 @@ namespace map {
     
     inline uint32_t maskRegion(uint32_t addr) {
         // Index address space in 512 chunks
-        size_t index = static_cast<size_t>(addr >> 29);
+        size_t index = addr >> 29;
         
         if(index >= REGION_MASK.size()) {
             throw std::out_of_range("Address index out of range");

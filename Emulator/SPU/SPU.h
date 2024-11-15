@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include <cstdint>
+#include <stdint.h>
 
 namespace Emulator {
     // https://psx-spx.consoledev.net/soundprocessingunitspu/#1f801daah-spu-control-register-spucnt

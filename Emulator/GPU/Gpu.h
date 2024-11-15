@@ -4,7 +4,7 @@
 #define GPU_H
 
 #include <assert.h>
-#include <cstdint>
+#include <stdint.h>
 #include <functional>
 #include <stdexcept>
 #include <string>
@@ -158,20 +158,20 @@ namespace Emulator {
                 uint16_t u = static_cast<uint16_t>((val) & 0xFF);
                 uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
                 
-                float clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
-                float clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
+                uint16_t clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
+                uint16_t clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
                 
                 uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
                 uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);
-                
-                // Calculate clut based on depth
-                calculateClut(u, v, clutX, clutY, pageX, pageY, depth, gpu);
                 
                 float r = 16 / depth;
                 float ux = (pageX * r + u) / (1024.0f * r);
                 float vc = (pageY + v) / 512.0f;
                 
-                return {ux, vc, clutX, clutY};
+                float dataX = (clutX << 16) | pageX;
+                float dataY = (clutY << 16) | pageY;
+                 
+                return {ux, vc, dataX, dataY};
             }
             
             static UV fromGp0(uint32_t val, uint32_t clut, uint16_t pageX, uint16_t pageY, Gpu& gpu) {
@@ -180,28 +180,21 @@ namespace Emulator {
                 uint16_t u = static_cast<uint16_t>((val) & 0xFF);
                 uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
                 
-                float clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
-                float clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
-                
-                /*uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
-                uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);*/
+                uint16_t clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
+                uint16_t clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
                 
                 float r = 16 / depth;
                 float ux = (pageX * r + u) / (1024.0f * r);
                 float vc = (pageY + v) / 512.0f;
                 
-                return {ux, vc, clutX, clutY};
-            }
-            
-            static void calculateClut(uint16_t x, uint16_t y, float cX, float cY, uint16_t pX, uint16_t pY, uint16_t depth, Gpu& gpu) {
-                // TODO; Imma only do 4 bits for now, as that's what's the bios uses
-                assert(depth == 4);
+                float dataX = (clutX << 16) | pageX;
+                float dataY = (clutY << 16) | pageY;
                 
-                gpu.vram->getPixel4(x, y, cX, cY, pX, pY);
+                return {ux, vc, dataX, dataY};
             }
             
-            uint32_t u = 0, v = 0;
-            uint32_t clutX, clutY;
+            float u = 0, v = 0;
+            float dataX, dataY;
         };
         
         struct Attributes {

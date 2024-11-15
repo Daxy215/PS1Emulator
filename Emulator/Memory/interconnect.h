@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include <cstdint>
+#include <stdint.h>
 #include <optional>
 #include <sstream>
 #include <string>

@@ -73,7 +73,7 @@ void Emulator::Gpu::step(uint32_t cycles) {
                 field = static_cast<Field>(!isOddLine);
             }
             
-            renderer->display();
+            //renderer->display();
             
             // TODO; This shouldn't always occur?
             IRQ::trigger(IRQ::VBlank);
@@ -1359,6 +1359,7 @@ uint32_t Emulator::Gpu::read() {
             curX = startX;
             
             if (++curY >= endY) {
+                std::cerr << "Finished reading from GPU\n";
                 readMode = Command;
             }
         }

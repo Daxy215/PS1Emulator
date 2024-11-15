@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include <cstdint>
+#include <stdint.h>
 #include <cmath>
 
 namespace Emulator {
