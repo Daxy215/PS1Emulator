@@ -1,16 +1,14 @@
-﻿#include "Joypad.h"
+﻿#include "DigitalController.h"
 
-#include <iostream>
-
-Joypad::Joypad() {
+DigitalController::DigitalController() : _input(0) {
 	
 }
 
-void Joypad::step(uint32_t cycles) {
+void DigitalController::step(uint32_t cycles) {
 	
 }
 
-uint16_t Joypad::load(uint32_t val) {
+uint16_t DigitalController::load(uint32_t val) {
 	/**
       *   Send Reply Comment
       * 01h  Hi-Z  Controller address
@@ -70,16 +68,15 @@ uint16_t Joypad::load(uint32_t val) {
 				uint8_t b0 = TYPE & 0xFF;
 				uint8_t b1 = (TYPE >> 8) & 0xFF;
 				
-				// Buttons.. I hope 0 means nothing is pressed?
-				uint8_t b2 = (_buttons) & 0xFF;
-				uint8_t b3 = (_buttons >> 8) & 0xFF;
+				uint8_t b2 = (~_input._byte[0]) & 0xFF;
+				uint8_t b3 = (~_input._byte[1]) & 0xFF;
 				
 				data.push(b0);
 				data.push(b1);
 				data.push(b2);
 				data.push(b3);
 				
-				uint16_t d = data.front();
+				uint8_t d = data.front();
 				data.pop();
 				
 				return d;
@@ -98,6 +95,6 @@ uint16_t Joypad::load(uint32_t val) {
 	}
 }
 
-void Joypad::reset() {
+void DigitalController::reset() {
 	_mode = Idle;
 }

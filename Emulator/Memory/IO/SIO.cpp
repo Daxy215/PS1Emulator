@@ -5,24 +5,24 @@
 #include "../IRQ.h"
 #include "../../Utils/Bitwise.h"
 
+#include "GLFW/glfw3.h"
+
+DigitalController Emulator::IO::SIO::_controler = {};
+
 void Emulator::IO::SIO::step(uint32_t cycles) {
 	if(timer > 0) {
-		timer -= 100;
+		timer -= 1;
 		
 		if(timer == 0) {
-			//timer = -1;
 			dsrInputLevel = false;
 			interrupt = true;
-		
-			IRQ::trigger(IRQ::Controller);
+			
+			IRQ::trigger(IRQ::PadMemCard);
 		}
 	}
 }
 
 uint32_t Emulator::IO::SIO::load(uint32_t addr) {
-	/*printf("SIO LOAD %x\n", addr);
-	std::cerr << "";*/
-	
 	if(addr == 0x1F801040) {
 		/**
 		 * SIO#_RX_DATA (READ)
@@ -92,7 +92,7 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		
 		return stat;
 	} else if(addr == 0x1F801048) {
-		return mode;	
+		return mode;
 	} else if(addr == 0x1F80104A) {
 		/**
 		 * SIO#_CTRL (R/W)
@@ -142,9 +142,6 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 }
 
 void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
-	/*printf("SIO %x - %x\n", addr, val);
-	std::cerr << "";*/
-	
 	if(addr == 0x1F801040) {
 		/**
 		 * SIO#_TX_DATA (WRITE-ONLY)
@@ -153,7 +150,7 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		 * 8-32 - Not used
 		 */
 		
-		//txData = (val & 0x7F) >> 21;
+		auto f = (val & 0x7F) >> 21;
 		txData = static_cast<uint8_t>(val);
 		rxData = 0xFF;
 		isRXFull = true;
@@ -165,11 +162,24 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		// If TXEN was set and is currently cleaned,
 		// then it should still start a transfer
 		// This is used in Wipeout 2097
-
+		
+		// If nothing is currently connected
+		if(_connectedDevice == None) {
+			if(val == 0x01) {
+				// Controller
+				_connectedDevice = Controller;
+			} else if(val == 0x81) {
+				// Memory card
+				std::cerr << "MEMORY CARD\n";
+				_connectedDevice = MemoryCard;
+			}
+		}
+		
 		// Bit 1 of CTRL
 		if(dtrOutput) {
 			txIdle = true;
 			
+			// TODO; Handle ports..
 			if(sio0Selected) {
 				rxData = 0xFF;
 				dsrInputLevel = false;
@@ -177,24 +187,12 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 				return;
 			}
 			
-			// If nothing is currently connected
-			if(_connectedDevice == None) {
-				if(val == 0x01) {
-					// Controller
-					_connectedDevice = Controller;
-				} else if(val == 0x81) {
-					// Memory card
-					std::cerr << "MEMORY CARD\n";
-					_connectedDevice = MemoryCard;
-				}
-			}
-			
 			if(_connectedDevice == Controller) {
-				rxData = _joypad.load(txData);
-				dsrInputLevel = _joypad._interrupt;
+				rxData = _controler.load(txData);
+				dsrInputLevel = _controler._interrupt;
 				
 				if(dsrInputLevel) {
-					timer = 500;
+					timer = 5;
 				}
 			} else if(_connectedDevice == MemoryCard) {
 				// TODO; Transfer data
@@ -209,7 +207,7 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 			_connectedDevice = None;
 			
 			// TODO; reset controller & memory card
-			_joypad.reset();
+			_controler.reset();
 			
 			dsrInputLevel = false;
 		}
@@ -263,13 +261,13 @@ void Emulator::IO::SIO::setCtrl(uint32_t val) {
 	* 13    SIO0 port select      (0=port 1, 1=port 2) (/CS pulled low when bit 1 set)
 	* 14-15 Not used              (always zero)
 	*/
-
+	
 	// It's seems to be stuck in a loop,
 	// and fetching ctrl? So imma break it up,
 	// and see if I can hopefully solve the issue..
 	// or at least find it?
 	uint16_t ctrl = static_cast<uint16_t>(val);
-
+	
 	txEnabled = Utils::Bitwise::getBit(ctrl, 0);
 	dtrOutput = Utils::Bitwise::getBit(ctrl, 1);
 	rxEnabled = Utils::Bitwise::getBit(ctrl, 2);
@@ -283,34 +281,61 @@ void Emulator::IO::SIO::setCtrl(uint32_t val) {
 	rxInterruptEnabled = Utils::Bitwise::getBit(ctrl, 11);
 	dsrInterruptEnabled = Utils::Bitwise::getBit(ctrl, 12);
 	sio0Selected = Utils::Bitwise::getBit(ctrl, 13);
-
+	
 	if (ack) {
 		interrupt = false;
 		ack = false;
 	}
-
+	
 	// Rest
 	if (reset) {
 		isRXFull = false;
-
+		
 		rxData = 0xFF;
 		txData = 0xFF;
-
+		
 		txReady = true;
 		txIdle = true;
-
+		
 		baudtimerRate = 0;
-
+		
 		_connectedDevice = None;
-		_joypad.reset();
-
+		_controler.reset();
+		
 		mode = 0;
-
+		
 		reset = false;
 	}
-
+	
 	if (!dtrOutput) {
 		_connectedDevice = None;
-		_joypad.reset();
+		_controler.reset();
+	}
+}
+
+// TODO; Move this to a better location
+void Emulator::IO::SIO::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	if (action == GLFW_PRESS || action == GLFW_RELEASE) {
+		bool isPressed = (action == GLFW_PRESS);
+		
+		switch (key) {
+			case GLFW_KEY_ENTER:       _controler._input.Start    = isPressed; break;
+			case GLFW_KEY_BACKSPACE:   _controler._input.Select   = isPressed; break;
+			case GLFW_KEY_UP:          _controler._input.Up       = isPressed; break;
+			case GLFW_KEY_RIGHT:       _controler._input.Right    = isPressed; break;
+			case GLFW_KEY_DOWN:        _controler._input.Down     = isPressed; break;
+			case GLFW_KEY_LEFT:        _controler._input.Left     = isPressed; break;
+			case GLFW_KEY_Z:           _controler._input.Cross    = isPressed; break;
+			case GLFW_KEY_X:           _controler._input.Circle   = isPressed; break;
+			case GLFW_KEY_A:           _controler._input.Square   = isPressed; break;
+			case GLFW_KEY_S:           _controler._input.Triangle = isPressed; break;
+			case GLFW_KEY_Q:           _controler._input.L1       = isPressed; break;
+			case GLFW_KEY_E:           _controler._input.R1       = isPressed; break;
+			case GLFW_KEY_1:           _controler._input.L2       = isPressed; break;
+			case GLFW_KEY_2:           _controler._input.R2       = isPressed; break;
+			case GLFW_KEY_LEFT_SHIFT:  _controler._input.L3       = isPressed; break;
+			case GLFW_KEY_RIGHT_SHIFT: _controler._input.R3       = isPressed; break;
+			default: break;
+		}
 	}
 }

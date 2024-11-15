@@ -1,8 +1,9 @@
 ﻿#pragma once
 #include <stdint.h>
-#include <queue>
 
-#include "Joypad.h"
+#include "DigitalController.h"
+
+class GLFWwindow;
 
 namespace Emulator {
 	namespace IO {
@@ -20,6 +21,8 @@ namespace Emulator {
 			void store(uint32_t addr, uint32_t val);
 			
 			void setCtrl(uint32_t val);
+			
+			static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 			
 		private:
 			uint8_t txData = 0;
@@ -83,7 +86,7 @@ namespace Emulator {
 			
 		private:
 			// TODO; Temp
-			Joypad _joypad = {};
+			static DigitalController _controler;
 		};
 	}
 }

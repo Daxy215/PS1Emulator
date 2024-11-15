@@ -698,7 +698,7 @@
       <AdditionalIncludeDirectories>..\libs\glfw-3.4.bin.WIN64\include;..\libs\glew-2.2.0\include</AdditionalIncludeDirectories>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
-    <ClCompile Include="Emulator\Memory\IO\Joypad.cpp">
+    <ClCompile Include="Emulator\Memory\IO\DigitalController.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <Optimization>Disabled</Optimization>
@@ -1020,7 +1020,7 @@
     <ClInclude Include="Emulator\Memory\CDROM\Sector.h" />
     <ClInclude Include="Emulator\Memory\CDROM\TrackBuilder.h" />
     <ClInclude Include="Emulator\Memory\interconnect.h" />
-    <ClInclude Include="Emulator\Memory\IO\Joypad.h" />
+    <ClInclude Include="Emulator\Memory\IO\DigitalController.h" />
     <ClInclude Include="Emulator\Memory\IO\SIO.h" />
     <ClInclude Include="Emulator\Memory\IRQ.h" />
     <ClInclude Include="Emulator\Memory\Memories\Ram.h" />

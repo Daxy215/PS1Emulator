@@ -1,16 +1,14 @@
 ﻿#pragma once
 #include <stdint.h>
-#include <iostream>
 #include <queue>
 
-#include "Sector.h"
+#include "Disk.h"
+
 #include "../IRQ.h"
 
 class CDROM {
 public:
-	CDROM() : _readSector(Sector::RAW_BUFFER), _sector(Sector::RAW_BUFFER) {
-		
-	}
+	CDROM();
 	
 	void step(uint32_t cycles);
 	
@@ -44,6 +42,8 @@ private:
 	uint8_t IF = 0;
 	
 	bool transmittingCommand = false;
+	
+	Disk _disk;
 	
 	Sector _readSector;
 	Sector _sector;

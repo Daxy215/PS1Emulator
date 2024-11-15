@@ -54,6 +54,8 @@ uniform int texture_depth;
 }*/
 
 vec4 sample_texel() {
+    return texture2D(texture_sample4, UVs.xy, 0.0);
+    
     /**
      * Extract clut and page
      */

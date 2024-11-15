@@ -15,6 +15,8 @@
 #include <iostream>
 
 // To avoid, "gl.h included before "glew.h"
+#include <GL/wglew.h>
+
 #include "Scheduler.h"
 #include "../GPU/Rendering/renderer.h"
 
@@ -169,7 +171,7 @@
  * $cop0 7 is DCIC, used to enable and disable the various hardware breakpoints.
  * $cop0 9 is BDAM, it’s a bitmask applied when testing for BDA above.
     * That way we could trigger on a range of addresses instead of a single one.
-	-
+	
  * $cop0 11 is BPCM, like BDAM but for masking the BPC breakpoint.
  * $cop0 12 we’ve already encountered: it’s SR, the status register.
  * $cop0 13 is CAUSE, which contains mostly read-only data describing the
@@ -243,7 +245,7 @@
  * 
  * Please note this is NOT written by me.
  * It is simply used as a further guide to myself.
- *
+ * 
  * $zero register;
     * ($0) is ALWAYS equal to 0;
         * If an instruction attempts to load a value in this register,
@@ -391,11 +393,13 @@ void handleLoadExe(CPU& cpu) {
 	
 	// Requires controller
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
-	// though, idk where im fucking up bc its never checking,
+	// though, idk where im messing up bc its never checking,
 	// for the controller's inputs. So, I can't really fully test it..
+	// Future me; I was causing the wrong interrupt
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
 	
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/access-time/access-time.exe"); // TODO; All timings return 4
@@ -407,11 +411,13 @@ void handleLoadExe(CPU& cpu) {
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/animated-triangle/animated-triangle.exe"); // TODO; Needs GTE
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 20000-30000 MB/s lol
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Passes but no textures
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Passes but no textures
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/quad/quad.exe"); //
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/version-detect/version-detect.exe"); // Not really a tested but I suppose (0* GPU version 2 [New 208pin GPU (LATE-PU-8 and up)])
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Wrong address somewhere :)
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/triangle/triangle.exe");
+	
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/input/pad/pad.exe");
 	
 	/**
 	 * Idk where exactly the cause but,
@@ -466,11 +472,12 @@ void handleLoadExe(CPU& cpu) {
 void runFrame(CPU& cpu) {
 	const int PSX_MHZ = 33868800;
 	const int SYNC_CYCLES = 100;
-	const int MIPS_UNDERCLOCK = 3; //Testing: This compensates the ausence of HALT instruction on MIPS Architecture, may broke some games.
+	const int MIPS_UNDERCLOCK = 2; //Testing: This compensates the ausence of HALT instruction on MIPS Architecture, may broke some games.
 	const int CYCLES_PER_FRAME = PSX_MHZ / 60;
 	const int SYNC_LOOPS = (CYCLES_PER_FRAME / (SYNC_CYCLES * MIPS_UNDERCLOCK)) + 1;
 	
 	uint32_t sync = 0;
+	
 	for (int i = 0; i < SYNC_LOOPS; i++) {
 		while (sync < SYNC_CYCLES) {
 			if (cpu.pc != 0x80030000 || 1) {
@@ -489,26 +496,15 @@ void runFrame(CPU& cpu) {
 	}
 }
 
-void runCPU(CPU& cpu) {
-	/*uint32_t cyclesPerFrame = 565046; // 33.868 MHz / 60 FPS
-	//int cyclesPerFrame = 44100; // 44100Hz / 1 FPS
-	uint32_t cyclesDelta = 0;*/
-	
-    /*while (true) {
-    	while(cyclesDelta <= cyclesPerFrame) {
-    		if (cpu.pc != 0x80030000 || 0) {
-    			cpu.executeNextInstruction();
-    		} else {
-    			handleLoadExe(cpu);
-    		}
-			
-    		cpu.interconnect.step(1);
-    		cyclesDelta += Emulator::Timers::Scheduler::getTicks();
-    	}
-		
-    	Emulator::Timers::Scheduler::resetTicks();
-    	cyclesDelta -= cyclesPerFrame;
-    }*/
+std::atomic<bool> sharedFlag(false);
+
+void runCpu(CPU& cpu) { 
+	while(true) {
+		if(sharedFlag.load()) {
+			sharedFlag.store(false);
+			runFrame(cpu);
+		}
+	}
 }
 
 double clockToMilliseconds(clock_t ticks){
@@ -544,7 +540,12 @@ int main(int argc, char* argv[]) {
 	// TODO; LWR is bugged? Wrong value
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
-	//std::thread thr(runCPU, std::ref(cpu));
+	// For now, manually load in dick
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (USA)/Crash Bandicoot (USA).cue");
+	
+	//std::thread thr(runCpu, std::ref(cpu));
+	
+	glfwSetKeyCallback(gpu.renderer->window, cpu.interconnect._sio.keyCallback);
 	
 	int frames = 0, fps = 0;
 	double frameTime = 0;
@@ -581,25 +582,15 @@ int main(int argc, char* argv[]) {
 		if(render) {
 			gpu.renderer->display();
 			glfwPollEvents();
-			
 			runFrame(cpu);
+			
+			//sharedFlag.store(true);
 			
 			frames++;
 		} else {
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 	}
-	
-	/*while(!glfwWindowShouldClose(gpu.renderer->window)) {
-		/*glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		gpu.renderer->display();
-		#1#
-		glfwPollEvents();
-		
-		runFrame(cpu);
-		
-		//std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
-    }*/
 	
 	//thr.join();
 	

@@ -1,5 +1,9 @@
 ﻿#include "CDROM.h"
 
+CDROM::CDROM() : _readSector(Sector::RAW_BUFFER), _sector(Sector::RAW_BUFFER) {
+	
+}
+
 void CDROM::step(uint32_t cycles) {
 	if(!interrupts.empty() && IF == 0) {
 		IF |= interrupts.front();
@@ -129,7 +133,7 @@ void CDROM::store<uint32_t>(uint32_t addr, uint32_t val) {
 }
 
 void CDROM::swapDisk(const std::string& path) {
-	
+	_disk.load(path);
 }
 
 void CDROM::decodeAndExecute(uint8_t command) {
