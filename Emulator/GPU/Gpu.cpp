@@ -35,7 +35,24 @@ Emulator::Gpu::Gpu()
     
 }
 
+uint32_t frames = 0;
 void Emulator::Gpu::step(uint32_t cycles) {
+    // Update timings for the timers
+    
+    /**
+     * Dots per scanline are, depending on horizontal resolution, and on PAL/NTSC:
+     * 256pix/PAL: 3406/10 = 340.6 dots      256pix/NTSC: 3413/10 = 341.3 dots
+     * 320pix/PAL: 3406/8  = 425.75 dots     320pix/NTSC: 3413/8  = 426.625 dots
+     * 512pix/PAL: 3406/5  = 681.2 dots      512pix/NTSC: 3413/5  = 682.6 dots
+     * 640pix/PAL: 3406/4  = 851.5 dots      640pix/NTSC: 3413/4  = 853.25 dots
+     * 368pix/PAL: 3406/7  = 486.5714 dots   368pix/NTSC: 3413/7  = 487.5714 dots
+     */
+    
+    isInHBlank = _cycles < displayHorizStart || _cycles > displayHorizEnd;
+    isInVBlank = _scanLine < displayLineStart || _scanLine > displayLineEnd;
+    
+    dot = dotCycles[hres.hr2 << 2 | hres.hr1];
+    
     /**
       * The PSone/PAL video clock is the cpu clock multiplied by 11/7.
       * CPU Clock   =  33.868800MHz (44100Hz*300h)
@@ -57,7 +74,31 @@ void Emulator::Gpu::step(uint32_t cycles) {
     */
     uint32_t vtiming = ((vmode == VMode::Pal) ? 314 : 263);
     
-    if(_cycles >= htiming) {
+    uint32_t newLines = _cycles / htiming;
+    if(newLines == 0) return;
+    
+    _cycles %= htiming;
+    _scanLine += newLines;
+    
+    if(_scanLine < vtiming - 20 - 1) {
+        if(interlaced && vres == VerticalRes::Y480Lines) {
+            isOddLine = (frames % 2);
+        } else {
+            isOddLine = (_scanLine % 2);
+        }
+    } else {
+        isOddLine = false;
+    }
+    
+    if(_scanLine == vtiming - 1) {
+        _scanLine = 0;
+        frames++;
+        IRQ::trigger(IRQ::VBlank);
+        
+        renderer->display();
+    }
+    
+    /*if(_cycles >= htiming) {
         _cycles -= htiming;
         _scanLine++;
         
@@ -75,31 +116,12 @@ void Emulator::Gpu::step(uint32_t cycles) {
             
             //renderer->display();
             
-            // TODO; This shouldn't always occur?
+            //if(_scanLine == vtiming - 1 && _cycles >= displayHorizEnd) {
+            //}
+            
             IRQ::trigger(IRQ::VBlank);
         }
-    }
-    
-    // Update timings for the timers
-    
-    /**
-     * Dots per scanline are, depending on horizontal resolution, and on PAL/NTSC:
-     * 256pix/PAL: 3406/10 = 340.6 dots      256pix/NTSC: 3413/10 = 341.3 dots
-     * 320pix/PAL: 3406/8  = 425.75 dots     320pix/NTSC: 3413/8  = 426.625 dots
-     * 512pix/PAL: 3406/5  = 681.2 dots      512pix/NTSC: 3413/5  = 682.6 dots
-     * 640pix/PAL: 3406/4  = 851.5 dots      640pix/NTSC: 3413/4  = 853.25 dots
-     * 368pix/PAL: 3406/7  = 486.5714 dots   368pix/NTSC: 3413/7  = 487.5714 dots
-     */
-    
-    isInHBlank = _cycles < displayHorizStart || _cycles > displayHorizEnd;
-    
-    if(isInHBlank) {
-        printf("");
-    }
-    
-    isInVBlank = _scanLine < displayLineStart || _scanLine > displayLineEnd;
-    
-    dot = dotCycles[hres.hr2 << 2 | hres.hr1];
+    }*/
 }
 
 uint32_t Emulator::Gpu::status() {

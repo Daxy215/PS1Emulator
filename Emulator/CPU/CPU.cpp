@@ -25,10 +25,8 @@ void CPU::executeNextInstruction() {
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
     
-    //uint32_t pc = this->pc;
     Emulator::Timers::Scheduler::tick(4);
     Instruction instruction = Instruction(interconnect.loadInstruction(pc));
-    //std::cerr << (("Instruction; " + getInstructionName(instruction->op)).c_str()) << "\n";
     
     // Save the address of the current instruction to save in
     // 'EPC' in case of an exception.
@@ -54,11 +52,16 @@ void CPU::executeNextInstruction() {
     delaySlot = branchSlot;
     branchSlot = false;
     
+    handleInterrupts();
+    
     // Executes the instruction
     decodeAndExecute(instruction);
     
     // regs = outRegs;
-    //std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
+    //regs[loadIndex] = outRegs[loadIndex];
+    
+    //std::move(std::begin(outRegs), std::end(outRegs), regs);
+    std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
 }
 
 void CPU::decodeAndExecute(Instruction& instruction) {
@@ -656,8 +659,8 @@ void CPU::oplw(Instruction& instruction) {
         // Put the load in the delay slot
         setLoad(t, v);
     } else {
-        printf("wtf\n");
-        //exception(LoadAddressError);
+        //printf("wtf\n");
+        exception(LoadAddressError);
     }
 }
 
@@ -1115,12 +1118,31 @@ void CPU::opmtc0(Instruction& instruction) {
     
     uint32_t v = reg(cpur);
     
+    /**
+     * cop0r0-r2   - N/A
+     * cop0r3      - BPC - Breakpoint on execute (R/W)
+     * cop0r4      - N/A
+     * cop0r5      - BDA - Breakpoint on data access (R/W)
+     * cop0r6      - JUMPDEST - Randomly memorized jump address (R)
+     * cop0r7      - DCIC - Breakpoint control (R/W)
+     * cop0r8      - BadVaddr - Bad Virtual Address (R)
+     * cop0r9      - BDAM - Data Access breakpoint mask (R/W)
+     * cop0r10     - N/A
+     * cop0r11     - BPCM - Execute breakpoint mask (R/W)
+     * cop0r12     - SR - System status register (R/W)
+     * cop0r13     - CAUSE - Describes the most recently recognised exception (R)
+     * cop0r14     - EPC - Return Address from Trap (R)
+     * cop0r15     - PRID - Processor ID (R)
+     * cop0r16-r31 - Garbage
+     * cop0r32-r63 - N/A - None such (Control regs)
+     */
+    
     switch (copr) {
     //Breakpoints registers for the future
     case 3: case 5: case 6: case 7: case 9: case 11:
         if(v != 0) {
-            std::cout << "Unhandled write to cop0r{} " << copr << " val: " << v << "\n";
-            throw std::runtime_error("Unhandled write to cop0r{} " + std::to_string(copr) + " val: " + std::to_string(v) + "\n");
+            std::cerr << "Unhandled write to cop0r{} " << copr << " val: " << v << "\n";
+            //throw std::runtime_error("Unhandled write to cop0r{} " + std::to_string(copr) + " val: " + std::to_string(v) + "\n");
         }
         
         break;
@@ -1135,6 +1157,9 @@ void CPU::opmtc0(Instruction& instruction) {
         
         if(!shouldInterrupt && cur && (IM & IP) > 0) {
             pc = nextpc;
+            currentpc = pc;
+            //nextpc += 4;
+            
             exception(Exception::Interrupt);
         }
         
@@ -1273,15 +1298,19 @@ void CPU::exception(const Exception exception) {
     this->cause &= ~0x7C;
     this->cause |= static_cast<uint32_t>(exception) << 2;
     
+    if(currentpc == 0x800419f8 || (currentpc - 4) == 0x800419f8) {
+        printf("");
+    }
+    
     if(delaySlot) {
         // When an exception occurs in a delay slot 'EPC' points
         // to the branch instruction and bit 31 of 'CAUSE' is set.
-        epc = wrappingSub(currentpc, 4);
-        this->cause |= (1u << 31);
+        epc = currentpc - 4;
+        this->cause |= (static_cast<uint32_t>(1) << (31));
     } else {
         // Save current instruction address in 'EPC'
         epc = currentpc;
-        this->cause &= ~(1u << 31);
+        this->cause &= ~(static_cast<uint32_t>(1) << 31);
     }
     
     // Determine the exception handler address based on the 'BEV' bit
@@ -1289,7 +1318,7 @@ void CPU::exception(const Exception exception) {
     
     // Exceptions don’t have a branch delay, we jump directly into the handler
     pc = handler;
-    nextpc = wrappingAdd(pc, 4);
+    nextpc = handler + 4;
     
     if(exception != 8 && exception != 0)
         std::cerr << "EXCEPTION OCCURRED!!" << exception << "\n";

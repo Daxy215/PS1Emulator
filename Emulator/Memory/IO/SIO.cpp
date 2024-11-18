@@ -39,15 +39,6 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		
 		return rxData;
 		
-		/*for(int i = 0; i < 4; i++) {
-			if(!rx.empty()) {
-				// Read it in reverse,
-				// as this is queue
-				data |= (rx.back()) << ((3 - i) * 8);
-				rx.pop();
-			}
-		}*/
-		
 		// TODO; Check wtf does this shit mean:
 		
 		/**

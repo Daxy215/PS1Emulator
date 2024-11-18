@@ -393,7 +393,7 @@ void handleLoadExe(CPU& cpu) {
 	
 	// Requires controller
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
@@ -417,7 +417,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Wrong address somewhere :)
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/triangle/triangle.exe");
 	
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/input/pad/pad.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/input/pad/pad.exe");
 	
 	/**
 	 * Idk where exactly the cause but,
@@ -465,35 +465,27 @@ void handleLoadExe(CPU& cpu) {
 	cpu.branchSlot = false;
 }
 
-// This is stolen from:
-// https://github.com/BluestormDNA/ProjectPSX/blob/master/ProjectPSX/Core/ProjectPSX.cs#L56
+/*const int clockSpeed = 33868800;
+const int FPS = clockSpeed / 60;*/
+const int clockSpeed = 53868800; // 53.6224 MHz (rounded)
+const int FPS = 59; // Approximate frames per second for both PAL and NTSC
 
-// I really don't understand timings..
 void runFrame(CPU& cpu) {
-	const int PSX_MHZ = 33868800;
-	const int SYNC_CYCLES = 100;
-	const int MIPS_UNDERCLOCK = 2; //Testing: This compensates the ausence of HALT instruction on MIPS Architecture, may broke some games.
-	const int CYCLES_PER_FRAME = PSX_MHZ / 60;
-	const int SYNC_LOOPS = (CYCLES_PER_FRAME / (SYNC_CYCLES * MIPS_UNDERCLOCK)) + 1;
-	
-	uint32_t sync = 0;
-	
-	for (int i = 0; i < SYNC_LOOPS; i++) {
-		while (sync < SYNC_CYCLES) {
-			if (cpu.pc != 0x80030000 || 1) {
-				cpu.executeNextInstruction();
-			} else {
-				handleLoadExe(cpu);
-			}
-			
-			sync += 1;
+	uint32_t cycles = 0;
+    
+	while (cycles < 100) {
+		if (cpu.pc != 0x80030000 || 0) {
+			cpu.executeNextInstruction();
+		} else {
+			handleLoadExe(cpu);
 		}
-		
-		sync -= SYNC_CYCLES;
-		cpu.interconnect.step(SYNC_CYCLES * MIPS_UNDERCLOCK + 1);
-		cpu.handleInterrupts();
-		Emulator::Timers::Scheduler::resetTicks();
+        
+		cycles++;
 	}
+    
+	cpu.interconnect.step(300);
+	//cpu.handleInterrupts();
+	Emulator::Timers::Scheduler::resetTicks();
 }
 
 std::atomic<bool> sharedFlag(false);
@@ -557,6 +549,12 @@ int main(int argc, char* argv[]) {
 	
 	bool render = false;
 	
+	while(true) {
+		runFrame(cpu);
+		
+		glfwPollEvents();
+	}
+	
 	while(!glfwWindowShouldClose(gpu.renderer->window)) {
 		render = false;
 		
@@ -575,7 +573,7 @@ int main(int argc, char* argv[]) {
 				fps = frames;
 				frames = 0;
 				
-				std::cerr << "FPS: " << std::to_string(fps) << "\n";
+				//std::cerr << "FPS: " << std::to_string(fps) << "\n";
 			}
  		}
 		

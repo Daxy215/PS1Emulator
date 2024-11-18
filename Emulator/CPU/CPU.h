@@ -289,10 +289,10 @@ public:
     }
     
     void set_reg(uint32_t index, RegisterIndex val) {
-        regs[index] = val;
+        outRegs[index] = val;
         
         // We need to always rest R0 to 0
-        regs[0] = {0};
+        outRegs[0] = {0};
     }
     
     void setLoad(RegisterIndex index, uint32_t val) {
@@ -352,7 +352,9 @@ public:
     
     // Load delay slot emulation.
     // Contains output of the current instruction
-    //RegisterIndex outRegs[32];
+    RegisterIndex outRegs[32];
+    
+    RegisterIndex loadIndex;
     
     // Load initiated by the current instruction
     Load load = {{0}, 0};

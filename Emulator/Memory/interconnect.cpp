@@ -9,12 +9,12 @@
 #include "../GPU/VRAM.h"
 
 void Interconnect::step(uint32_t cycles) {
-    gpu.step(3);
+    gpu.step(cycles);
     _cdrom.step(1);
     _sio.step(1);
     
-    _timers.sync(gpu.isInHBlank, gpu.isInVBlank, gpu.dot);
-    _timers.step(cycles);
+    //_timers.sync(gpu.isInHBlank, gpu.isInVBlank, gpu.dot);
+    //_timers.step(cycles);
 }
 
 uint32_t Interconnect::loadInstruction(uint32_t addr) {
@@ -28,7 +28,9 @@ uint32_t Interconnect::loadInstruction(uint32_t addr) {
         return bios.load<uint32_t>(offset.value());
     }
     
-    throw std::runtime_error("Unhandled PC load!");
+    // TODO; Testing
+    return load<uint32_t>(addr);
+    //throw std::runtime_error("Unhandled PC load!");
 }
 
 uint32_t Interconnect::dmaReg(uint32_t offset) {

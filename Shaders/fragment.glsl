@@ -56,7 +56,7 @@ uniform int texture_depth;
 vec4 sample_texel() {
     return texture2D(texture_sample4, UVs.xy, 0.0);
     
-    /**
+    /*
      * Extract clut and page
      */
     float clutX = int(UVs.z) >> 16;
@@ -88,7 +88,6 @@ vec4 sample_texel() {
     if (texture_depth == 0) {
         
     } else if(texture_depth == 1) {
-        return vec4(1, 0, 0, 1);
         vec4 index = texture(texture_sample4, UVs.xy);
         int texelIndex = int(index.r * 255.0);
         
@@ -97,7 +96,6 @@ vec4 sample_texel() {
         
         return texture2D(texture_sample4, coords, 0.0);
     } else if(texture_depth == 2) {
-        return vec4(1, 0, 0, 1);
         return texture2D(texture_sample4, UVs.xy, 0.0);
     }
     

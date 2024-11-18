@@ -127,8 +127,8 @@ Emulator::Renderer::Renderer() {
 }
 
 void Emulator::Renderer::display() {
-    /*glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);*/
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     draw();
     
@@ -151,7 +151,7 @@ void Emulator::Renderer::draw() {
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
     // Wait for GPU to complete
-    auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    /*auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     
     while(true) {
         GLenum err = glGetError();
@@ -163,11 +163,11 @@ void Emulator::Renderer::draw() {
         
         if(r == GL_ALREADY_SIGNALED || r == GL_CONDITION_SATISFIED)
             // Drawing done
-                break;
-    }
+            break;
+    }*/
     
     // Reset the buffers
-    nVertices = 0;
+    //nVertices = 0;
 }
 
 void Emulator::Renderer::pushLine(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
