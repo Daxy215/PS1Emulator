@@ -45,7 +45,7 @@ public:
     uint8_t irqDummy = 0;
     
     // Rest value taken from the Nocash PSX spec
-    uint32_t control = 0x07654321;
+    uint32_t control = 0;//0x07654321;
     
     // The 7 channel instances
     Channel channels[7];

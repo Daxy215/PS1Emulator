@@ -35,8 +35,7 @@ Emulator::Gpu::Gpu()
     
 }
 
-uint32_t frames = 0;
-void Emulator::Gpu::step(uint32_t cycles) {
+bool Emulator::Gpu::step(uint32_t cycles) {
     // Update timings for the timers
     
     /**
@@ -58,7 +57,7 @@ void Emulator::Gpu::step(uint32_t cycles) {
       * CPU Clock   =  33.868800MHz (44100Hz*300h)
       * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode?
       */
-    _cycles += (cycles * 11 / 7);
+    _cycles += (cycles);
     
     /**
      * Horizontal Timings
@@ -75,7 +74,7 @@ void Emulator::Gpu::step(uint32_t cycles) {
     uint32_t vtiming = ((vmode == VMode::Pal) ? 314 : 263);
     
     uint32_t newLines = _cycles / htiming;
-    if(newLines == 0) return;
+    if(newLines == 0) return false;
     
     _cycles %= htiming;
     _scanLine += newLines;
@@ -93,9 +92,11 @@ void Emulator::Gpu::step(uint32_t cycles) {
     if(_scanLine == vtiming - 1) {
         _scanLine = 0;
         frames++;
-        IRQ::trigger(IRQ::VBlank);
+        //IRQ::trigger(IRQ::VBlank);
         
         renderer->display();
+        
+        return true;
     }
     
     /*if(_cycles >= htiming) {
@@ -122,14 +123,16 @@ void Emulator::Gpu::step(uint32_t cycles) {
             IRQ::trigger(IRQ::VBlank);
         }
     }*/
+    
+    return false;
 }
 
 uint32_t Emulator::Gpu::status() {
     // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#1f801814h-gpustat-gpu-status-register-r
     
     uint32_t status = 0;
-    
-    // Bits 0-3: Texture page X base (N * 64)
+
+    // Bits 0-3: Textu  re page X base (N * 64)
     status |= static_cast<uint32_t>(pageBaseX) << 0;
     
     // Bit 4: Texture page Y base 1 (N * 256)
@@ -154,6 +157,61 @@ uint32_t Emulator::Gpu::status() {
     status |= static_cast<uint32_t>(preserveMaskedPixels) << 12;
     
     // Bit 13: Interlace Field (0 = Top, 1 = Bottom)
+    status |= 1 << 13;
+    
+    // Bit 14: ?
+    status |= 0 << 14;
+    
+    status |= static_cast<uint32_t>(textureDisable) << 15;
+    status |= hres.intoStatus();
+    
+    status |= (static_cast<uint32_t>(vres)) << 19;
+
+    // Bit 20: Video mode (0=NTSC, 1=PAL)
+    status |= static_cast<uint32_t>(vmode) << 20;
+    
+    // Bit 21: Display area color depth (0=15bit, 1=24bit)
+    status |= static_cast<uint32_t>(displayDepth) << 21;
+    
+    // Bit 22: Vertical Interlace (0=Off, 1=On)
+    status |= static_cast<uint32_t>(interlaced) << 22;
+    
+    // Bit 23: Display enable (0=Enabled, 1=Disabled)
+    status |= static_cast<uint32_t>(!displayEnabled) << 23;
+    
+    // Bit 24: Interrupt request (0=Off, 1=IRQ)
+    status |= static_cast<uint32_t>(interrupt) << 24;
+    
+    // Bit 26: Ready to receive command word (0=No, 1=Ready)
+    status |= (gp0CommandRemaining == 0 ? 1 : 0) << 26;
+    
+    // Bit 27: Ready to send VRAM to CPU (0=No, 1=Ready)
+    status |= (readMode == VRam) << 27;
+    
+    // Bit 28: Ready to receive DMA block (0=No, 1=Ready)
+    status |= 1 << 28;
+    
+    // Bits 29-30: DMA Direction (0=Off, 1=?, 2=CPUtoGP0, 3=GPUREADtoCPU)
+    status |= (static_cast<uint32_t>(dmaDirection)) << 29;
+    
+    // Bit 31: Drawing even/odd lines in interlace mode (0=Even, 1=Odd)
+    status |= isOddLine << 31;
+    
+    uint32_t dma = 0;
+    if (dmaDirection == DmaDirection::Off) {
+        dma = 0;
+    } else if (dmaDirection == DmaDirection::Fifo) {
+        dma = 1; // FIFO not full - Can send in more commands?
+    } else if (dmaDirection == DmaDirection::CpuToGp0) {
+        dma = (status >> 28) & 1;
+    } else if (dmaDirection == DmaDirection::VRamToCpu) {
+        dma = (status >> 27) & 1;
+    }
+    
+    status |= dma << 25;
+    
+    /*
+    // Bit 13: Interlace Field (0 = Top, 1 = Bottom)
     status |= static_cast<uint32_t>(field) << 13;
     
     // Bit 14: ?
@@ -163,7 +221,7 @@ uint32_t Emulator::Gpu::status() {
     
     // Bit 19: Vertical resolution (0=240, 1=480)
     // Setting this to 1 locks the bios
-    status |= (static_cast<uint32_t>(0/*vres*/)) << 19;
+    status |= (static_cast<uint32_t>(0/*vres#1#)) << 19;
     
     // Bit 20: Video mode (0=NTSC, 1=PAL)
     status |= static_cast<uint32_t>(vmode) << 20;
@@ -181,21 +239,21 @@ uint32_t Emulator::Gpu::status() {
     status |= static_cast<uint32_t>(interrupt) << 24;
     
     // Bit 26: Ready to receive command word (0=No, 1=Ready)
-    status |= (/*gp0CommandRemaining == 0 ? 1 : 0*/1) << 26;
+    status |= (/*gp0CommandRemaining == 0 ? 1 : 0#1#1) << 26;
     
     // Bit 27: Ready to send VRAM to CPU (0=No, 1=Ready)
-    status |= (/*canSendVRAMToCPU*/true ? 1 : 0) << 27;
+    status |= (/*canSendVRAMToCPU#1#true ? 1 : 0) << 27;
     
     // Bit 28: Ready to receive DMA block (0=No, 1=Ready)
-    status |= (/*canReceiveDMABlock*/true ? 1 : 0) << 28;
+    status |= (/*canReceiveDMABlock#1#true ? 1 : 0) << 28;
     
     // Bits 29-30: DMA Direction (0=Off, 1=?, 2=CPUtoGP0, 3=GPUREADtoCPU)
     status |= (static_cast<uint32_t>(dmaDirection)) << 29;
     
     // Bit 31: Drawing even/odd lines in interlace mode (0=Even, 1=Odd)
-    status |= isOddLine << 31;
+    status |= isOddLine << 31;*/
     
-    uint32_t dma = 0;
+    /*uint32_t dma = 0;
     if (dmaDirection == DmaDirection::Off) {
         dma = 0;
     } else if (dmaDirection == DmaDirection::Fifo) {
@@ -206,7 +264,7 @@ uint32_t Emulator::Gpu::status() {
         dma = (status >> 27) & 1;
     }
     
-    status |= dma << 25;
+    status |= dma << 25;*/
     
     return status;
     //return 0x1c000000;
@@ -225,6 +283,12 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             gp0CommandRemaining = 1;
             Gp0CommandMethod = &Gpu::gp0ClearCache;
+            
+            break;
+        case 0x1F:
+            //   GP0(1Fh)                 - Interrupt Request (IRQ1)
+            
+            IRQ::trigger(IRQ::GPU);
             
             break;
         case 0x2:
@@ -304,7 +368,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x2D: {
             // GP0(2Dh) - Textured four-point polygon, opaque, raw-texture
             
-            curAttribute = { 0, 0, 2 };
+            curAttribute = { 0, 0, 1 };
             
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0QuadRawTextureBlendOpaque;
@@ -314,7 +378,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x2E: {
             // GP0(2Eh) - Textured four-point polygon, semi-transparent, texture-blending
             
-            curAttribute = {1, 1, 1};
+            curAttribute = { 1, 1, 1 };
             
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
@@ -324,7 +388,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x2F: {
             // GP0(2Fh) - Textured four-point polygon, semi-transparent, raw-texture
             
-            curAttribute = {1, 0, 2};
+            curAttribute = { 1, 0, 1 };
+            
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0QuadRawTextureBlendOpaque;
             
@@ -638,6 +703,9 @@ void Emulator::Gpu::gp0(uint32_t val) {
             // All of the parameters optioned; run the command
             Gp0CommandMethod(*this, val);
             
+            // For testing, for GPU to draw
+            //renderer->display();
+            
             // Reset current attributes
             curAttribute = {0, 0};
         }
@@ -650,7 +718,6 @@ void Emulator::Gpu::gp0(uint32_t val) {
         if (gp0CommandRemaining == 0) {
             // Signal VRAM that image has finished loading.
             vram->endTransfer();
-            
             
             // Upload texture to GPU
             //renderer->updateVramTextures(vram->texture4, vram->texture8, vram->texture16);
@@ -843,7 +910,12 @@ void Emulator::Gpu::renderRectangle(Position position, Color color, UV uv, uint1
     };
     
     Color colors[4] = { color, color, color, color };
-    UV uvs[4] = { uv, uv, uv, uv };
+    UV uvs[4] = {
+        UV(uv.u          , uv.v           , uv.dataX, uv.dataY),
+        UV(uv.u + width, uv.v           , uv.dataX, uv.dataY),
+        UV(uv.u + width, uv.v + height, uv.dataX, uv.dataY),
+        UV(uv.u          , uv.v + height, uv.dataX, uv.dataY),
+    };
     
     renderer->pushRectangle(positions, colors, uvs, curAttribute);
 }
@@ -864,11 +936,13 @@ void Emulator::Gpu::gp0VarRectangleMonoOpaque(uint32_t val) {
 void Emulator::Gpu::gp0VarTexturedRectangleMonoOpaque(uint32_t val) {
     Color color = Color::fromGp0(gp0Command.index(0));
     Position position = Position::fromGp0(gp0Command.index(1));
+    position.x += drawingXOffset;
+    position.y += drawingYOffset;
     
     uint16_t c = static_cast<uint16_t>(gp0Command.index(2) >> 16);
     
     // Text page
-    UV uv = UV::fromGp0(gp0Command.index(2), c, pageBaseX, pageBaseY * 255, *this);
+    UV uv = UV::fromGp0(gp0Command.index(2), c, pageBaseX * 64, pageBaseY * 256, *this);
     
     uint32_t sizeData = gp0Command.index(3);
     
@@ -897,9 +971,9 @@ void Emulator::Gpu::gp08RectangleTexturedOpaqu(uint32_t val) {
     Position position = Position::fromGp0(gp0Command.index(1));
     
     uint16_t c = static_cast<uint16_t>(gp0Command.index(2) >> 16);
-    uint16_t p = static_cast<uint16_t>(gp0Command.index(4) >> 16);
+    //uint16_t p = static_cast<uint16_t>(gp0Command.index(3) >> 16);
     
-    UV uv = UV::fromGp0(gp0Command.index(2), c, p, *this);
+    UV uv = UV::fromGp0(gp0Command.index(2), c, pageBaseX, pageBaseY, *this);
     
     renderRectangle(position, color, uv, 8, 8);
 }
@@ -1056,8 +1130,7 @@ void Emulator::Gpu::gp0QuadRawTextureBlendOpaque(uint32_t val) {
         Position::fromGp0(gp0Command.buffer[7]),
     };
     
-    // TODO; Textures aren't currently supported
-    // Uses a texture along side a color
+    // No color
     Color colors[] = {
         Color::fromGp0(gp0Command.index(0)),
         Color::fromGp0(gp0Command.index(0)),
@@ -1079,8 +1152,8 @@ void Emulator::Gpu::gp0QuadRawTextureBlendOpaque(uint32_t val) {
 }
 
 void Emulator::Gpu::gp0ImageLoad(uint32_t val) {
-    uint32_t cords = gp0Command.buffer[1];
-    uint32_t res = gp0Command.buffer[2];
+    uint32_t cords = gp0Command.index(1);
+    uint32_t res = gp0Command.index(2);
     
     uint32_t x = (cords & 0xFFFF) & 0x3FF;
     uint32_t y = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
@@ -1186,6 +1259,10 @@ void Emulator::Gpu::gp1(uint32_t val) {
         readMode = Command;
         
         switch (val % 8) {
+            // Returns nothing
+            case 0:
+            case 1:
+                break;
             case 2: {
                 _read = textureWindowXMask | (textureWindowYMask << 5)
                     | (textureWindowXOffset << 10) | (textureWindowYOffset << 15);
@@ -1208,6 +1285,11 @@ void Emulator::Gpu::gp1(uint32_t val) {
                 
                 break;
             }
+            case 6: {
+                // Returns nothing
+                
+                break;
+            }
             case 7: {
                 _read = 2; // GPU VERSION
                 
@@ -1219,7 +1301,7 @@ void Emulator::Gpu::gp1(uint32_t val) {
                 break;
             }
             default: {
-                printf("Unknown GP1 read value %d", (val % 8));
+                printf("Unknown GP1 read value %d\n", (val % 8));
                 std::cerr << "";
                 
                 break;
@@ -1292,6 +1374,8 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     
     vres = (val & 0x4) != 0 ? VerticalRes::Y480Lines : VerticalRes::Y240Lines;
     vmode = (val & 0x8) != 0 ? VMode::Pal : VMode::Ntsc;
+    
+    // No clue why this was inverted?
     displayDepth = (val & 0x10) != 0 ? DisplayDepth::D15Bits : DisplayDepth::D24Bits;
     interlaced = (val & 0x20) != 0;
     
@@ -1299,7 +1383,7 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     
     // Reverse flag?
     if ((val & 0x80) != 0) {
-        std::cout << "Unsupported display mode: " << std::hex << val << '\n';
+        std::cerr << "Unsupported display mode: " << std::hex << val << '\n';
     }
 }
 
@@ -1381,7 +1465,6 @@ uint32_t Emulator::Gpu::read() {
             curX = startX;
             
             if (++curY >= endY) {
-                std::cerr << "Finished reading from GPU\n";
                 readMode = Command;
             }
         }

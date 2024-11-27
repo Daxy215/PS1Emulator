@@ -5,11 +5,11 @@
 #include "Buffer.h"
 #include "../Gpu.h"
 
-#ifdef _WIN32
+/*#ifdef _WIN32
 #ifndef APIENTRY
 #define APIENTRY __stdcall
 #endif
-#endif
+#endif*/
 
 namespace Emulator {
     class Gpu;
@@ -23,6 +23,7 @@ namespace Emulator {
         Renderer();
         
         void display();
+        void displayVRam();
         
     private:
         void draw();
@@ -49,8 +50,8 @@ namespace Emulator {
         
     private:
         // GLFW callbacks
-        static void APIENTRY openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
-                                            GLsizei length, const GLchar *message, const void *userParam);
+        /*static void APIENTRY openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
+                                            GLsizei length, const GLchar *message, const void *userParam);*/
         
     public:
         // Shader parameters

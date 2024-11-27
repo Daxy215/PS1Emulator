@@ -25,28 +25,23 @@ void CPU::executeNextInstruction() {
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
     
-    Emulator::Timers::Scheduler::tick(4);
-    Instruction instruction = Instruction(interconnect.loadInstruction(pc));
+    /*printf("PC: %x\n", pc);
+    std::cerr << "";*/
     
     // Save the address of the current instruction to save in
     // 'EPC' in case of an exception.
     currentpc = pc;
     
+    if(x == 346666060 - 2) {
+        printf("");
+    }
+    
+    x++;
+    
     if(currentpc % 4 != 0) {
         exception(LoadAddressError);
         return;
     }
-    
-    // increment the PC
-    this->pc = nextpc;
-    nextpc = wrappingAdd(nextpc, 4);
-    
-    RegisterIndex reg = load.regIndex;
-    auto val   = load.value;
-    set_reg(reg, val);
-    
-    // Rest load register
-    load = {{0}, 0};
     
     // If the last instruction was a branch then we're in the delay slot
     delaySlot = branchSlot;
@@ -54,14 +49,40 @@ void CPU::executeNextInstruction() {
     
     handleInterrupts();
     
+    //Emulator::Timers::Scheduler::tick(4);
+    Instruction instruction = Instruction(interconnect.loadInstruction(pc));
+    
+    // increment the PC
+    this->pc = nextpc;
+    nextpc += 4;
+    
     // Executes the instruction
     decodeAndExecute(instruction);
+    
+    // Shift load registers
+    if(loads[0].index != 32)
+        set_reg(loads[0].index, loads[0].value);
+    
+    loads[0] = loads[1];
+    loads[1].index = 32;
+    
+    // Check for interrupt
+    if((IRQ::status & IRQ::mask)) {
+        this->cause |= 0x400;
+    } else {
+        this->cause &= ~0x400;
+    }
+    
+    //set_reg(reg, val);
+    
+    // Rest load register
+    //load = {{0}, 0};
     
     // regs = outRegs;
     //regs[loadIndex] = outRegs[loadIndex];
     
     //std::move(std::begin(outRegs), std::end(outRegs), regs);
-    std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
+    //std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
 }
 
 void CPU::decodeAndExecute(Instruction& instruction) {
@@ -74,7 +95,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     
     Emulator::Timers::Scheduler::tick(1);
     
-    checkForTTY();
+    //checkForTTY();
     
     switch (instruction.func()) {
         case 0b000000:
@@ -307,14 +328,19 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
 // This is also stolen straight up from
 // https://github.com/BluestormDNA/ProjectPSX/blob/master/ProjectPSX/Core/CPU.cs#L128
 void CPU::handleInterrupts() {
-    uint32_t load = interconnect.loadInstruction(pc);
+    /*uint32_t load = interconnect.loadInstruction(pc);
     
     uint32_t instr = load >> 26;
     
     if(instr == 0x12) {
         // COP2 MTC2
         return;
-    }
+    }*/
+    
+    auto c = cause | (static_cast<uint32_t>(IRQ::active()) << 10);
+    auto pending = (c & sr) & 0x700;
+    bool irq = (sr & 1) != 0;
+    bool so = (irq && pending) != 0;
     
     // Check for interrupt
     if((IRQ::status & interconnect._irq.mask)) {
@@ -326,8 +352,13 @@ void CPU::handleInterrupts() {
     bool IEC = (sr & 0x1) == 1;
     uint8_t IM = static_cast<uint8_t>(sr >> 8) & 0xFF;
     uint8_t IP = static_cast<uint8_t>(this->cause >> 8) & 0xFF;
+    bool yes = IEC && (IM & IP) > 0;
     
-    if(IEC && (IM & IP) > 0) {
+    if((yes && !so) || (!yes && so)) {
+        printf("");
+    }
+    
+    if(yes) {
         exception(Interrupt);
     }
 }
@@ -406,13 +437,8 @@ void CPU::opsltiu(Instruction& instruction) {
     set_reg(t, static_cast<uint32_t>(v));
 }
 
-int b = 0;
 // Load Upper Immediate(LUI)
 void CPU::oplui(Instruction& instruction) {
-    if(++b == 118949) {
-        printf("");
-    }
-    
     auto i = instruction.imm();
     auto t = instruction.t();
     
@@ -508,11 +534,11 @@ void CPU::opslt(Instruction& instruction) {
 // Store word
 void CPU::opsw(Instruction& instruction) {
     // Can't write if we are in cache isolation mode!
-    if((sr & 0x10000) != 0) {
+    /*if((sr & 0x10000) != 0) {
         //std::cerr << "Ignoring store-word while cache is isolated!\n";
         
         return;
-    }
+    }*/
     
     auto i = instruction.imm_se();
     auto t = instruction.t();
@@ -601,11 +627,11 @@ void CPU::opswr(Instruction& instruction) {
 
 // Store halfword
 void CPU::opsh(Instruction& instruction) {
-    if((sr & 0x10000) != 0) {
+    /*if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store-halfword while cache is isolated!\n";
         
         return;
-    }
+    }*/
     
     auto i = instruction.imm_se();
     auto t = instruction.t();
@@ -623,11 +649,11 @@ void CPU::opsh(Instruction& instruction) {
 }
 
 void CPU::opsb(Instruction& instruction) {
-    if((sr & 0x10000) != 0) {
+    /*if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store-byte while cache is isolated!\n";
         
         return;
-    }
+    }*/
     
     auto i = instruction.imm_se();
     auto t = instruction.t();
@@ -641,11 +667,11 @@ void CPU::opsb(Instruction& instruction) {
 
 // Load word
 void CPU::oplw(Instruction& instruction) {
-    if((sr & 0x10000) != 0) {
+    /*if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store while cache is isolated!";
         
         return;
-    }
+    }*/
     
     auto i = instruction.imm_se();
     auto t = instruction.t();
@@ -752,11 +778,11 @@ void CPU::oplwr(Instruction& instruction) {
 
 void CPU::oplh(Instruction& instruction) {
     // Can't write if we are in cache isolation mode!
-    if((sr & 0x10000) != 0) {
+    /*if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store-word while cache is isolated!\n";
         
         return;
-    }
+    }*/
     
     auto i = instruction.imm_se();
     auto t = instruction.t();
@@ -957,7 +983,7 @@ void CPU::oplwc2(Instruction& instruction) {
         
         _cop2.setData(t, v);
     } else {
-        //exception(LoadAddressError);
+        exception(LoadAddressError);
     }
 }
 
@@ -1203,9 +1229,16 @@ void CPU::opmfc0(Instruction& instruction) {
      */
     
     switch (copr) {
+    // Unknown registers
+    case 0:
+    case 1:
+    case 2:
+        break;
     case 6:
     case 7:
+        break;
     case 8:
+        v = badVaddr;
         break;
     case 12:
         v = sr;
@@ -1288,6 +1321,11 @@ void CPU::opgte(Instruction& instruction) {
 }
 
 void CPU::exception(const Exception exception) {
+    // Only 0x4h and 0x5h updates BadVaddr
+    if(exception == LoadAddressError || exception == StoreAddressError) {
+        badVaddr = currentpc;
+    }
+    
     // Shift bits [5:0] of 'SR' two places to the left
     uint32_t mode = sr & 0x3f;
     
@@ -1298,7 +1336,7 @@ void CPU::exception(const Exception exception) {
     this->cause &= ~0x7C;
     this->cause |= static_cast<uint32_t>(exception) << 2;
     
-    if(currentpc == 0x800419f8 || (currentpc - 4) == 0x800419f8) {
+    if(currentpc == 0x8004aa9d || (currentpc - 4) == 0x8004aa9d) {
         printf("");
     }
     
@@ -1334,28 +1372,363 @@ void CPU::opbreak(Instruction& instruction) {
 
 void CPU::opillegal(Instruction& instruction) {
     printf("Illegal instruction %d %d PC; %d\n", instruction.func().reg, instruction.subfunction().reg, currentpc);
-    //std::cerr << "Illegal instruction " << instruction.op << " PC; " << currentpc << "\n";
+    std::cerr << "Illegal instruction " << instruction.op << " PC; " << currentpc << "\n";
     exception(IllegalInstruction);
 }
 
-char prev = 'f';
-int x = 0;
+// Take from; https://github.com/allkern/psxe/blob/master/psx/cpu_debug.h#L3
+static const char* g_psx_cpu_a_kcall_symtable[] = {
+    "open(filename=%08x,accessmode=%08x)",
+    "lseek(fd=%08x,offset=%08x,seektype=%08x)",
+    "read(fd=%08x,dst=%08x,length=%08x)",
+    "write(fd=%08x,src=%08x,length=%08x)",
+    "close(fd=%08x)",
+    "ioctl(fd=%08x,cmd=%08x,arg=%08x)",
+    "exit(exitcode=%08x)",
+    "isatty(fd=%08x)",
+    "getc(fd=%08x)",
+    "putc(char=%08x,fd=%08x)",
+    "todigit(char=%08x)",
+    "atof(src=%08x)",
+    "strtoul(src=%08x,src_end=%08x,base=%08x)",
+    "strtol(src=%08x,src_end=%08x,base=%08x)",
+    "abs(val=%08x)",
+    "labs(val=%08x)",
+    "atoi(src=%08x)",
+    "atol(src=%08x)",
+    "atob(src=%08x,num_dst=%08x)",
+    "setjmp(buf=%08x)",
+    "longjmp(buf=%08x,param=%08x)",
+    "strcat(dst=%08x,src=%08x)",
+    "strncat(dst=%08x,src=%08x,maxlen=%08x)",
+    "strcmp(str1=%08x,str2=%08x)",
+    "strncmp(str1=%08x,str2=%08x,maxlen=%08x)",
+    "strcpy(dst=%08x,src=%08x)",
+    "strncpy(dst=%08x,src=%08x,maxlen=%08x)",
+    "strlen(src=%08x)",
+    "index(src=%08x,char=%08x)",
+    "rindex(src=%08x,char=%08x)",
+    "strchr(src=%08x,char=%08x)",
+    "strrchr(src=%08x,char=%08x)",
+    "strpbrk(src=%08x,list=%08x)",
+    "strspn(src=%08x,list=%08x)",
+    "strcspn(src=%08x,list=%08x)",
+    "strtok(src=%08x,list=%08x)",
+    "strstr(str=%08x,substr=%08x)",
+    "toupper(char=%08x)",
+    "tolower(char=%08x)",
+    "bcopy(src=%08x,dst=%08x,len=%08x)",
+    "bzero(dst=%08x,len=%08x)",
+    "bcmp(ptr1=%08x,ptr2=%08x,len=%08x)",
+    "memcpy(dst=%08x,src=%08x,len=%08x)",
+    "memset(dst=%08x,fillbyte=%08x,len=%08x)",
+    "memmove(dst=%08x,src=%08x,len=%08x)",
+    "memcmp(src1=%08x,src2=%08x,len=%08x)",
+    "memchr(src=%08x,scanbyte=%08x,len=%08x)",
+    "rand()",
+    "srand(seed=%08x)",
+    "qsort(base=%08x,nel=%08x,width=%08x,callback=%08x)",
+    "strtod(src=%08x,src_end=%08x)",
+    "malloc(size=%08x)",
+    "free(buf=%08x)",
+    "lsearch(key=%08x,base=%08x,nel=%08x,width=%08x,callback=%08x)",
+    "bsearch(key=%08x,base=%08x,nel=%08x,width=%08x,callback=%08x)",
+    "calloc(sizx=%08x,sizy=%08x)",
+    "realloc(old_buf=%08x,new_siz=%08x)",
+    "InitHeap(addr=%08x,size=%08x)",
+    "_exit(exitcode=%08x)",
+    "getchar()",
+    "putchar(char=%08x)",
+    "gets(dst=%08x)",
+    "puts(src=%08x)",
+    "printf(txt=%08x,param1=%08x,param2=%08x,etc.=%08x)",
+    "SystemErrorUnresolvedException()",
+    "LoadTest(filename=%08x,headerbuf=%08x)",
+    "Load(filename=%08x,headerbuf=%08x)",
+    "Exec(headerbuf=%08x,param1=%08x,param2=%08x)",
+    "FlushCache()",
+    "init_a0_b0_c0_vectors()",
+    "GPU_dw(Xdst=%08x,Ydst=%08x,Xsiz=%08x,Ysiz=%08x,src=%08x)",
+    "gpu_send_dma(Xdst=%08x,Ydst=%08x,Xsiz=%08x,Ysiz=%08x,src=%08x)",
+    "SendGP1Command(gp1cmd=%08x)",
+    "GPU_cw(gp0cmd=%08x)",
+    "GPU_cwp(src=%08x,num=%08x)",
+    "send_gpu_linked_list(src=%08x)",
+    "gpu_abort_dma()",
+    "GetGPUStatus()",
+    "gpu_sync()",
+    "SystemError()",
+    "SystemError()",
+    "LoadExec(filename=%08x,stackbase=%08x,stackoffset=%08x)",
+    "GetSysSp()",
+    "SystemError()",
+    "_96_init()",
+    "_bu_init()",
+    "_96_remove()",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "dev_tty_init()",
+    "dev_tty_open(fcb=%08x, (unused)path=%08x,accessmode=%08x)",
+    "dev_tty_in_out(fcb=%08x,cmd=%08x)",
+    "dev_tty_ioctl(fcb=%08x,cmd=%08x,arg=%08x)",
+    "dev_cd_open(fcb=%08x,path=%08x,accessmode=%08x)",
+    "dev_cd_read(fcb=%08x,dst=%08x,len=%08x)",
+    "dev_cd_close(fcb=%08x)",
+    "dev_cd_firstfile(fcb=%08x,path=%08x,direntry=%08x)",
+    "dev_cd_nextfile(fcb=%08x,direntry=%08x)",
+    "dev_cd_chdir(fcb=%08x,path=%08x)",
+    "dev_card_open(fcb=%08x,path=%08x,accessmode=%08x)",
+    "dev_card_read(fcb=%08x,dst=%08x,len=%08x)",
+    "dev_card_write(fcb=%08x,src=%08x,len=%08x)",
+    "dev_card_close(fcb=%08x)",
+    "dev_card_firstfile(fcb=%08x,path=%08x,direntry=%08x)",
+    "dev_card_nextfile(fcb=%08x,direntry=%08x)",
+    "dev_card_erase(fcb=%08x,path=%08x)",
+    "dev_card_undelete(fcb=%08x,path=%08x)",
+    "dev_card_format(fcb=%08x)",
+    "dev_card_rename(fcb1=%08x,path=%08x)",
+    "card_clear_error(fcb=%08x) (?)",
+    "_bu_init()",
+    "_96_init()",
+    "_96_remove()",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "CdAsyncSeekL(src=%08x)",
+    "return 0",
+    "return 0",
+    "return 0",
+    "CdAsyncGetStatus(dst=%08x)",
+    "return 0",
+    "CdAsyncReadSector(count=%08x,dst=%08x,mode=%08x)",
+    "return 0",
+    "return 0",
+    "CdAsyncSetMode(mode=%08x)",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "CdromIoIrqFunc1()",
+    "CdromDmaIrqFunc1()",
+    "CdromIoIrqFunc2()",
+    "CdromDmaIrqFunc2()",
+    "CdromGetInt5errCode(dst1=%08x,dst2=%08x)",
+    "CdInitSubFunc()",
+    "AddCDROMDevice()",
+    "AddMemCardDevice()",
+    "AddDuartTtyDevice()",
+    "add_nullcon_driver()",
+    "SystemError()",
+    "SystemError()",
+    "SetConf(num_EvCB=%08x,num_TCB=%08x,stacktop=%08x)",
+    "GetConf(num_EvCB_dst=%08x,num_TCB_dst=%08x,stacktop_dst=%08x)",
+    "SetCdromIrqAutoAbort(type=%08x,flag=%08x)",
+    "SetMem(megabytes=%08x)",
+    "_boot()",
+    "SystemError(type=%08x,errorcode=%08x)",
+    "EnqueueCdIntr()",
+    "DequeueCdIntr()",
+    "CdGetLbn(filename=%08x)",
+    "CdReadSector(count=%08x,sector=%08x,buffer=%08x)",
+    "CdGetStatus()",
+    "bufs_cb_0()",
+    "bufs_cb_1()",
+    "bufs_cb_2()",
+    "bufs_cb_3()",
+    "_card_info(port=%08x)",
+    "_card_load(port=%08x)",
+    "_card_auto(flag=%08x)",
+    "bufs_cb_4()",
+    "card_write_test(port=%08x)",
+    "return 0",
+    "return 0",
+    "ioabort_raw(param=%08x)",
+    "return 0",
+    "GetSystemInfo(index=%08x)"
+};
+
+static const char* g_psx_cpu_b_kcall_symtable[] = {
+    "alloc_kernel_memory(size=%08x)",
+    "free_kernel_memory(buf=%08x)",
+    "init_timer(t=%08x,reload=%08x,flags=%08x)",
+    "get_timer(t=%08x)",
+    "enable_timer_irq(t=%08x)",
+    "disable_timer_irq(t=%08x)",
+    "restart_timer(t=%08x)",
+    "DeliverEvent(class=%08x, spec=%08x)",
+    "OpenEvent(class=%08x,spec=%08x,mode=%08x,func=%08x)",
+    "CloseEvent(event=%08x)",
+    "WaitEvent(event=%08x)",
+    "TestEvent(event=%08x)",
+    "EnableEvent(event=%08x)",
+    "DisableEvent(event=%08x)",
+    "OpenTh(reg_PC=%08x,reg_SP_FP=%08x,reg_GP=%08x)",
+    "CloseTh(handle=%08x)",
+    "ChangeTh(handle=%08x)",
+    "jump_to_00000000h()",
+    "InitPAD2(buf1=%08x,siz1=%08x,buf2=%08x,siz2=%08x)",
+    "StartPAD2()",
+    "StopPAD2()",
+    "PAD_init2(type=%08x,button_dest=%08x,unused=%08x,unused=%08x)",
+    "PAD_dr()",
+    "ReturnFromException()",
+    "ResetEntryInt()",
+    "HookEntryInt(addr=%08x)",
+    "SystemError()",
+    "SystemError()",
+    "SystemError()",
+    "SystemError()",
+    "SystemError()",
+    "SystemError()",
+    "UnDeliverEvent(class=%08x,spec=%08x)",
+    "SystemError()",
+    "SystemError()",
+    "SystemError()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "SystemError()",
+    "SystemError()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "jump_to_00000000h()",
+    "open(filename=%08x,accessmode=%08x)",
+    "lseek(fd=%08x,offset=%08x,seektype=%08x)",
+    "read(fd=%08x,dst=%08x,length=%08x)",
+    "write(fd=%08x,src=%08x,length=%08x)",
+    "close(fd=%08x)",
+    "ioctl(fd=%08x,cmd=%08x,arg=%08x)",
+    "exit(exitcode=%08x)",
+    "isatty(fd=%08x)",
+    "getc(fd=%08x)",
+    "putc(char=%08x,fd=%08x)",
+    "getchar()",
+    "putchar(char=%08x)",
+    "gets(dst=%08x)",
+    "puts(src=%08x)",
+    "cd(name=%08x)",
+    "format(devicename=%08x)",
+    "firstfile2(filename=%08x,direntry=%08x)",
+    "nextfile(direntry=%08x)",
+    "rename(old_filename=%08x,new_filename=%08x)",
+    "erase(filename=%08x)",
+    "undelete(filename=%08x)",
+    "AddDrv(device_info=%08x)",
+    "DelDrv(device_name_lowercase=%08x)",
+    "PrintInstalledDevices()",
+    "InitCARD2(pad_enable=%08x)",
+    "StartCARD2()",
+    "StopCARD2()",
+    "_card_info_subfunc(port=%08x)",
+    "_card_write(port=%08x,sector=%08x,src=%08x)",
+    "_card_read(port=%08x,sector=%08x,dst=%08x)",
+    "_new_card()",
+    "Krom2RawAdd(shiftjis_code=%08x)",
+    "SystemError()",
+    "Krom2Offset(shiftjis_code=%08x)",
+    "_get_errno()",
+    "_get_error(fd=%08x)",
+    "GetC0Table()",
+    "GetB0Table()",
+    "_card_chan()",
+    "testdevice(devicename=%08x)",
+    "SystemError()",
+    "ChangeClearPAD(int=%08x)",
+    "_card_status(slot=%08x)",
+    "_card_wait(slot=%08x)"
+};
+
+static const char* g_psx_cpu_c_kcall_symtable[] = {
+    "EnqueueTimerAndVblankIrqs(priority=%08x)",
+    "EnqueueSyscallHandler(priority=%08x)",
+    "SysEnqIntRP(priority=%08x,struc=%08x)",
+    "SysDeqIntRP(priority=%08x,struc=%08x)",
+    "get_free_EvCB_slot()",
+    "get_free_TCB_slot()",
+    "ExceptionHandler()",
+    "InstallExceptionHandlers()",
+    "SysInitMemory(addr=%08x,size=%08x)",
+    "SysInitKernelVariables()",
+    "ChangeClearRCnt(t=%08x,flag=%08x)",
+    "SystemError()",
+    "InitDefInt(priority=%08x)",
+    "SetIrqAutoAck(irq=%08x,flag=%08x)",
+    "return 0",
+    "return 0",
+    "return 0",
+    "return 0",
+    "InstallDevices(ttyflag=%08x)",
+    "FlushStdInOutPut()",
+    "return 0",
+    "_cdevinput(circ=%08x,char=%08x)",
+    "_cdevscan()",
+    "_circgetc(circ=%08x)",
+    "_circputc(char=%08x,circ=%08x)",
+    "_ioabort(txt1=%08x,txt2=%08x)",
+    "set_card_find_mode(mode=%08x)",
+    "KernelRedirect(ttyflag=%08x)",
+    "AdjustA0Table()",
+    "get_card_find_mode()"
+};
 
 void CPU::checkForTTY() {
     //uint32_t pc = this->pc & 0x1FFFFFFF;
+    uint32_t r9 = regs[9];
+    
+    // Bios functions - Tests
+    if(pc == 0x000000A0) {
+        if(r9 < std::size(g_psx_cpu_a_kcall_symtable)) {
+            auto function = g_psx_cpu_a_kcall_symtable[r9];
+            
+            //std::cerr << function << "\n";
+        } else {
+            printf("");
+        }
+    }
+    
+    if(pc == 0x000000B0) {
+        if(r9 < std::size(g_psx_cpu_b_kcall_symtable)) {
+            auto function = g_psx_cpu_b_kcall_symtable[r9];
+            
+            //std::cerr << function << "\n";
+        } else {
+            printf("");
+        }
+    }
+    
+    if(pc == 0x000000C0) {
+        if(r9 < std::size(g_psx_cpu_c_kcall_symtable)) {
+            auto function = g_psx_cpu_c_kcall_symtable[r9];
+            
+            //std::cerr << function << "\n";
+        } else {
+            printf("");
+        }
+    }
     
     if ((pc == 0x000000A0 || pc == 0x000000B0 || pc == 0x000000C0)) {
-        //uint32_t r9 = regs[9];
-        
-        //if (r9 == 0x3C || r9 == 0x3D) {
-            char ch = static_cast<char>(regs[4] & 0xFF);
-            
-            if(ch == 'n' && prev == ' ') {
-                if(++x == 9)
-                    printf("");
-            }
-            
-            prev = ch;
+        //if (r9 == 50/*r9 == 0x0000003C || r9 == 0x0000003D*/) {
+            char ch = static_cast<char>(reg(4) & 0xFF);
             
             if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
                 std::cerr << ch;
@@ -1387,6 +1760,8 @@ void CPU::opjal(Instruction& instruction) {
     opj(instruction);
     
     set_reg(31, ra);
+    
+    branchSlot = true;
 }
 
 void CPU::opjalr(Instruction& instruction) {
@@ -1480,20 +1855,12 @@ void CPU::branch(uint32_t offset) {
     // to the right as 'PC' addresses have to be aligned with 32 bits.
     offset = offset << 2;
     
-    //pc = wrappingAdd(pc, offset);
-    nextpc = wrappingAdd(pc, offset);
+    nextpc = pc + offset;
     
     branchSlot = true;
 }
 
-int c = 0;
-
 void CPU::add(Instruction& instruction) {
-    // Test start
-    if(++c == 972 + 174) {
-        printf("");
-    }
-    
     auto sReg = instruction.s();
     auto tReg = instruction.t();
     auto d = instruction.d();
@@ -1519,33 +1886,69 @@ void CPU::addu(Instruction& instruction) {
 }
 
 uint32_t CPU::load32(uint32_t addr) {
+    // Check if cache is isolated
+    //assert((sr & 0x10000) == 0x10000);
+    
     return interconnect.load<uint32_t>(addr);
-    //return interconnect->load32(addr);
 }
 
 uint16_t CPU::load16(uint32_t addr) {
+    // Check if cache is isolated
+    //assert((sr & 0x10000) == 0x10000);
+    
     return interconnect.load<uint16_t>(addr);
-    //return interconnect->load16(addr);
 }
 
 uint8_t CPU::load8(uint32_t addr) {
+    // Check if cache is isolated
+    //assert((sr & 0x10000) == 0x10000);
+    
     return interconnect.load<uint8_t>(addr);
-    //return interconnect->load8(addr);
 }
 
 void CPU::store32(uint32_t addr, uint32_t val) {
-    interconnect.store<uint32_t>(addr, val);
-    //interconnect->store32(addr, val);
+    // Check if cache is isolated
+    if((sr & 0x10000) != 0) {
+        handleCache(addr, val);
+    } else {
+        interconnect.store<uint32_t>(addr, val);
+    }
 }
 
 void CPU::store16(uint32_t addr, uint16_t val) {
-    interconnect.store<uint16_t>(addr, val);
-    //interconnect->store16(addr, val);
+    // Check if cache is isolated
+    //assert((sr & 0x10000) == 0x10000);
+    
+    if((sr & 0x10000) != 0) {
+        handleCache(addr, val);
+    } else {
+        interconnect.store<uint16_t>(addr, val);
+    }
 }
 
 void CPU::store8(uint32_t addr, uint8_t val) {
-    interconnect.store<uint8_t>(addr, val);
-    //interconnect->store8(addr, val);
+    // Check if cache is isolated
+    //assert((sr & 0x10000) == 0);
+    
+    if((sr & 0x10000) != 0) {
+        handleCache(addr, val);
+    } else {
+        interconnect.store<uint8_t>(addr, val);
+    }
+}
+
+void CPU::handleCache(uint32_t addr, uint32_t val) {
+    auto cc = interconnect._cacheControl;
+    
+    if(!cc.isCacheEnabled()) {
+        printf("Bruh??? This shouldn't happen :(");
+        std::cerr << "";
+        return;
+    }
+    
+    uint32_t tag = (addr & 0xFFFFF000) >> 12;
+    uint16_t index = (addr & 0xFFC) >> 2;
+    interconnect.icache[index] = ICache(tag, val);
 }
 
 uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {

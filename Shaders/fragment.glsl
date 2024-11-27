@@ -25,37 +25,48 @@ flat in uvec3 attr;
 
 out vec4 fragColor;
 
-/*uniform sampler2D texture_sample16;
-uniform sampler2D texture_sample8;*/
 uniform sampler2D texture_sample4;
 
 uniform int texture_depth;
 
-/*vec4 sample_texel() {
-    if (texture_depth == 4) { // 4
-        vec4 index = texture(texture_sample4, UVs);
+uint internalToPsxColor(vec4 c) {
+    uint a = uint(floor(c.a + 0.5));
+    uint r = uint(floor(c.r * 31.0 + 0.5));
+    uint g = uint(floor(c.g * 31.0 + 0.5));
+    uint b = uint(floor(c.b * 31.0 + 0.5));
     
-        // For now, let's assume that,
-        // the clut is always at [320, 480]
-        //clut4[int(index.r * 255)];
-        int texel = int(texelFetch(texture_sample4, uvec2(320 + int(index.r * 255), 480)).r * 255);
-        
-        return split_colors(texel) / vec4(255.0f);
-    } else if (texture_depth == 8) { // 8
-        vec4 index = texture(texture_sample8, UVs);
-        *//*int texel = clut8[int(index.r * 255)];*//*
-        int texel = int(texture(texture_sample8, uvec2(320 + int(index.r * 255), 480)).r * 255);
-          
-        return split_colors(texel) / vec4(255.0f);
-    } else { // 16
-        int texel = int(texture(texture_sample16, UVs).r * 255);
-        return split_colors(texel) / vec4(255.0f);
-    }
-}*/
+    return (a << 15) | (b << 10) | (g << 5) | r;
+}
+
+vec4 read(int x, int y) {
+    return texelFetch(texture_sample4, ivec2(x, y), 0);
+}
+
+vec4 clut4bit(ivec2 clut, ivec2 page) {
+    int texX = int(UVs.x / 4.0) + page.x;
+    int texY = int(UVs.y)       + page.y;
+    
+    uint index = internalToPsxColor(read(texX, texY));
+    uint which = (index >> ((uint(UVs.x) & 3u) * 4u)) & 0xfu;
+    
+    return read(clut.x + int(which), clut.y);
+}
+
+vec4 clut8bit(ivec2 clut, ivec2 page) {
+    int texX =  int(UVs.x / 2.0) + page.x;
+    int texY =  int(UVs.y)       + page.y;
+    
+    uint index = internalToPsxColor(read(texX, texY));
+    uint which = (index >> ((uint(UVs.x) & 1u) * 8u)) & 0xffu;
+    
+    return read(int(which) + clut.x, clut.y);
+}
+
+vec4 clut16bit(ivec2 page) {
+    return read(int(UVs.x) + page.x, int(UVs.y) + page.y);
+}
 
 vec4 sample_texel() {
-    return texture2D(texture_sample4, UVs.xy, 0.0);
-    
     /*
      * Extract clut and page
      */
@@ -64,7 +75,7 @@ vec4 sample_texel() {
     
     float pageX = int(UVs.z) & 0xFFFF;
     float pageY = int(UVs.w) & 0xFFFF;
-    
+    /*
     float index = texture(texture_sample4, vec2(UVs.x, UVs.y)).r;
     
     // The coordinates of the clut in the texture
@@ -78,7 +89,7 @@ vec4 sample_texel() {
     
     vec4 clutColor = texture(texture_sample4, vec2(clutEntryX, clutEntryY));
     
-    return clutColor;
+    return clutColor;*/
     
     /**
      * T4Bit = 0,
@@ -86,17 +97,11 @@ vec4 sample_texel() {
      * T15Bit = 2,
      */
     if (texture_depth == 0) {
-        
+        return clut4bit(ivec2(clutX, clutY), ivec2(pageX, pageY));
     } else if(texture_depth == 1) {
-        vec4 index = texture(texture_sample4, UVs.xy);
-        int texelIndex = int(index.r * 255.0);
-        
-        // The coordinates of the clut in the texture
-        vec2 coords = vec2((clutX + float(texelIndex)) / 1024.0, clutY / 512.0);
-        
-        return texture2D(texture_sample4, coords, 0.0);
+        return clut8bit(ivec2(clutX, clutY), ivec2(pageX, pageY));
     } else if(texture_depth == 2) {
-        return texture2D(texture_sample4, UVs.xy, 0.0);
+        return clut16bit(ivec2(pageX, pageY));
     }
     
     return vec4(1, 0, 0, 1);
@@ -108,6 +113,21 @@ void main() {
     float alpha = (float(attr.x) == 1) ? 0.5 : 1.0;
     
     // TODO; Implement attr.z == 2, texture + color
+    
+    // This is for testing
+    if(int(attr.z) == 6) {
+        vec4 c = texture(texture_sample4, UVs.xy);
+        
+        /*uint a = uint(floor(c.a + 0.5));
+        uint r = uint(floor(c.r * 31.0 + 0.5));
+        uint g = uint(floor(c.g * 31.0 + 0.5));
+        uint b = uint(floor(c.b * 31.0 + 0.5));
+        
+        fragColor = vec4(r, g, b, a);*/
+        fragColor = c;
+        
+        return;
+    }
     
     if (int(attr.z) == 0) { 
         fragColor = vec4(color, alpha);

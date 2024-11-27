@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <iostream>
 #include <stdint.h>
 #include <optional>
 #include <sstream>
@@ -25,20 +26,26 @@
 class Dma;*/
 class Bios;
 
-union CACHECONTROL {
-    struct {
-        uint32_t config : 16;
-        uint32_t scratchpadEnabled1 : 1;
-        uint32_t scratchpadEnabled2 : 1;
-        uint32_t crash : 1;
-        uint32_t codeCacheEnable : 1;
-        
-        uint32_t _ : 13; // Remaining 13 bits
-    };
-    
+struct CacheControl {
     uint32_t val = 0;
     
-    CACHECONTROL(uint32_t val) : val(val) {}
+    CacheControl(uint32_t val) : val(val) {}
+    
+    bool isCacheEnabled() {
+        return (val & 0x800) != 0;
+    }
+    
+    bool isInTagMode() {
+        return (val & 0x4) != 0;
+    }
+};
+
+struct ICache {
+    uint32_t tag;
+    uint32_t data;
+    
+    ICache() : tag(0), data(0) {}
+    ICache(uint32_t tag, uint32_t data) : tag(tag), data(data) {}
 };
 
 class Interconnect {
@@ -133,12 +140,12 @@ public:
         if (auto _ = map::EXPANSION1.contains(abs_addr)) {
             T r = 0;
             
-            for(size_t i = 0; i < sizeof(T); i++) {
+            /*for(size_t i = 0; i < sizeof(T); i++) {
                 // Simulate that nothing is connected
-                uint8_t data = ~0;
+                uint8_t data = 0;
                 
                 r |= (static_cast<uint32_t>(data) << (8 * i));
-            }
+            }*/
             
             return r;
         }
@@ -164,7 +171,15 @@ public:
             return _cacheControl.val;
         }
         
-        if (auto _ = map::EXPANSION2.contains(abs_addr)) {
+        if (auto offset = map::EXPANSION2.contains(abs_addr)) {
+            // https://psx-spx.consoledev.net/expansionportpio/#1f802021hread-sra-duart-status-register-a-r
+            if(offset.value() == 0x21) {
+                // UART status register A.
+                // Just indicating that,
+                // the bit for "Tx ready" is set.
+                return 1 << 2; // 4
+            }
+            
             throw std::runtime_error("Unhandled EXPANSION_2 load at address 0x" + to_hex(addr));
         }
         
@@ -300,7 +315,12 @@ public:
             return;
         }
         
-        if (auto _ = map::EXPANSION2.contains(abs_addr)) {
+        if (auto offset = map::EXPANSION2.contains(abs_addr)) {
+            // TTY
+            if(offset == 0x23) {
+                std::cerr << static_cast<char>(val) << "";
+            }
+            
             return;
             throw std::runtime_error("Unhandled EXPANSION_2 store at address 0x" + to_hex(addr));
         }
@@ -343,7 +363,10 @@ public:
     
     Emulator::IO::Timers _timers;
     
-    CACHECONTROL _cacheControl = (0x001e988);
+    CacheControl _cacheControl = (0);
+    
+    // The i-Cache can hold 4096 bytes, or 1024 instructions.
+    ICache icache[1024];
     
     Bios bios;
     Dma dma;

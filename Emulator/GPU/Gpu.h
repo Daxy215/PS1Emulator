@@ -152,11 +152,17 @@ namespace Emulator {
         };
         
         struct UV {
+            UV() = default;
+            UV(float u, float v) : u(u), v(v) {}
+            UV(float u, float v, float dataX, float dataY) : u(u), v(v), dataX(dataX), dataY(dataY) {}
+            
             static UV fromGp0(uint32_t val, uint32_t clut, uint32_t page, Gpu& gpu) {
                 uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
                 
-                uint16_t u = static_cast<uint16_t>((val) & 0xFF);
-                uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
+                //assert(depth == 4);
+                
+                float u = static_cast<float>((val) & 0xFF);
+                float v = static_cast<float>((val >> 8) & 0xFF);
                 
                 uint16_t clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
                 uint16_t clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
@@ -164,33 +170,32 @@ namespace Emulator {
                 uint16_t pageX = static_cast<uint16_t>((page & 0xF) << 6);
                 uint16_t pageY = static_cast<uint16_t>(((page >> 4) & 1) << 8);
                 
-                float r = 16 / depth;
+                /*float r = 16 / depth;
                 float ux = (pageX * r + u) / (1024.0f * r);
-                float vc = (pageY + v) / 512.0f;
+                float vc = (pageY + v) / 512.0f;*/
                 
                 float dataX = (clutX << 16) | pageX;
                 float dataY = (clutY << 16) | pageY;
                  
-                return {ux, vc, dataX, dataY};
+                return {u, v, dataX, dataY};
+                //return {ux, vc, dataX, dataY};
             }
             
             static UV fromGp0(uint32_t val, uint32_t clut, uint16_t pageX, uint16_t pageY, Gpu& gpu) {
                 uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
                 
-                uint16_t u = static_cast<uint16_t>((val) & 0xFF);
-                uint16_t v = static_cast<uint16_t>((val >> 8) & 0xFF);
+                assert(depth == 4);
+                
+                float u = static_cast<uint16_t>((val) & 0xFF);
+                float v = static_cast<uint16_t>((val >> 8) & 0xFF);
                 
                 uint16_t clutX = static_cast<uint16_t>((clut & 0x3F) << 4);
                 uint16_t clutY = static_cast<uint16_t>((clut >> 6) & 0x1FF);
                 
-                float r = 16 / depth;
-                float ux = (pageX * r + u) / (1024.0f * r);
-                float vc = (pageY + v) / 512.0f;
-                
                 float dataX = (clutX << 16) | pageX;
                 float dataY = (clutY << 16) | pageY;
                 
-                return {ux, vc, dataX, dataY};
+                return {u, v, dataX, dataY};
             }
             
             float u = 0, v = 0;
@@ -244,7 +249,7 @@ namespace Emulator {
     public:
         Gpu();
 
-        void step(uint32_t cycles);
+        bool step(uint32_t cycles);
         
         uint32_t status();
         
@@ -430,6 +435,7 @@ namespace Emulator {
         
         uint32_t _scanLine = 0;
         uint32_t _cycles = 0;
+        uint32_t frames = 0;
         
         bool isInHBlank = false;
         bool isInVBlank = false;

@@ -78,8 +78,6 @@ uint16_t DigitalController::load(uint32_t val) {
 				data.push(b2);
 				data.push(b3);
 				
-				std::cerr << "Cleared\n";
-				
 				uint8_t d = data.front();
 				data.pop();
 				

@@ -11,10 +11,11 @@ class Instruction;
 
 // Used for the load register
 struct Load {
-    RegisterIndex regIndex;
+    RegisterIndex index;
     uint32_t value;
     
-    Load(RegisterIndex reg, uint32_t val) : regIndex(reg), value(val) {}
+    Load(RegisterIndex reg, uint32_t val) : index(reg), value(val) {}
+    Load() : index(32), value(0) {}
 };
 
 enum Exception {
@@ -280,23 +281,37 @@ public:
     void opbreak(Instruction& instruction);
     
     void opillegal(Instruction& instruction);
-
+    
     void checkForTTY();
     
     // Register related functions
     RegisterIndex reg(uint32_t index) {
         return regs[static_cast<size_t>(index)];
     }
+
+    uint32_t x = 0;
     
     void set_reg(uint32_t index, RegisterIndex val) {
-        outRegs[index] = val;
+        regs[index] = val;
+        
+        regs[index].lastWrite = x;
         
         // We need to always rest R0 to 0
-        outRegs[0] = {0};
+        regs[0] = {0};
+        
+        if(loads[0].index == index) {
+            loads[0].index = 32;
+        }
     }
     
     void setLoad(RegisterIndex index, uint32_t val) {
-        load = {index, val};
+        //load = {index, val};
+        if(loads[0].index == index) {
+            // Override previous write to the same register
+            loads[0].index = 32;
+        }
+        
+        loads[1] = {index, val};
     }
     
     // Memory related functions
@@ -307,7 +322,9 @@ public:
     void store32(uint32_t addr, uint32_t val);
     void store16(uint32_t addr, uint16_t val);
     void store8(uint32_t addr, uint8_t val);
-
+    
+    void handleCache(uint32_t addr, uint32_t val);
+    
     // Helper functions
     static uint32_t wrappingAdd(uint32_t a, uint32_t b);
     static uint32_t wrappingSub(uint32_t a, uint32_t b);
@@ -330,10 +347,13 @@ public:
     uint32_t currentpc;
     
     // PC initial value should be at the beginning of the BIOS
-    uint32_t pc = -1077936128;//0xbfc00000;
+    uint32_t pc = 0xBFC00000;
     
     // Next value of the PC - Used to simulate the branch delay slot
     uint32_t nextpc;
+    
+    // Cop0; register 8; BadVaddr - Bad Virtual Address (R)
+    uint32_t badVaddr = 0;
     
     // Cop0; register 12; Status Register
     uint32_t sr = 0;
@@ -345,19 +365,18 @@ public:
     uint32_t epc = 0;
     
     // High register for division remainder and multiplication high
-    uint32_t hi =  0xdeadbeef;
+    uint32_t hi = 0;
     
     // Low register for division quotient and multiplication low
-    uint32_t lo =  0xdeadbeef;
+    uint32_t lo = 0;
     
     // Load delay slot emulation.
     // Contains output of the current instruction
-    RegisterIndex outRegs[32];
-    
-    RegisterIndex loadIndex;
+    //RegisterIndex outRegs[32];
     
     // Load initiated by the current instruction
-    Load load = {{0}, 0};
+    //Load load = {{0}, 0};
+    Load loads[2];
     
     // General purpose registers
     // First entry must always contain a 0.

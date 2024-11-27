@@ -15,6 +15,7 @@
 #include <iostream>
 
 // To avoid, "gl.h included before "glew.h"
+#include <span>
 #include <GL/wglew.h>
 
 #include "Scheduler.h"
@@ -389,12 +390,12 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // TODO; Just black?
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
 	
 	// Requires controller
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
 	// though, idk where im messing up bc its never checking,
@@ -465,37 +466,23 @@ void handleLoadExe(CPU& cpu) {
 	cpu.branchSlot = false;
 }
 
-/*const int clockSpeed = 33868800;
-const int FPS = clockSpeed / 60;*/
-const int clockSpeed = 53868800; // 53.6224 MHz (rounded)
-const int FPS = 59; // Approximate frames per second for both PAL and NTSC
-
 void runFrame(CPU& cpu) {
-	uint32_t cycles = 0;
-    
-	while (cycles < 100) {
-		if (cpu.pc != 0x80030000 || 0) {
-			cpu.executeNextInstruction();
-		} else {
-			handleLoadExe(cpu);
-		}
-        
-		cycles++;
-	}
-    
-	cpu.interconnect.step(300);
-	//cpu.handleInterrupts();
-	Emulator::Timers::Scheduler::resetTicks();
-}
-
-std::atomic<bool> sharedFlag(false);
-
-void runCpu(CPU& cpu) { 
 	while(true) {
-		if(sharedFlag.load()) {
-			sharedFlag.store(false);
-			runFrame(cpu);
+		for(int i = 0; i < 100; i++) {
+			if (cpu.pc != 0x80030000 || 1) {
+				cpu.executeNextInstruction();
+			} else {
+				handleLoadExe(cpu);
+			}
 		}
+		
+		if(cpu.interconnect.gpu.step(300)) {
+			IRQ::trigger(IRQ::VBlank);
+			return;
+		}
+		
+		cpu.interconnect.step(300);
+		Emulator::Timers::Scheduler::resetTicks();
 	}
 }
 
@@ -532,12 +519,24 @@ int main(int argc, char* argv[]) {
 	// TODO; LWR is bugged? Wrong value
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
-	// For now, manually load in dick
+	// TODO; For now, manually load in disc
 	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (USA)/Crash Bandicoot (USA).cue");
 	
 	//std::thread thr(runCpu, std::ref(cpu));
 	
 	glfwSetKeyCallback(gpu.renderer->window, cpu.interconnect._sio.keyCallback);
+	
+	while(true) {
+		runFrame(cpu);
+		
+		glfwPollEvents();
+		
+		int state = glfwGetKey(gpu.renderer->window, GLFW_KEY_G);
+		
+		if (state == GLFW_PRESS) {
+			gpu.renderer->displayVRam();
+		}
+	}
 	
 	int frames = 0, fps = 0;
 	double frameTime = 0;
@@ -548,12 +547,6 @@ int main(int argc, char* argv[]) {
 	const double UPDATE_CAP = 1.0/60.0;
 	
 	bool render = false;
-	
-	while(true) {
-		runFrame(cpu);
-		
-		glfwPollEvents();
-	}
 	
 	while(!glfwWindowShouldClose(gpu.renderer->window)) {
 		render = false;
@@ -580,7 +573,7 @@ int main(int argc, char* argv[]) {
 		if(render) {
 			gpu.renderer->display();
 			glfwPollEvents();
-			runFrame(cpu);
+			//runFrame(cpu);
 			
 			//sharedFlag.store(true);
 			

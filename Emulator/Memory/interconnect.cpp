@@ -9,28 +9,50 @@
 #include "../GPU/VRAM.h"
 
 void Interconnect::step(uint32_t cycles) {
-    gpu.step(cycles);
-    _cdrom.step(1);
+    _cdrom.step(cycles * 1.5f);
     _sio.step(1);
     
-    //_timers.sync(gpu.isInHBlank, gpu.isInVBlank, gpu.dot);
-    //_timers.step(cycles);
+    _timers.sync(gpu.isInHBlank, gpu.isInVBlank, gpu.dot);
+    _timers.step(cycles);
 }
 
 uint32_t Interconnect::loadInstruction(uint32_t addr) {
-    uint32_t abs_addr = map::maskRegion(addr);
-    
-    if (auto offset = map::RAM.contains(abs_addr)) {
-        return ram.load<uint32_t>(offset.value());
+    if(_cacheControl.isCacheEnabled() == 0 || addr >= 0xA0000000) {
+        uint32_t abs_addr = map::maskRegion(addr);
+        
+        if (auto offset = map::RAM.contains(abs_addr)) {
+            return ram.load<uint32_t>(offset.value());
+        }
+        
+        if (auto offset = map::BIOS.contains(abs_addr)) {
+            return bios.load<uint32_t>(offset.value());
+        }
+        
+        // TODO; Testing
+        return load<uint32_t>(addr);
     }
     
-    if (auto offset = map::BIOS.contains(abs_addr)) {
-        return bios.load<uint32_t>(offset.value());
+    // I-Cache
+    
+    // Addr in this case it's the PC
+    //auto pc = addr;
+    
+    // Cache is only active in the cached regions (KUSEG and KSEG0).
+    uint32_t tag = ((addr & 0xFFFFF000) >> 12) | 0x80000000;
+    uint16_t index = (addr & 0xFFC) >> 2;
+    
+    auto line = icache[index];
+    
+    if (line.tag == tag) {
+        return line.data;
     }
     
-    // TODO; Testing
-    return load<uint32_t>(addr);
-    //throw std::runtime_error("Unhandled PC load!");
+    auto data = load<uint32_t>(addr);
+    icache[index] = ICache(tag, data);
+    
+    return data;
+    
+    throw std::runtime_error("Unhandled PC load!");
 }
 
 uint32_t Interconnect::dmaReg(uint32_t offset) {
@@ -269,7 +291,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     default:
         throw std::runtime_error("Unhandled DMA write " + std::to_string(offset) + " : " + std::to_string(val));
     }
-
+    
     if(activePort.has_value()) {
         doDma(activePort.value());
     }

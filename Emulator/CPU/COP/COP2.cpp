@@ -1,5 +1,6 @@
 ﻿#include "COP2.h"
 
+#include <cstdio>
 
 /**
  * cop2r32-36 9xS16 RT11RT12,..,RT33 Rotation matrix     (3x3)        ;cnt0-4
@@ -68,13 +69,12 @@ void COP2::setControl(uint32_t r, uint32_t val) {
 			zsf3 = static_cast<int16_t>(val);
 			break;
 		}
-		
 		case 62: {
 			zsf4 = static_cast<int16_t>(val);
 			break;
 		}
 		default: {
-			//printf("");
+			printf("");
 			
 			break;
 		}
@@ -82,16 +82,16 @@ void COP2::setControl(uint32_t r, uint32_t val) {
 }
  
 uint32_t COP2::getControl(uint32_t r) {
-	//printf("");
+	printf("");
 	return 0;
 }
 
 void COP2::setData(uint32_t r, uint32_t val) {
-	//printf("");
+	printf("");
 }
 
 uint32_t COP2::getData(uint32_t r) {
-	//printf("");
+	printf("");
 	return 0;
 }
 

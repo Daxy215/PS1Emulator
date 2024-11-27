@@ -117,8 +117,10 @@ Emulator::Renderer::Renderer() {
     textureDepthUni = glGetUniformLocation(program, "texture_depth");
     glUniform1i(textureDepthUni, 0);
     
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_BLEND);
+    
+    /*glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);*/
     
     GLenum ersr = glGetError();
     if (ersr!= GL_NO_ERROR) {
@@ -127,8 +129,8 @@ Emulator::Renderer::Renderer() {
 }
 
 void Emulator::Renderer::display() {
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     draw();
     
@@ -140,18 +142,43 @@ void Emulator::Renderer::display() {
     }
 }
 
+void Emulator::Renderer::displayVRam() {
+    Gpu::Position positions[] = {
+        Gpu::Position(0.0f, 241.0f),   // Bottom left
+        Gpu::Position(640.0f, 241.0f), // Bottom right
+        Gpu::Position(0.0f, 481.0f),   // Top left 
+        Gpu::Position(640.0f, 481.0f), // Top right
+    };
+    
+    Gpu::Color colors[] = {
+        Gpu::Color(0x80, 0x80, 0x80),
+        Gpu::Color(0x80, 0x80, 0x80),
+        Gpu::Color(0x80, 0x80, 0x80),
+        Gpu::Color(0x80, 0x80, 0x80),
+    };
+    
+    Gpu::UV uvs[] = {
+        Gpu::UV(0.0f, 0.0f), // Bottom-left
+        Gpu::UV(1.0f, 0.0f), // Bottom-right
+        Gpu::UV(0.0f, 1.0f), // Top-left
+        Gpu::UV(1.0f, 1.0f), // Top-right
+    };
+    
+    nVertices = 0;
+    pushQuad(positions, colors, uvs, {0, 1, 6});
+    display();
+}
+
 void Emulator::Renderer::draw() {
     // Make sure all the data is flushed to the buffer
     glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
-    
-    //glClear(GL_COLOR_BUFFER_BIT);
     
     //glUseProgram(program);
     //glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
     // Wait for GPU to complete
-    /*auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     
     while(true) {
         GLenum err = glGetError();
@@ -164,7 +191,7 @@ void Emulator::Renderer::draw() {
         if(r == GL_ALREADY_SIGNALED || r == GL_CONDITION_SATISFIED)
             // Drawing done
             break;
-    }*/
+    }
     
     // Reset the buffers
     //nVertices = 0;
@@ -178,7 +205,7 @@ void Emulator::Renderer::pushLine(Emulator::Gpu::Position* positions, Emulator::
 void Emulator::Renderer::pushTriangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
     if(nVertices + 3 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
-        //nVertices = 0;
+        nVertices = 0;
         
         display();
     }
@@ -195,7 +222,7 @@ void Emulator::Renderer::pushTriangle(Emulator::Gpu::Position* positions, Emulat
 void Emulator::Renderer::pushQuad(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
     if(nVertices + 6 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
-        //nVertices = 0;
+        nVertices = 0;
         
         display();
     }
@@ -243,7 +270,7 @@ void Emulator::Renderer::pushQuad(Emulator::Gpu::Position* positions, Emulator::
 void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
     /*
      * From my knowledgeable, PS1 doesn't split,
-     * rectangles into 2 trinagles, however,
+     * rectangles into 2 triangles, however,
      * I don't understand SDL enough..
      * So, my goal in the future is to use,
      * a different library because I hate SDL.
@@ -256,7 +283,7 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position* positions, Emula
     
     if (nVertices + 6 > VERTEX_BUFFER_LEN) {
         // Reset the buffer size
-        //nVertices = 0;
+        nVertices = 0;
         
         display();
     }
@@ -307,7 +334,7 @@ void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
 }
 
 void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
-    //glUniform2i(drawingUni, right, bottom);
+    glUniform2i(drawingUni, right, bottom);
 }
 
 void Emulator::Renderer::setTextureDepth(int textureDepth) {
@@ -422,6 +449,7 @@ GLuint Emulator::Renderer::createFrameBuffer(GLsizei width, GLsizei height, GLui
     return framebuffer;
 }
 
+/*
 void APIENTRY Emulator::Renderer::openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
                                 GLsizei length, const GLchar* message, const void* userParam) {
     
@@ -462,3 +490,4 @@ void APIENTRY Emulator::Renderer::openglDebugCallback(GLenum source, GLenum type
     
     std::cerr << std::endl << std::endl;
 }
+*/

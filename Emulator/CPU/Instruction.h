@@ -14,6 +14,7 @@ struct RegisterIndex {
     }
     
     uint32_t reg;
+    uint32_t lastWrite = 0;
 };
 
 // https://github.com/deadcore/playstation-emulator/blob/master/src/instruction/mod.rs#L40

@@ -46,12 +46,12 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 		
 		if(source == 0 || source == 2) {
 			// Use System Clock
-			counter += _cycles;
-			_cycles = 0;
+			counter += (int)(_cycles / 1.5f);
+			_cycles %= (int)1.5f;
 		} else {
 			// Use Dot Clock
-			counter += (_cycles * 11 / 7 / static_cast<double>(this->dot));
-			_cycles = 0;
+			counter += _cycles / 6;//(_cycles * 11 / 7 / static_cast<double>(this->dot));
+			_cycles %= 6;
 		}
 		
 		break;
@@ -75,10 +75,12 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 		
 		if(source == 0 || source == 2) {
 			// Use System Clock
-			counter += _cycles;
-			_cycles = 0;
+			counter += (int)(_cycles / 1.5f);
+			_cycles %= (int)1.5f;
 		} else {
-			if(!wasInHBlank && isInHBlank) counter++;
+			//if(!wasInHBlank && isInHBlank) counter++;
+			counter += _cycles / 3413;
+			_cycles %= 3413;
 		}
 		
 		break;
@@ -90,13 +92,12 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 		
 		if(source == 0 || source == 1) {
 			// Use System Clock
-			counter += _cycles;
-			_cycles = 0;
+			counter += (int)(_cycles / 1.5f);
+			_cycles %= (int)1.5f;
 		} else {
 			// Use System Clock / 8
-			counter += (_cycles / 8);
-			
-			_cycles /= 8;
+			counter += (_cycles / (8 * 1.5f));
+			_cycles %= (int)(8 * 1.5f);
 			//_cycles = Utils::modf(_cycles, 8);
 		}
 		

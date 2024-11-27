@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 // Default data contents are garbage
-Ram::Ram() : data((8 * 1024 * 1024), 0xCA) {
+Ram::Ram() : data((8 * 1024 * 1024), /*0xCA*/0) {
     
 }
 

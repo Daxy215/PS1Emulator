@@ -1,5 +1,7 @@
 ﻿#include "Bios.h"
 
+#include <vector>
+
 Bios::Bios(const std::string& path)  {
     std::ifstream file(path, std::ios::binary);
     
@@ -7,7 +9,41 @@ Bios::Bios(const std::string& path)  {
         throw std::runtime_error("Failed to open file");
     }
     
-    data.insert(data.end(), std::istreambuf_iterator<char>(file), {});
+    std::vector<uint8_t> content;
+    
+    // Get the file size
+    file.seekg(0, std::ios::end);
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    
+    if (size < 0) {
+        throw std::runtime_error("Failed to determine file size");
+    }
+    
+    // I'm actually speachless..
+    // I was loading the bios in a wrong format.. ;-;
+    content.resize(size);
+    data.resize(size);
+    
+    if (!file.read(reinterpret_cast<char*>(content.data()), size)) {
+        throw std::runtime_error("Failed to read file content");
+    }
+    
+    std::copy(content.begin(), content.end(), data.begin());
+    
+    auto write = [&](uint32_t address, uint32_t opcode) {
+        address &= data.size() - 1;
+        
+        for (int i = 0; i < 4; i++) {
+            data[address + i] = (opcode >> (i * 8)) & 0xff;
+        }
+    };
+    
+    // Enable TTY
+    write(0x6F0C, 0x24010001);
+    write(0x6F14, 0xAF81A9C0);
+    
+    //data.insert(data.end(), std::istreambuf_iterator<char>(file), {});
     
     file.close();
     
@@ -25,7 +61,7 @@ Bios::Bios(const std::string& path)  {
     }
 }
 
-uint32_t Bios::getLittleEndian(std::ifstream& file) {
+/*uint32_t Bios::getLittleEndian(std::ifstream& file) {
     uint32_t val;
     char bytes[4];
     file.read(bytes, 4);
@@ -34,7 +70,7 @@ uint32_t Bios::getLittleEndian(std::ifstream& file) {
     val = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
     
     return val;
-}
+}*/
 
 /**
  * Offset here isn't a CPU address but rather,
