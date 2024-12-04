@@ -1032,6 +1032,7 @@
     <ClInclude Include="Emulator\Utils\Bitwise.h" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Emulator\Memory\CDROM\Parser\Readme.txt" />
     <Content Include="Shaders\fragment.glsl" />
     <Content Include="Shaders\vertex - Copy.glsl" />
     <Content Include="Shaders\vertex.glsl" />

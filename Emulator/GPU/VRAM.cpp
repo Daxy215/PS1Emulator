@@ -88,9 +88,9 @@ void Emulator::VRAM::endTransfer() {
 }
 
 void Emulator::VRAM::drawPixel(uint32_t pixel) {
-    if(!gpu->preserveMaskedPixels || (getPixel(transferData.x, transferData.y) >> 24) == 0) {
+    //if(!gpu->preserveMaskedPixels || (getPixel(transferData.x, transferData.y) >> 24) == 0) {
         setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, pixel);
-    }
+    //}
     
     stepTransfer();
 }

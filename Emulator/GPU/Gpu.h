@@ -157,8 +157,7 @@ namespace Emulator {
             UV(float u, float v, float dataX, float dataY) : u(u), v(v), dataX(dataX), dataY(dataY) {}
             
             static UV fromGp0(uint32_t val, uint32_t clut, uint32_t page, Gpu& gpu) {
-                uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
-                
+                //uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
                 //assert(depth == 4);
                 
                 float u = static_cast<float>((val) & 0xFF);
@@ -174,17 +173,19 @@ namespace Emulator {
                 float ux = (pageX * r + u) / (1024.0f * r);
                 float vc = (pageY + v) / 512.0f;*/
                 
-                float dataX = (clutX << 16) | pageX;
-                float dataY = (clutY << 16) | pageY;
-                 
+                float dataX = (clutX << 16) | (pageX);
+                float dataY = (clutY << 16) | (pageY);
+                
                 return {u, v, dataX, dataY};
                 //return {ux, vc, dataX, dataY};
             }
             
             static UV fromGp0(uint32_t val, uint32_t clut, uint16_t pageX, uint16_t pageY, Gpu& gpu) {
-                uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
+                //uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
+                //assert(depth == 4);
                 
-                assert(depth == 4);
+                pageX *= 64;
+                pageY *= 256;
                 
                 float u = static_cast<uint16_t>((val) & 0xFF);
                 float v = static_cast<uint16_t>((val >> 8) & 0xFF);
@@ -318,6 +319,7 @@ namespace Emulator {
         void gp08RectangleMonoOpaque(uint32_t val);
         void gp08RectangleTexturedOpaqu(uint32_t val);
         void gp016RectangleMonoOpaque(uint32_t val);
+        void gp016RectangleTextured(uint32_t val);
         
         // TODO; Testing
         void gp0Rectangle(uint32_t val);

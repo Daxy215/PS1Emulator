@@ -288,7 +288,7 @@ public:
     RegisterIndex reg(uint32_t index) {
         return regs[static_cast<size_t>(index)];
     }
-
+    
     uint32_t x = 0;
     
     void set_reg(uint32_t index, RegisterIndex val) {

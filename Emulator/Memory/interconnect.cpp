@@ -68,8 +68,7 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
         case 8:
             return channel.control();
         default:
-            //throw std::runtime_error("Unhandled DMA minor read at " + std::to_string(minor));
-            printf("");
+            throw std::runtime_error("Unhandled DMA minor read at " + std::to_string(minor));
             break;
         }
         
@@ -106,7 +105,7 @@ void Interconnect::doDma(Port port) {
 }
 
 // Im too lazy
-bool reset = false;
+//bool reset = false;
 
 void Interconnect::dmaBlock(Port port) {
     Channel& channel = dma.getChannel(port);
@@ -118,9 +117,9 @@ void Interconnect::dmaBlock(Port port) {
     std::optional<uint32_t> remsz = channel.transferSize();
     
     // TODO; Testing.. im too lazy
-    if((channel.direction != ToRam || port != Gpu)) {
+    /*if((channel.direction != ToRam || port != Gpu)) {
         reset = true;
-    }
+    }*/
     
     while(remsz.value() > 0) {
         // Not sure what happens if the address is bogus,
@@ -164,17 +163,22 @@ void Interconnect::dmaBlock(Port port) {
                     // menu pops up after the PS logo
                     //TODO; Implement
                     
-                    if(reset) {
+                    /*if(reset) {
                         reset = false;
                         
                         gpu.curX = gpu.curY = gpu.startX = gpu.startY = 0;
                         gpu.endX = gpu.vram->MAX_WIDTH;
                         gpu.endY = gpu.vram->MAX_HEIGHT;
-                    }
+                    }*/
                     
                     srcWord = gpu.read();
                     
                     break;
+                case Port::CdRom: {
+                    // TODO: ???
+                    
+                    break;
+                }
                 default:
                     throw std::runtime_error("Unhandled DMA source port" + std::to_string(static_cast<uint8_t>(port)));    
                     break;

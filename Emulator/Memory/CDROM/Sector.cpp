@@ -40,6 +40,8 @@ bool Sector::isEmpty() {
 }
 
 void Sector::empty() {
+	// TODO; Delete data?
+	
 	pointer = 0;
 	size = 0;
 }

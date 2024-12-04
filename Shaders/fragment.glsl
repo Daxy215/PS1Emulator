@@ -117,13 +117,6 @@ void main() {
     // This is for testing
     if(int(attr.z) == 6) {
         vec4 c = texture(texture_sample4, UVs.xy);
-        
-        /*uint a = uint(floor(c.a + 0.5));
-        uint r = uint(floor(c.r * 31.0 + 0.5));
-        uint g = uint(floor(c.g * 31.0 + 0.5));
-        uint b = uint(floor(c.b * 31.0 + 0.5));
-        
-        fragColor = vec4(r, g, b, a);*/
         fragColor = c;
         
         return;
@@ -131,7 +124,12 @@ void main() {
     
     if (int(attr.z) == 0) { 
         fragColor = vec4(color, alpha);
-    } else {
+    } else if(int(attr.z) == 1) {
         fragColor = sample_texel();
+    } else if(int(attr.z) == 2) {
+        vec4 color = vec4(color, 1);
+        vec4 c = mix(sample_texel(), color, 0.5f);
+        
+        fragColor = vec4(c.r, c.g, c.b, alpha);
     }
 }

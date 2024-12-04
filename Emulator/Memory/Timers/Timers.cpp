@@ -28,7 +28,7 @@ uint32_t Emulator::IO::Timers::load(uint32_t addr) {
 	switch (addr & 0xF) {
 		case 0: {
 			// Counter (R/W)
-			return static_cast<uint16_t>(floor(timer.counter));
+			return static_cast<uint16_t>((timer.counter));
 			
 			break;
 		}

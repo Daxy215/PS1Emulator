@@ -49,7 +49,6 @@ void CPU::executeNextInstruction() {
     
     handleInterrupts();
     
-    //Emulator::Timers::Scheduler::tick(4);
     Instruction instruction = Instruction(interconnect.loadInstruction(pc));
     
     // increment the PC
@@ -72,17 +71,6 @@ void CPU::executeNextInstruction() {
     } else {
         this->cause &= ~0x400;
     }
-    
-    //set_reg(reg, val);
-    
-    // Rest load register
-    //load = {{0}, 0};
-    
-    // regs = outRegs;
-    //regs[loadIndex] = outRegs[loadIndex];
-    
-    //std::move(std::begin(outRegs), std::end(outRegs), regs);
-    //std::copy(std::begin(outRegs), std::end(outRegs), std::begin(regs));
 }
 
 void CPU::decodeAndExecute(Instruction& instruction) {
@@ -695,13 +683,20 @@ void CPU::oplwl(Instruction& instruction) {
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = reg(s) + i;
     
     // This instruction bypasses the load delay restriction:
     // this instruction will merge the new contents,
     // with the value that is currently being loaded if needed.
     //uint32_t curv = outRegs[static_cast<size_t>(t)];
-    uint32_t curv = reg(t);
+    //uint32_t curv = rt;
+    
+    uint32_t rt = t;
+    if(loads[0].index == t) {
+        rt = loads[0].value;
+    } else {
+        rt = reg(t);
+    }
     
     // Next we load the *aligned* word containing the first address byte
     uint32_t alignedAddr = addr & ~3;
@@ -713,16 +708,16 @@ void CPU::oplwl(Instruction& instruction) {
     
     switch (v) {
     case 0:
-        v = (curv & 0x00FFFFFF) | (alignedWord << 24);
+        v = (rt & 0x00FFFFFF) | (alignedWord << 24);
         break;
     case 1:
-        v = (curv & 0x0000FFFF) | (alignedWord << 16);
+        v = (rt & 0x0000FFFF) | (alignedWord << 16);
         break;
     case 2:
-        v = (curv & 0x000000FF) | (alignedWord << 8);
+        v = (rt & 0x000000FF) | (alignedWord << 8);
         break;
     case 3:
-        v = (curv & 0x00000000) | (alignedWord << 0);
+        v = (rt & 0x00000000) | (alignedWord << 0);
         break;
     default:
         throw std::runtime_error("Unreachable code!");
@@ -744,7 +739,14 @@ void CPU::oplwr(Instruction& instruction) {
     // this instruction will merge the new contents,
     // with the value that is currently being loaded if needed.
     //uint32_t curv = outRegs[static_cast<size_t>(t)];
-    uint32_t curv = reg(t);
+    //uint32_t curv = reg(t);
+    
+    uint32_t rt = t;
+    if(loads[0].index == t) {
+        rt = loads[0].value;
+    } else {
+        rt = reg(t);
+    }
     
     // Next we load the *aligned* word containing the first address byte
     uint32_t alignedAddr = addr & ~3;
@@ -756,16 +758,16 @@ void CPU::oplwr(Instruction& instruction) {
     
     switch (v) {
     case 0:
-        v = (curv & 0x00000000) | (alignedWord >> 0);
+        v = (rt & 0x00000000) | (alignedWord >> 0);
         break;
     case 1:
-        v = (curv & 0xFF000000) | (alignedWord >> 8);
+        v = (rt & 0xFF000000) | (alignedWord >> 8);
         break;
     case 2:
-        v = (curv & 0xFFFF0000) | (alignedWord >> 16);
+        v = (rt & 0xFFFF0000) | (alignedWord >> 16);
         break;
     case 3:
-        v = (curv & 0xFFFFFF00) | (alignedWord >> 24);
+        v = (rt & 0xFFFFFF00) | (alignedWord >> 24);
         break;
     default:
         throw std::runtime_error("Unreachable code!");
@@ -1768,10 +1770,19 @@ void CPU::opjalr(Instruction& instruction) {
     RegisterIndex d = instruction.d();
     RegisterIndex s = instruction.s();
     
-    set_reg(d, nextpc);
-    nextpc = reg(s);
-    
     branchSlot = true;
+    set_reg(d, nextpc);
+    
+    uint32_t addr = reg(s);
+    
+    if(addr & 3) {
+        exception(LoadAddressError);
+        badVaddr = addr;
+        
+        return;
+    }
+    
+    nextpc = addr;
 }
 
 void CPU::opbxx(Instruction& instruction) {

@@ -8,6 +8,8 @@
 
 #include "../Gpu.h"
 
+//#define Test
+
 GLuint Emulator::Renderer::program = 0;
 
 Emulator::Renderer::Renderer() {
@@ -129,8 +131,10 @@ Emulator::Renderer::Renderer() {
 }
 
 void Emulator::Renderer::display() {
-    //glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#ifdef Test
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#endif
     
     draw();
     
@@ -144,8 +148,8 @@ void Emulator::Renderer::display() {
 
 void Emulator::Renderer::displayVRam() {
     Gpu::Position positions[] = {
-        Gpu::Position(0.0f, 241.0f),   // Bottom left
-        Gpu::Position(640.0f, 241.0f), // Bottom right
+        Gpu::Position(0.0f, 0),   // Bottom left
+        Gpu::Position(640.0f, 0), // Bottom right
         Gpu::Position(0.0f, 481.0f),   // Top left 
         Gpu::Position(640.0f, 481.0f), // Top right
     };
@@ -165,36 +169,46 @@ void Emulator::Renderer::displayVRam() {
     };
     
     nVertices = 0;
+    
+    // reset drawing offset
+    /*GLint value[2];
+    glGetUniformiv(program, drawingUni, value);
+    
+    setDrawingArea(0, 0);*/
     pushQuad(positions, colors, uvs, {0, 1, 6});
     display();
+    
+    //setDrawingArea(value[0], value[1]);
 }
 
 void Emulator::Renderer::draw() {
     // Make sure all the data is flushed to the buffer
-    glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+    //glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
     
     //glUseProgram(program);
     //glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
     // Wait for GPU to complete
-    auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    /*auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+         
+         while(true) {
+             GLenum err = glGetError();
+             if(err != GL_NO_ERROR && err != GL_INVALID_OPERATION) {
+                 std::cerr << "OpenGL Error: " << err << '\n';
+             }
+             
+             auto r = glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, 10000000);
+             
+             if(r == GL_ALREADY_SIGNALED || r == GL_CONDITION_SATISFIED)
+                 // Drawing done
+                 break;
+         }*/
     
-    while(true) {
-        GLenum err = glGetError();
-        if(err != GL_NO_ERROR && err != GL_INVALID_OPERATION) {
-            std::cerr << "OpenGL Error: " << err << std::endl;
-        }
-        
-        auto r = glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, 10000000);
-        
-        if(r == GL_ALREADY_SIGNALED || r == GL_CONDITION_SATISFIED)
-            // Drawing done
-            break;
-    }
-    
+#ifdef Test
     // Reset the buffers
-    //nVertices = 0;
+    nVertices = 0;
+#endif
 }
 
 void Emulator::Renderer::pushLine(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
@@ -330,7 +344,7 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position* positions, Emula
 }
 
 void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
-    glUniform2i(offsetUni, 0, 0);
+    glUniform2i(offsetUni, x, y);
 }
 
 void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {

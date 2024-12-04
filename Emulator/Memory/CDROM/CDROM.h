@@ -29,11 +29,22 @@ public:
 		}
 	}
 	
+public:
 	void swapDisk(const std::string& path);
 	
 	void decodeAndExecute(uint8_t command);
 	void decodeAndExecuteSub();
 
+private:
+	// CDROM Commands
+	void GetStat();
+	void SetLoc();
+	void SeekL();
+	void GetID();
+	
+	// Intterupts
+	void INT3();
+	
 private:
 	uint8_t _index = 0;
 	uint8_t _stats = 0;
@@ -42,6 +53,7 @@ private:
 	uint8_t IF = 0;
 	
 	bool transmittingCommand = false;
+	bool diskPresent = false;
 	
 	Disk _disk;
 	

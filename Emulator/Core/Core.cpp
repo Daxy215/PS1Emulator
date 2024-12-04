@@ -377,16 +377,16 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CPUTest/GTE/NCLIP/GTENCLIP.exe"); // TODO; Failed
 	
 	// GPU - 16 BPP
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/MemoryTransfer/MemoryTransfer16BPP.exe"); // TODO; Third arrow isn't showing
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/MemoryTransfer/MemoryTransfer16BPP.exe"); // Passed ig?
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
 	
 	// Other stuff
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
+	///std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
@@ -395,7 +395,7 @@ void handleLoadExe(CPU& cpu) {
 	// Requires controller
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
 	// though, idk where im messing up bc its never checking,
@@ -412,8 +412,8 @@ void handleLoadExe(CPU& cpu) {
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/animated-triangle/animated-triangle.exe"); // TODO; Needs GTE
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 20000-30000 MB/s lol
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Passes but no textures
-	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/quad/quad.exe"); //
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Just a benchmark.. Not really a test
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/quad/quad.exe"); // Ig pases?
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/version-detect/version-detect.exe"); // Not really a tested but I suppose (0* GPU version 2 [New 208pin GPU (LATE-PU-8 and up)])
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Wrong address somewhere :)
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/triangle/triangle.exe");
@@ -469,7 +469,7 @@ void handleLoadExe(CPU& cpu) {
 void runFrame(CPU& cpu) {
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			if (cpu.pc != 0x80030000 || 1) {
+			if (cpu.pc != 0x80030000 || 0) {
 				cpu.executeNextInstruction();
 			} else {
 				handleLoadExe(cpu);
@@ -510,13 +510,7 @@ int main(int argc, char* argv[]) {
     // TODO; Implement
     Emulator::SPU spu = Emulator::SPU();
 	
-	// TODO; LB is bugged? Wrong value
-	// TODO; LBU is bugged? Wrong value
-	// TODO; LH is bugged? Wrong value
-	// TODO; LHU is bugged? Wrong value
-	// TODO; LW is bugged? Wrong value
-	// TODO; LWL is bugged? Wrong value
-	// TODO; LWR is bugged? Wrong value
+	// TODO; JALR is bugged? Wrong value & Exception :)
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
 	// TODO; For now, manually load in disc
