@@ -11,10 +11,10 @@ class Instruction;
 
 // Used for the load register
 struct Load {
-    RegisterIndex index;
+    uint32_t index;
     uint32_t value;
     
-    Load(RegisterIndex reg, uint32_t val) : index(reg), value(val) {}
+    Load(uint32_t reg, uint32_t val) : index(reg), value(val) {}
     Load() : index(32), value(0) {}
 };
 
@@ -285,16 +285,12 @@ public:
     void checkForTTY();
     
     // Register related functions
-    RegisterIndex reg(uint32_t index) {
+    uint32_t reg(uint32_t index) {
         return regs[static_cast<size_t>(index)];
     }
     
-    uint32_t x = 0;
-    
-    void set_reg(uint32_t index, RegisterIndex val) {
+    void set_reg(uint32_t index, uint32_t val) {
         regs[index] = val;
-        
-        regs[index].lastWrite = x;
         
         // We need to always rest R0 to 0
         regs[0] = {0};
@@ -304,7 +300,7 @@ public:
         }
     }
     
-    void setLoad(RegisterIndex index, uint32_t val) {
+    void setLoad(uint32_t index, uint32_t val) {
         //load = {index, val};
         if(loads[0].index == index) {
             // Override previous write to the same register
@@ -380,7 +376,7 @@ public:
     
     // General purpose registers
     // First entry must always contain a 0.
-    RegisterIndex regs[32];
+    uint32_t regs[32];
     
 public:
     Interconnect interconnect;

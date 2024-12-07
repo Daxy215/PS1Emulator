@@ -1,11 +1,11 @@
 ﻿#pragma once
 #include <stdint.h>
 
-struct RegisterIndex {
-    RegisterIndex() : reg(0) {}
-    RegisterIndex(uint32_t reg) : reg(reg) {}
+/*struct uint32_t {
+    uint32_t() : reg(0) {}
+    uint32_t(uint32_t reg) : reg(reg) {}
     
-    RegisterIndex operator|(const RegisterIndex& other) const {
+    uint32_t operator|(const uint32_t& other) const {
         return {reg | other.reg};
     }
     
@@ -15,7 +15,7 @@ struct RegisterIndex {
     
     uint32_t reg;
     uint32_t lastWrite = 0;
-};
+};*/
 
 // https://github.com/deadcore/playstation-emulator/blob/master/src/instruction/mod.rs#L40
 class Instruction {
@@ -23,22 +23,22 @@ public:
     Instruction(uint32_t op) : op(op) {}
     
     // Returns bits [15:11] of the instruction
-    RegisterIndex d() {
+    uint32_t d() {
         return {(op >> 11) & 0x1F};
     }
     
     // Returns register index in bits [20:16]
-    RegisterIndex t() {
+    uint32_t t() {
         return {(op >> 16) & 0x1F};
     }
     
     // Returns register index in bits [25:21]
-    RegisterIndex s() {
+    uint32_t s() {
         return {(op >> 21) & 0x1F};
     }
     
     // Returns immediate value in bits [16:0]
-    RegisterIndex imm() {
+    uint32_t imm() {
         return {op & 0xFFFF};
     }
     
@@ -48,17 +48,17 @@ public:
     }
     
     // Jumps to target stored in bits [25:0]
-    RegisterIndex imm_jump() {
+    uint32_t imm_jump() {
         return {(op & 0x3FFFFFF)};
     }
     
     // Returns bits [31:26] of the instruction
-    RegisterIndex func() {
+    uint32_t func() {
         return {op >> 26};
     }
     
     // Returns the immediate values that are stored in bits [5:0]
-    RegisterIndex subfunction() {
+    uint32_t subfunction() {
         return op & 0x3F;
     }
     
@@ -69,7 +69,7 @@ public:
     }
     
     // Shift immediate values that are stored in bits [10:6]
-    RegisterIndex shift() {
+    uint32_t shift() {
         return (op >> 6) & 0x1F;
     }
     

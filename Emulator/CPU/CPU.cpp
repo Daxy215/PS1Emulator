@@ -32,12 +32,6 @@ void CPU::executeNextInstruction() {
     // 'EPC' in case of an exception.
     currentpc = pc;
     
-    if(x == 346666060 - 2) {
-        printf("");
-    }
-    
-    x++;
-    
     if(currentpc % 4 != 0) {
         exception(LoadAddressError);
         return;
@@ -208,7 +202,7 @@ void CPU::decodeAndExecute(Instruction& instruction) {
             break;
         default:
             opillegal(instruction); // Illegal instruction
-            printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func().reg, instruction.op);
+            printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func(), instruction.op);
             std::cerr << "";
             //std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
             //throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
@@ -307,7 +301,7 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
         break;
     default:
         opillegal(instruction); // Illegal instruction
-        printf("Unhandled sub instruction %0x8. Function call was: %x\n", instruction.op, instruction.subfunction().reg);
+        printf("Unhandled sub instruction %0x8. Function call was: %x\n", instruction.op, instruction.subfunction());
         std::cerr << "";
         break;
     }
@@ -316,14 +310,14 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
 // This is also stolen straight up from
 // https://github.com/BluestormDNA/ProjectPSX/blob/master/ProjectPSX/Core/CPU.cs#L128
 void CPU::handleInterrupts() {
-    /*uint32_t load = interconnect.loadInstruction(pc);
+    uint32_t load = interconnect.loadInstruction(pc);
     
     uint32_t instr = load >> 26;
     
     if(instr == 0x12) {
         // COP2 MTC2
         return;
-    }*/
+    }
     
     auto c = cause | (static_cast<uint32_t>(IRQ::active()) << 10);
     auto pending = (c & sr) & 0x700;
@@ -356,7 +350,7 @@ void CPU::opsll(Instruction& instruction) {
     uint32_t t = instruction.t();
     uint32_t d = instruction.d();
     
-    uint32_t v = reg(t).reg << i;
+    uint32_t v = reg(t) << i;
     
     set_reg(d, v);
 }
@@ -373,9 +367,9 @@ void CPU::opsllv(Instruction& instruction) {
 }
 
 void CPU::opsra(Instruction& instruction) {
-    RegisterIndex i = instruction.shift();
-    RegisterIndex t = instruction.t();
-    RegisterIndex d = instruction.d();
+    uint32_t i = instruction.shift();
+    uint32_t t = instruction.t();
+    uint32_t d = instruction.d();
     
     int32_t v = static_cast<int32_t>(reg(t)) >> i;
     
@@ -440,7 +434,7 @@ void CPU::opori(Instruction& instruction) {
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
     
-    uint32_t v = reg(s).reg | i;
+    uint32_t v = reg(s) | i;
     
     set_reg(t, v);
 }
@@ -456,12 +450,12 @@ void CPU::opor(Instruction& instruction) {
 }
 
 void CPU::opnor(Instruction& instruction) {
-    auto d = instruction.d();
-    auto s = instruction.s();
-    auto t = instruction.t();
+    uint32_t d = instruction.d();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
     
     // Was doing '!' instead of '~' :)
-    auto v = ~(reg(s) | reg(t));
+    uint32_t v = ~(reg(s) | reg(t));
     
     set_reg(d, v);
 }
@@ -487,9 +481,9 @@ void CPU::opxori(Instruction& instruction) {
 }
 
 void CPU::opsltu(Instruction& instruction) {
-    RegisterIndex d = instruction.d();
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
+    uint32_t d = instruction.d();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
     
     bool v = reg(s) < reg(t);
     
@@ -498,8 +492,8 @@ void CPU::opsltu(Instruction& instruction) {
 
 void CPU::opslti(Instruction& instruction) {
     int32_t i = static_cast<int32_t>(instruction.imm_se());
-    RegisterIndex s = instruction.s(); 
-    RegisterIndex t = instruction.t();
+    uint32_t s = instruction.s(); 
+    uint32_t t = instruction.t();
     
     uint32_t v = (static_cast<int32_t>(reg(s))) < i;
     
@@ -898,8 +892,8 @@ void CPU::opmult(Instruction& instruction) {
 }
 
 void CPU::opdiv(Instruction& instruction) {
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
     
     int32_t n = static_cast<int32_t>(reg(s));
     int32_t d = static_cast<int32_t>(reg(t));
@@ -952,7 +946,7 @@ void CPU::opmthi(Instruction& instruction) {
 }
 
 void CPU::opmflo(Instruction& instruction) {
-    RegisterIndex d = instruction.d();
+    uint32_t d = instruction.d();
     
     set_reg(d, lo);
 }
@@ -1026,9 +1020,9 @@ void CPU::opswc3(Instruction& instruction) {
 }
 
 void CPU::opsubu(Instruction& instruction) {
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
-    RegisterIndex d = instruction.d();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
+    uint32_t d = instruction.d();
     
     // I CANT BELIEVE I HAD THIS AS WRAPPINGADD AND NOT WRAPPINGSUB!!!!!
     uint32_t v = wrappingSub(reg(s), reg(t));
@@ -1054,21 +1048,21 @@ void CPU::opsub(Instruction& instruction) {
 }
 
 void CPU::opand(Instruction& instruction) {
-    RegisterIndex d = instruction.d();
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
+    uint32_t d = instruction.d();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
     
-    RegisterIndex v = reg(s) & reg(t);
+    uint32_t v = reg(s) & reg(t);
     
     set_reg(d, v);
 }
 
 void CPU::opandi(Instruction& instruction){
-    RegisterIndex i = instruction.imm();
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
+    uint32_t i = instruction.imm();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
     
-    RegisterIndex v = reg(s) & i;
+    uint32_t v = reg(s) & i;
     
     set_reg(t, v);
 }
@@ -1141,8 +1135,8 @@ void CPU::opcop3(Instruction& instruction) {
 void CPU::opmtc0(Instruction& instruction) {
     // This basically makes it so that all the data,
     // goes to the cache instead of the main memory.
-    RegisterIndex cpur = instruction.t();
-    uint32_t copr = instruction.d().reg;
+    uint32_t cpur = instruction.t();
+    uint32_t copr = instruction.d();
     
     uint32_t v = reg(cpur);
     
@@ -1207,7 +1201,7 @@ void CPU::opmtc0(Instruction& instruction) {
 
 void CPU::opmfc0(Instruction& instruction) {
     auto cpur = instruction.t();
-    uint32_t copr = instruction.d().reg;
+    uint32_t copr = instruction.d();
     
     uint32_t v = 0;
     
@@ -1373,7 +1367,7 @@ void CPU::opbreak(Instruction& instruction) {
 }
 
 void CPU::opillegal(Instruction& instruction) {
-    printf("Illegal instruction %d %d PC; %d\n", instruction.func().reg, instruction.subfunction().reg, currentpc);
+    printf("Illegal instruction %d %d PC; %d\n", instruction.func(), instruction.subfunction(), currentpc);
     std::cerr << "Illegal instruction " << instruction.op << " PC; " << currentpc << "\n";
     exception(IllegalInstruction);
 }
@@ -1748,7 +1742,7 @@ void CPU::opj(Instruction& instruction) {
 }
 
 void CPU::opjr(Instruction& instruction) {
-    RegisterIndex s = instruction.s();
+    uint32_t s = instruction.s();
     
     nextpc = reg(s);
     
@@ -1767,8 +1761,8 @@ void CPU::opjal(Instruction& instruction) {
 }
 
 void CPU::opjalr(Instruction& instruction) {
-    RegisterIndex d = instruction.d();
-    RegisterIndex s = instruction.s();
+    uint32_t d = instruction.d();
+    uint32_t s = instruction.s();
     
     branchSlot = true;
     set_reg(d, nextpc);
@@ -1819,9 +1813,9 @@ void CPU::opbxx(Instruction& instruction) {
 }
 
 void CPU::opbne(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
+    uint32_t i = instruction.imm_se();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
     
     // Check if not equal
     if(reg(s) != reg(t)) {
@@ -1831,17 +1825,17 @@ void CPU::opbne(Instruction& instruction) {
 }
 
 void CPU::opbeq(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex s = instruction.s();
-    RegisterIndex t = instruction.t();
+    uint32_t i = instruction.imm_se();
+    uint32_t s = instruction.s();
+    uint32_t t = instruction.t();
     
     if(reg(s) == reg(t))
         branch(i);
 }
 
 void CPU::opbqtz(Instruction& instruction) {
-    RegisterIndex i = instruction.imm_se();
-    RegisterIndex s = instruction.s();
+    uint32_t i = instruction.imm_se();
+    uint32_t s = instruction.s();
     
     int32_t v = static_cast<int32_t>(reg(s));
     

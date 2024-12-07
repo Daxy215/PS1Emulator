@@ -8,7 +8,7 @@
 
 #include "../Gpu.h"
 
-//#define Test
+#define Test
 
 GLuint Emulator::Renderer::program = 0;
 

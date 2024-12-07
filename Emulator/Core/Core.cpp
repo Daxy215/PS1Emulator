@@ -35,7 +35,7 @@
 // https://en.wikipedia.org/wiki/R3000
 // https://www.dsi.unive.it/~gasparetto/materials/MIPS_Instruction_Set.pdf
 // https://github.com/Lameguy64/PSn00bSDK
-
+//
 // Used this A LOT to figure out which instruction I need to translate the instructions further
 // https://inst.eecs.berkeley.edu/~cs61c/resources/MIPS_help.html
 // R-TYPE INSTRUCTIONS -> sub functions
@@ -382,7 +382,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
 	
 	// Other stuff
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
@@ -401,7 +401,11 @@ void handleLoadExe(CPU& cpu) {
 	// though, idk where im messing up bc its never checking,
 	// for the controller's inputs. So, I can't really fully test it..
 	// Future me; I was causing the wrong interrupt
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+	
+	// CDROM Tests
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cdrom/getloc/getloc.exe"); // TODO; Failed
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cdrom/cdltest.ps-exe");
 	
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/access-time/access-time.exe"); // TODO; All timings return 4
 	//std ::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
@@ -478,7 +482,7 @@ void runFrame(CPU& cpu) {
 		
 		if(cpu.interconnect.gpu.step(300)) {
 			IRQ::trigger(IRQ::VBlank);
-			return;
+			break;
 		}
 		
 		cpu.interconnect.step(300);
@@ -516,15 +520,15 @@ int main(int argc, char* argv[]) {
 	// TODO; For now, manually load in disc
 	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (USA)/Crash Bandicoot (USA).cue");
 	
-	//std::thread thr(runCpu, std::ref(cpu));
+	glfwSetKeyCallback(gpu.renderer->window, Emulator::IO::SIO::keyCallback);
 	
-	glfwSetKeyCallback(gpu.renderer->window, cpu.interconnect._sio.keyCallback);
-	
+	// TODO; Use ImGui
 	while(true) {
 		runFrame(cpu);
 		
 		glfwPollEvents();
 		
+		// TODO; Test
 		int state = glfwGetKey(gpu.renderer->window, GLFW_KEY_G);
 		
 		if (state == GLFW_PRESS) {
@@ -532,7 +536,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	
-	int frames = 0, fps = 0;
+	/*int frames = 0, fps = 0;
 	double frameTime = 0;
 	std::chrono::steady_clock::time_point firstTime;
 	std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
@@ -560,7 +564,7 @@ int main(int argc, char* argv[]) {
 				fps = frames;
 				frames = 0;
 				
-				//std::cerr << "FPS: " << std::to_string(fps) << "\n";
+				std::cerr << "FPS: " << std::to_string(fps) << "\n";
 			}
  		}
 		
@@ -569,15 +573,14 @@ int main(int argc, char* argv[]) {
 			glfwPollEvents();
 			//runFrame(cpu);
 			
-			//sharedFlag.store(true);
-			
 			frames++;
 		} else {
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 	}
 	
-	//thr.join();
+	thread.join();
+	*/
 	
 	glfwTerminate();
     

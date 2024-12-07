@@ -110,7 +110,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>..\libs\glfw-3.4.bin.WIN64\include;..\libs\glew-2.2.0\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\libs\glm;..\libs\glfw-3.4.bin.WIN64\include;..\libs\glew-2.2.0\include</AdditionalIncludeDirectories>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     </ClCompile>
     <Link>

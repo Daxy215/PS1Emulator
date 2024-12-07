@@ -118,7 +118,7 @@ public:
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-            return _cdrom.load<uint32_t>(addr);
+            return _cdrom.load<uint32_t>(offset.value());
         }
         
         if (auto _ = map::MDEC.contains(abs_addr)) {
@@ -254,7 +254,7 @@ public:
         }
         
         if (auto offset = map::CDROM.contains(abs_addr)) {
-           _cdrom.store<uint32_t>(addr, val);
+           _cdrom.store<uint32_t>(offset.value(), val);
             
             return;
         }

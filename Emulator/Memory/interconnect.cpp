@@ -6,7 +6,6 @@
 #include "Memories/Ram.h"
 
 #include "../CPU/CPU.h"
-#include "../GPU/VRAM.h"
 
 void Interconnect::step(uint32_t cycles) {
     _cdrom.step(cycles * 1.5f);
@@ -175,7 +174,7 @@ void Interconnect::dmaBlock(Port port) {
                     
                     break;
                 case Port::CdRom: {
-                    // TODO: ???
+                    srcWord = _cdrom.readByte();
                     
                     break;
                 }

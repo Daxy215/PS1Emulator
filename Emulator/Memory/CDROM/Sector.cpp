@@ -1,27 +1,33 @@
 ﻿#include "Sector.h"
 
 void Sector::set(const std::vector<uint8_t>& data) {
-	pointer = 0;
-	size = data.size();
-	std::memcpy(buffer.data(), data.data(), size);
+	_pointer = 0;
+	_size = data.size();
+	_buffer.resize(_size);
+	
+	std::memcpy(_buffer.data(), data.data(), _size);
+}
+
+uint8_t Sector::loadAt(uint32_t pos) {
+	return _buffer[pos];
 }
 
 uint8_t& Sector::load8() {
-	return buffer[pointer++];
+	return _buffer[_pointer++];
 }
 
 int16_t& Sector::load16() {
-	int16_t* data = reinterpret_cast<int16_t*>(&buffer[pointer]);
-	pointer += 2;
+	int16_t* data = reinterpret_cast<int16_t*>(&_buffer[_pointer]);
+	_pointer += 2;
 	
 	return *data;
 }
 
 std::vector<uint8_t> Sector::read() {
-	std::vector<uint8_t> data(size);
+	std::vector<uint8_t> data(_size);
 	
-	std::memcpy(data.data(), &buffer[pointer], size);
-	pointer += size;
+	std::memcpy(data.data(), &_buffer[_pointer], _size);
+	_pointer += _size;
 	
 	return data;
 }
@@ -29,19 +35,19 @@ std::vector<uint8_t> Sector::read() {
 std::vector<uint8_t> Sector::read(size_t size) {
 	std::vector<uint8_t> data(size);
 	
-	std::memcpy(data.data(), &buffer[pointer], size * 4);
-	pointer += size * 4;
+	std::memcpy(data.data(), &_buffer[_pointer], size * 4);
+	_pointer += size * 4;
 	
 	return data;
 }
 
 bool Sector::isEmpty() {
-	return pointer >= size;
+	return _pointer >= _size;
 }
 
 void Sector::empty() {
 	// TODO; Delete data?
 	
-	pointer = 0;
-	size = 0;
+	_pointer = 0;
+	_size = 0;
 }

@@ -3,26 +3,25 @@
 #include <vector>
 
 struct Track {
-	/*int trackNumber;
-	
-	// Logical Block Addressing
-	int startLBA;
-	
-	std::string binFilePath;
-	std::string type;*/
-	
+	std::string filePath;
 	std::string type;
-	uint32_t track;
+	uint32_t trackIndex;
+	
 	std::string mode;
-	uint32_t start;
-	uint32_t end;
+	uint32_t modeType;
+	
+	uint32_t sectorCount;
+	
+	// TODO; Handle index
+	//uint32_t start;
+	//uint32_t end;
 };
 
 class TrackBuilder {
 public:
-	void parseFile(const std::string& path);
+	std::vector<Track> parseFile(const std::string& path);
 	
-	std::vector<std::vector<uint8_t>> parseCueFile(const std::string& path);
+	std::vector<Track> parseCueFile(const std::string& path);
 	void parseBinFile(const std::string& path);
 	
 private:
