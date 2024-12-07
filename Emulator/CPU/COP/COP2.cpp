@@ -1,12 +1,67 @@
 ﻿#include "COP2.h"
 
 #include <cstdio>
+#include <iostream>
 #include <stdexcept>
 
 // https://hitmen.c02.at/files/docs/psx/gte.txt
 
 COP2::COP2() {
 	
+}
+
+void COP2::decode(GTEInstruction instruction) {
+	// reset FLAG register
+	flag.reg = 0;
+	
+	sf = instruction.sf;
+	lm = instruction.lm;
+	
+	/**
+	 * Opc  Name   Clk Expl.
+     * 01h  RTPS   15  Perspective Transformation single
+     * 06h  NCLIP  8   Normal clipping
+     * 0Ch  OP(sf) 6   Cross product of 2 vectors
+     * 10h  DPCS   8   Depth Cueing single
+     * 11h  INTPL  8   Interpolation of a vector and far color vector
+     * 12h  MVMVA  8   Multiply vector by matrix and add vector (see below)
+     * 13h  NCDS   19  Normal color depth cue single vector
+     * 14h  CDP    13  Color Depth Que
+     * 16h  NCDT   44  Normal color depth cue triple vectors
+     * 1Bh  NCCS   17  Normal Color Color single vector
+     * 1Ch  CC     11  Color Color
+     * 1Eh  NCS    14  Normal color single
+     * 20h  NCT    30  Normal color triple
+     * 28h  SQR(sf)5   Square of vector IR
+     * 29h  DCPL   8   Depth Cue Color light
+     * 2Ah  DPCT   17  Depth Cueing triple (should be fake=08h, but isn't)
+     * 2Dh  AVSZ3  5   Average of three Z values
+     * 2Eh  AVSZ4  6   Average of four Z values
+     * 30h  RTPT   23  Perspective Transformation triple
+     * 3Dh  GPF(sf)5   General purpose interpolation
+     * 3Eh  GPL(sf)5   General purpose interpolation with base
+     * 3Fh  NCCT   39  Normal Color Color triple vector
+	 */
+	
+	switch(instruction.cmd) {
+	case 0x01: {
+		//   01h  RTPS   15  Perspective Transformation single
+		rtps();
+		
+		break;
+	}
+	case 0x30: {
+		// 30h  RTPT   23  Perspective Transformation triple
+		rtpt();
+		
+		break;
+	}
+	default:
+		printf("Unhandled GTE instruction %x\n", instruction.cmd);
+		std::cerr << "";
+		
+		break;
+	}
 }
 
 /**
@@ -140,7 +195,7 @@ uint32_t COP2::getControl(uint32_t r) {
 	} else if (r == 62) {
 		return zsf4;
 	} else if(r == 63) {
-		return flag;
+		return flag.reg;
 	} else {
 		return 0;
 	}
@@ -193,13 +248,28 @@ void COP2::setData(uint32_t r, uint32_t val) {
 	} else if(r == 5) {
 		VXYZ2.z = static_cast<uint16_t>(val);
 	}
+	
+	else if(r == 6) {
+		RGBC = glm::vec4((val >> 24) & 0xFF, (val >> 16) & 0xFF,
+						 (val >> 8 ) & 0xFF, (val >> 0 ) & 0xFF);
+	} else if(r == 8) {
+		IR0 = static_cast<uint16_t>(val);
+	}
+	
 	else {
  		printf("");
 	}
 }
 
 uint32_t COP2::getData(uint32_t r) {
-	printf("");
+	if(r >= 20 && r <= 22) {
+		// TODO; cop2r20-22 12xU8 RGB0,RGB1,RGB2        Color CRGB-code/color FIFO (3 stages)
+	} else if(r == 24) {
+		// TODO; cop2r24    1xS32 MAC0                  32bit Maths Accumulators (Value)
+	} else {
+		printf("");
+	}
+	
 	return 0;
 }
 
@@ -208,6 +278,15 @@ void COP2::setReg(uint32_t r, uint32_t val) {
 		throw std::runtime_error("???");
 	
 	gte[r] = val;
+}
+
+void COP2::rtps() {
+	
+}
+
+void COP2::rtpt() {
+	// RTPT is the same as RTPS, but repeats for V1 and V2. The "sf" bit should usually be set.
+	
 }
 
 /*uint32_t COP2::getReg(uint32_t r) {

@@ -12,8 +12,86 @@ class Instruction;
 
 class COP2 {
 public:
+	union GTEInstruction {
+		struct {
+			uint32_t cmd                    : 6;
+			uint32_t                        : 4; // Always zero
+			uint32_t lm                     : 1;
+			uint32_t                        : 2; // Always zero
+			uint32_t mvmvaTranslationVector : 2; // (0=TR, 1=BK, 2=FC/Bugged, 3=None)
+			uint32_t mvmvaMultiplyVector    : 2; // (0=V0, 1=V1, 2=V2, 3=IR/long)
+			uint32_t mvmvaMultiplyMatrix    : 2; // (0=Rotation. 1=Light, 2=Color, 3=Reserved)
+			uint32_t sf                     : 1;
+			uint32_t                        : 5; // Ignored by hardware?
+			uint32_t imm25                  : 7; // Must be 0100101b for "COP2 imm25) instructions
+		};
+		
+		uint32_t reg;
+		
+		GTEInstruction() = default;	
+		GTEInstruction(uint32_t reg) : reg(reg) {} 
+	};
+	
+	union Flag {
+		/**
+		 * 31   Error Flag (Bit30..23, and 18..13 ORed together) (Read only)
+		 * 30   MAC1 Result larger than 43 bits and positive
+		 * 29   MAC2 Result larger than 43 bits and positive
+		 * 28   MAC3 Result larger than 43 bits and positive
+		 * 27   MAC1 Result larger than 43 bits and negative
+		 * 26   MAC2 Result larger than 43 bits and negative
+		 * 25   MAC3 Result larger than 43 bits and negative
+		 * 24   IR1 saturated to +0000h..+7FFFh (lm=1) or to -8000h..+7FFFh (lm=0)
+		 * 23   IR2 saturated to +0000h..+7FFFh (lm=1) or to -8000h..+7FFFh (lm=0)
+		 * 22   IR3 saturated to +0000h..+7FFFh (lm=1) or to -8000h..+7FFFh (lm=0)
+		 * 21   Color-FIFO-R saturated to +00h..+FFh
+		 * 20   Color-FIFO-G saturated to +00h..+FFh
+		 * 19   Color-FIFO-B saturated to +00h..+FFh
+		 * 18   SZ3 or OTZ saturated to +0000h..+FFFFh
+		 * 17   Divide overflow. RTPS/RTPT division result saturated to max=1FFFFh
+		 * 16   MAC0 Result larger than 31 bits and positive
+		 * 15   MAC0 Result larger than 31 bits and negative
+		 * 14   SX2 saturated to -0400h..+03FFh
+		 * 13   SY2 saturated to -0400h..+03FFh
+		 * 12   IR0 saturated to +0000h..+1000h
+		 * 0-11 Not used (always zero) (Read only)
+		 */
+		struct {
+			uint32_t : 12; // Not used (always zero) (read only)
+			uint32_t irq0Saturated        : 1;
+			uint32_t sy2Saturated         : 1;
+			uint32_t sx2Saturated         : 1;
+			uint32_t mac0OverflowNegative : 1;
+			uint32_t mac0OverflowPositive : 1;
+			uint32_t divideOverflow       : 1;
+			uint32_t sz3OtzSaturated      : 1;
+			uint32_t colorBSaturated      : 1;
+			uint32_t colorGSaturated      : 1;
+			uint32_t colorRSaturated      : 1;
+			uint32_t ir3Saturated         : 1;
+			uint32_t ir2Saturated         : 1;
+			uint32_t ir1Saturated         : 1;
+			uint32_t mac3OverflowNegative : 1;
+			uint32_t mac2OverflowNegative : 1;
+			uint32_t mac1OverflowNegative : 1;
+			uint32_t mac3OverflowPositive : 1;
+			uint32_t mac2OverflowPositive : 1;
+			uint32_t mac1OverflowPositive : 1;
+			uint32_t errorFlag            : 1; // (Read only)
+		};
+		
+		uint32_t reg;
+		
+		Flag() = default;	
+		Flag(uint32_t reg) : reg(reg) {} 
+	};
+	
+public:
 	COP2();
 	
+	void decode(GTEInstruction instruction);
+	
+public:
 	void setControl(uint32_t r, uint32_t val);
 	uint32_t getControl(uint32_t r);
 	
@@ -22,6 +100,11 @@ public:
 	
 	void setReg(uint32_t r, uint32_t val);
 	//uint32_t getReg(uint32_t r);
+	
+private:
+	void rtps();
+	
+	void rtpt();
 	
 private:
 	/**
@@ -81,9 +164,9 @@ private:
 	// Average Z registers
 	int16_t zsf3 = 0; // COPR-61
 	int16_t zsf4 = 0; // COPR-62
-
+	
 	// cop2r63      U20 FLAG             Returns any calculation errors
-	uint32_t flag = 0;
+	Flag flag = 0;
 	
 private:
 	/*
@@ -106,6 +189,15 @@ private:
 	
 	// cop2r0-1   3xS16 VXY0,VZ0              Vector 0 (X,Y,Z)
 	glm::vec3 VXYZ0, VXYZ1, VXYZ2;
+	
+	// cop2r6     4xU8  RGBC                  Color/code value
+	glm::vec4 RGBC;
+	
+	// cop2r8     1xS16 IR0                   16bit Accumulator (Interpolate)
+	uint16_t IR0 = 0;
+	
+private:
+	uint32_t sf = 0, lm = 0;
 	
 private:
 	

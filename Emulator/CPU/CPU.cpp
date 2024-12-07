@@ -4,7 +4,6 @@
 #include <bitset>
 #include <iostream>
 #include <ostream>
-#include <set>
 #include <stdexcept>
 #include <string>
 
@@ -71,9 +70,6 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     // Gotta decode the instructions using the;
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
-    
-    //std::cerr << "Processing; " + getDetails(instruction.op) << " = " <<  std::to_string(instruction.func()) << " PC; " << pc << '\n';
-    //printf("Processing CPU instruction at 0x%08x = 0x%08x\n ", instruction.op, instruction.func().reg);
     
     Emulator::Timers::Scheduler::tick(1);
     
@@ -314,6 +310,7 @@ void CPU::handleInterrupts() {
     
     uint32_t instr = load >> 26;
     
+    // Delay instruction
     if(instr == 0x12) {
         // COP2 MTC2
         return;
@@ -1098,8 +1095,9 @@ void CPU::opcop2(Instruction& instruction) {
     auto opcode = instruction.copOpcode();
     
     if(opcode & 0x10) {
-        // TODO; Handle command at instruction.op & 0x3f
-        auto cmd = instruction.op & 0x3F;
+        COP2::GTEInstruction gteInstruction(instruction.op);
+        
+        _cop2.decode(gteInstruction);
         
         return;
     }

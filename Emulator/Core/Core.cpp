@@ -294,7 +294,7 @@
     * 
     * Which is equivalent to MIPS assembly:
         * lui $8, 0x13
-    
+    * 
     * Dont get ANY of this. Page 16
  */
 
@@ -395,13 +395,13 @@ void handleLoadExe(CPU& cpu) {
 	// Requires controller
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
 	// though, idk where im messing up bc its never checking,
 	// for the controller's inputs. So, I can't really fully test it..
 	// Future me; I was causing the wrong interrupt
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
 	
 	// CDROM Tests
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cdrom/getloc/getloc.exe"); // TODO; Failed
@@ -473,7 +473,7 @@ void handleLoadExe(CPU& cpu) {
 void runFrame(CPU& cpu) {
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			if (cpu.pc != 0x80030000 || 0) {
+			if (cpu.pc != 0x80030000 || 1) {
 				cpu.executeNextInstruction();
 			} else {
 				handleLoadExe(cpu);
@@ -490,35 +490,31 @@ void runFrame(CPU& cpu) {
 	}
 }
 
-double clockToMilliseconds(clock_t ticks){
-	// units/(units/time) => time (seconds) * 1000 = milliseconds
-	return (ticks/(double)CLOCKS_PER_SEC)*1000.0;
-}
-
-// TODO; Use GLM for GTE
 int main(int argc, char* argv[]) {
 	// Was used for debuging
 	//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
-    //Bios bios = Bios("BIOS/openbios.bin");
-    Dma dma;
 	
-    // TODO; Texture loading
+	/**
+	 * TODO; Implement more channels
+	 */
+	Dma dma;
+	
 	// TODO; Line rendering
-	// TODO; Semi-transparency
+	// TODO; Semi-transparency(different modes of transparency)
 	// TODO; Blending-textures?
     Emulator::Gpu gpu;
     
-    // TODO; Implement
+    // TODO; Implement(probably won't implement for a very while)
     Emulator::SPU spu = Emulator::SPU();
 	
 	// TODO; JALR is bugged? Wrong value & Exception :)
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
 	// TODO; For now, manually load in disc
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (USA)/Crash Bandicoot (USA).cue");
+	cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (USA)/Crash Bandicoot (USA).cue");
 	
 	glfwSetKeyCallback(gpu.renderer->window, Emulator::IO::SIO::keyCallback);
 	
