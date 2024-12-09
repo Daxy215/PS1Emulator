@@ -33,10 +33,12 @@ std::vector<Track> TrackBuilder::parseCueFile(const std::string& path) {
 			
         	// TODO; This is wrong
             std::string fileName = line.substr(pos + 1, endPos - pos - 1);
+			
+        	// TODO; im too lazy to deal with this
+        	auto path = "ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).bin";
             
             // Read .BIN file
-        	// TODO; im too lazy to deal with this
-            std::ifstream binFile("ROMS/Crash Bandicoot (USA)/Crash Bandicoot (USA).bin", std::ios::binary | std::ios::ate);
+            std::ifstream binFile(path, std::ios::binary | std::ios::ate);
         	
             if (!binFile.is_open())
             	throw std::runtime_error("Failed to open BIN file");
@@ -53,7 +55,7 @@ std::vector<Track> TrackBuilder::parseCueFile(const std::string& path) {
             	
                 Track track;
             	// TODO; im too lazy
-            	track.filePath = "ROMS/Crash Bandicoot (USA)/Crash Bandicoot (USA).bin";
+            	track.filePath = path;
             	
                 track.type = line.substr(0, spacePos);
                 track.mode = line.substr(spacePos, 5);

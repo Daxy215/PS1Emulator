@@ -32,36 +32,6 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 	}
 }
 
-void Emulator::VRAM::store(uint32_t val) {
-    // TODO; Apply dithering
-    uint32_t pixel0 = (val & 0xFFFF);
-    uint32_t pixel1 = (val >> 16) & 0xFFFF;
-	
-    uint16_t mask =  (gpu->forceSetMaskBit << 15);
-	
-    pixel0 |= mask;
-    pixel1 |= mask;
-    
-    // draw pixel 0
-    drawPixel(pixel0);
-    
-    // draw pixel 1
-    drawPixel(pixel1);
-}
-
-void Emulator::VRAM::beginTransfer(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t imgSize) {
-    transferData = {x, y, width, height, imgSize};
-    /*printf("Started drawing at x=%d y=%d - w=%d h=%d\n", x, y, width, height);
-    std::cerr << "";*/
-}
-
-void Emulator::VRAM::stepTransfer() {
-    if(++transferData.x == transferData.originX + transferData.width) {
-        transferData.x -= transferData.width;
-        transferData.y++;
-    }
-}
-
 void Emulator::VRAM::endTransfer() {
 	/* Upload 16bit texture. */
 	/*glBindTexture(GL_TEXTURE_2D, texture16);
@@ -87,15 +57,22 @@ void Emulator::VRAM::endTransfer() {
 	}
 }
 
-void Emulator::VRAM::drawPixel(uint32_t pixel) {
-    //if(!gpu->preserveMaskedPixels || (getPixel(transferData.x, transferData.y) >> 24) == 0) {
-        setPixel(transferData.x & 0x3FF, transferData.y & 0x1FF, pixel);
-    //}
-    
-    stepTransfer();
+void Emulator::VRAM::writePixel(uint32_t x, uint32_t y, uint16_t pixel) {
+	uint16_t pixel0 = (pixel & 0xFFFF);
+	
+	if(gpu->preserveMaskedPixels && (getPixel(x, y) & 0x8000)) {
+		return;
+	}
+	
+	uint16_t mask =  (gpu->forceSetMaskBit << 15);
+	setPixel(x, y, pixel0 | mask);
 }
 
+
 void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
+	x %= MAX_WIDTH;
+	y %= MAX_HEIGHT;
+	
     size_t index = y * MAX_WIDTH + x;
 	
 	/* Write data as 16bit. */

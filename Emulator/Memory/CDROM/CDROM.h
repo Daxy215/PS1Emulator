@@ -140,7 +140,9 @@ private:
 	void GetStat();
 	void SetLoc();
 	void ReadN();
+	void Pause();
 	void SetMode();
+	void Init();
 	void SeekL();
 	void GetID();
 

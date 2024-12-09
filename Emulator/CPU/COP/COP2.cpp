@@ -50,6 +50,16 @@ void COP2::decode(GTEInstruction instruction) {
 		
 		break;
 	}
+	case 0x06: {
+		// 06h  NCLIP  8   Normal clipping
+		
+		break;
+	}
+	case 0x13: {
+		// 13h  NCDS   19  Normal color depth cue single vector
+		
+		break;
+	}
 	case 0x30: {
 		// 30h  RTPT   23  Perspective Transformation triple
 		rtpt();
@@ -262,7 +272,13 @@ void COP2::setData(uint32_t r, uint32_t val) {
 }
 
 uint32_t COP2::getData(uint32_t r) {
-	if(r >= 20 && r <= 22) {
+	if(r == 7) {
+		// TODO; cop2r7     1xU16 OTZ                   Average Z value (for Ordering Table)
+	} else if(r == 8) {
+		return IR0;
+	} else if(r >= 12 && r <= 15) {
+		// TODO; cop2r12-15 6xS16 SXY0,SXY1,SXY2,SXYP   Screen XY-coordinate FIFO  (3 stages)
+	} else if(r >= 20 && r <= 22) {
 		// TODO; cop2r20-22 12xU8 RGB0,RGB1,RGB2        Color CRGB-code/color FIFO (3 stages)
 	} else if(r == 24) {
 		// TODO; cop2r24    1xS32 MAC0                  32bit Maths Accumulators (Value)

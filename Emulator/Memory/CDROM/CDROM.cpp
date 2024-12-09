@@ -30,10 +30,11 @@ void CDROM::step(uint32_t cycles) {
 	 * 4. Command busy flag is unset and parameter fifo is cleared.
 	 * 5. Shortly after (around 1000-6000 cycles later), CDROM IRQ is fired.
 	 */
-	busyFor -= cycles;
-	if(busyFor < 0) {
+	if(busyFor > -1)
+		busyFor -= cycles;
+	
+	if(busyFor < 0)
 		transmittingCommand = false;
-	}
 	
 	const int sectorsPerSecond = mode.speed ? 150 : 75;
 	// (44100 * 768) -> CPU clock speed
@@ -73,7 +74,6 @@ uint32_t CDROM::load<uint32_t>(uint32_t addr) {
 		stat |= (transmittingCommand ? 1 : 0) << 7;
 		
 		// 6 DRQSTS  Data fifo empty      (0=Empty) ;triggered after reading LAST byte
-		// TODO; Using this for testing for now
 		stat |= (_sector.isEmpty()) << 6;
 		
 		// 5 RSLRRDY Response fifo empty  (0=Empty) ;triggered after reading LAST byte
@@ -106,8 +106,8 @@ uint32_t CDROM::load<uint32_t>(uint32_t addr) {
 		return readByte();
 	} else if(addr == 3) {
 		switch (_index) {
-		case 0: return IE | 0xE0;
-		case 1: return IF | 0xE0;
+		case 0: return IE/* | 0xE0*/;
+		case 1: return IF/* | 0xE0*/;
 		case 2: return IE; // Mirrored
 		case 3: return IF; // Mirrored
 		default:
@@ -125,9 +125,6 @@ template <>
 void CDROM::store<uint32_t>(uint32_t addr, uint32_t val) {
 	/*printf("CDROM write %x %x\n", addr, val);
 	std::cerr << "";*/
-	
-	// Just cheating for now
-	//triggerInterrupt();
 	
 	if(addr == 0) {
 		// https://psx-spx.consoledev.net/cdromdrive/#1f801800h-indexstatus-register-bit0-1-rw-bit2-7-read-only
@@ -245,6 +242,9 @@ void CDROM::swapDisk(const std::string& path) {
 }
 
 void CDROM::decodeAndExecute(uint8_t command) {
+	while(!interrupts.empty())
+		interrupts.pop();
+	
 	if(command == 0x01) {
 		//   01h Getstat      -               INT3(stat)
 		GetStat();
@@ -254,9 +254,15 @@ void CDROM::decodeAndExecute(uint8_t command) {
 	} else if(command == 0x06) {
 		// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
 		ReadN();
+	} else if(command == 0x09) {
+		// Pause - Command 09h --> INT3(stat) --> INT2(stat)
+		Pause();
 	} else if(command == 0x0E) {
 		// Setmode - Command 0Eh,mode --> INT3(stat)
 		SetMode();
+	} else if(command == 0x0A) {
+		// Init - Command 0Ah --> INT3(stat) --> INT2(stat)
+		Init();
 	} else if(command == 0x15) {
 	 	// SeekL - Command 15h --> INT3(stat) --> INT2(stat)
 		SeekL();
@@ -269,17 +275,7 @@ void CDROM::decodeAndExecute(uint8_t command) {
 	} else {
 		INT3();
 		
-		if(command == 0x09) {
-			interrupts.push(2);
-			responses.push(_stats._reg);
-		} else if(command == 0x0A) {
-			_stats.setMode(Stats::Mode::None);
-			
-			mode._reg = 0;
-			
-			interrupts.push(2);
-			responses.push(_stats._reg);
-		} else {
+		{
 			// ReadTOC - Command 1Eh --> INT3(stat) --> INT2(stat)
 			// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
 			// Pause - Command 09h --> INT3(stat) --> INT2(stat)
@@ -299,6 +295,9 @@ void CDROM::decodeAndExecute(uint8_t command) {
 	 */
 	busyFor = 1000;
 	transmittingCommand = true;
+	
+	while(!parameters.empty())
+		parameters.pop();
 }
 
 void CDROM::decodeAndExecuteSub() {
@@ -342,12 +341,8 @@ void CDROM::GetStat() {
 	 * 0  Error         Invalid Command/parameters (followed by Error Byte)
 	 */
 	
-	// Lid is closed
-	/*_stats = (_stats & (~0x18));
-	_stats |= 0x2;
-	
-	// Turn motor ON ig?
-	_stats |= 1 << 1;*/
+	_stats.shellOpen = 0;
+	_stats.motor = 1;
 	
 	responses.push(_stats._reg);
 }
@@ -410,6 +405,17 @@ void CDROM::ReadN() {
 	INT3();
 }
 
+void CDROM::Pause() {
+	INT3();
+	
+	// the second response returns the new status (with bit5 cleared).
+	_stats.setMode(Stats::Mode::None);
+	// TODO; Pause audio?
+	
+	interrupts.push(2);
+	responses.push(_stats._reg);
+}
+
 void CDROM::SetMode() {
 	// Setmode - Command 0Eh,mode --> INT3(stat)
 	INT3();
@@ -429,6 +435,18 @@ void CDROM::SetMode() {
 	mode = Mode(parm);
 }
 
+void CDROM::Init() {
+	// Init - Command 0Ah --> INT3(stat) --> INT2(stat)
+	INT3();
+	
+	_stats.setMode(Stats::Mode::None);
+	
+	mode._reg = 0;
+	
+	interrupts.push(2);
+	responses.push(_stats._reg);
+}
+
 void CDROM::SeekL() {
 	// TODO; Handle this
 	
@@ -441,16 +459,30 @@ void CDROM::SeekL() {
 	
 	// TODO; Seek to Setloc's location in data mode
 	
+	readLocation = seekLocation;
+	
+	/**
+	 * E = Error 80h appears on some commands (02h..09h, 0Bh..0Dh, 10h..16h, 1Ah, 1Bh?, and 1Dh)
+	 * when the disk is missing, or when the drive unit is disconnected from the mainboard.
+	 */
+	if(!diskPresent) {
+		interrupts.push(5);
+		responses.push(0x11);
+		responses.push(0x80);
+		
+		return;
+	}
+	
 	INT3();
 	
 	// TODO; This gets pushed once seek is completed
 	responses.push(_stats._reg);
-	interrupts.push(2); 
+	interrupts.push(2);
+	
+	_stats.setMode(Stats::Mode::None);
 }
 
 void CDROM::GetID() {
-	// TODO; Handle this
-	
 	// GetID - Command 1Ah --> INT3(stat) --> INT2/5 (stat,flags,type,atip,"SCEx")
 	
 	/*
@@ -468,54 +500,32 @@ void CDROM::GetID() {
     * Modchip:Audio/Mode1    INT3(stat)     INT2(02h,00h, 00h,00h, 53h,43h,45h,4xh)
 	*/
 	
+	if (_stats.getShell()) {
+		interrupts.push(5);
+		responses.push(0x11);
+		responses.push(0x80);
+		
+		return;
+	}
+	
 	// INT3 - First response: Acknowledge the command
 	INT3();
 	
-	uint8_t flags = 0;
-	uint8_t type = 0;
-	uint8_t atip = 0; // Default 0x00 for most discs
-	std::array<uint8_t, 4> scex = {0, 0, 0, 0};
-	
-	// TODO;
-	bool isLicensedDisc = true;
-	
-	// TODO; INT2 if it's an audio disk
-	// TODO; Cause error(stats) if no disk is present
-	
 	if (diskPresent) {
 		interrupts.push(2);
-		
-		if (isLicensedDisc) {
-			// Licensed Mode2 disc
-			flags = 0x00; // Not denied
-			type = 0x20;  // Mode2
-			
-			// "SCEE" (Europe/PAL)
-			scex = {'S', 'C', 'E', 'E'};
-		} else {
-			// Unlicensed Mode1 disc
-			flags = 0x80; // Denied
-			type = 0x00;  // Mode1
-		}
 	} else {
-		// No disc present
 		interrupts.push(5);
-		
-		flags = 0x40; // Missing disc
-		type = 0x00;  // Unknown type
 	}
 	
-	// Push the response bytes
-	// INT2/5 (stat,flags,type,atip,"SCEx")
-	responses.push(_stats._reg);
+	responses.push(0x02); // Stat
+	responses.push(0x00); // Flags
+	responses.push(0x20); // Type
+	responses.push(0x00); // Atip (Always zero)
 	
-	responses.push(flags); // flags
-	responses.push(type);  // disc type
-	responses.push(atip);  // atip
-	responses.push(scex[0]); // SCEx region string (4 bytes)
-	responses.push(scex[1]);
-	responses.push(scex[2]);
-	responses.push(scex[3]);
+	responses.push('S');
+	responses.push('C');
+	responses.push('E');
+	responses.push('E');
 }
 
 void CDROM::INT3() {

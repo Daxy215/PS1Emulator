@@ -24,9 +24,6 @@ void CPU::executeNextInstruction() {
      * To fix it, I just reversed how I was reading the BIOS.bin file.
      */
     
-    /*printf("PC: %x\n", pc);
-    std::cerr << "";*/
-    
     // Save the address of the current instruction to save in
     // 'EPC' in case of an exception.
     currentpc = pc;

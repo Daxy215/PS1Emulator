@@ -17,7 +17,6 @@ std::vector<uint8_t> Disk::read(Location location) {
 		return {};
 	}
 	
-	//auto file = files[track.filename].get();
 	auto seek = location;
 	seek.seconds -= 2;
 	

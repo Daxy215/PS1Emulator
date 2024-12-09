@@ -174,7 +174,12 @@ void Interconnect::dmaBlock(Port port) {
                     
                     break;
                 case Port::CdRom: {
-                    srcWord = _cdrom.readByte();
+                    srcWord = 0;
+                    
+                    srcWord |= _cdrom.readByte() << 0;
+                    srcWord |= _cdrom.readByte() << 8;
+                    srcWord |= _cdrom.readByte() << 16;
+                    srcWord |= _cdrom.readByte() << 24;
                     
                     break;
                 }

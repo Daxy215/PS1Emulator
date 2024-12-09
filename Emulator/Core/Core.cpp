@@ -393,9 +393,9 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
 	
 	// Requires controller
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
 	// though, idk where im messing up bc its never checking,
@@ -470,9 +470,83 @@ void handleLoadExe(CPU& cpu) {
 	cpu.branchSlot = false;
 }
 
+std::vector<std::string> readFile(const std::string& filePath, std::size_t sizeLimit, std::size_t beginOffset) {
+	if(sizeLimit <= 0)
+		return {};
+	
+	std::ifstream file(filePath, std::ios::binary);
+	std::vector<std::string> lines;
+	
+	if (!file.is_open()) {
+		std::cerr << "Error: Could not open file." << '\n';
+		return lines;
+	}
+	
+	std::size_t currentOffset = 0;
+	
+	char ch;
+	while (currentOffset < beginOffset && file.get(ch)) {
+		if (ch == '\n') {
+			currentOffset++;
+		}
+	}
+	
+	if (currentOffset < beginOffset) {
+		std::cerr << "Error: beginOffset exceeds the number of lines in the file.\n";
+		file.close();
+		return lines;
+	}
+	
+	std::string line;
+	std::size_t totalSize = 0;
+	
+	while (std::getline(file, line)) {
+		if (totalSize++ >= sizeLimit) {
+			break;
+		}
+		
+		lines.push_back(line);
+	}
+	
+	std::cerr << "Finished reading " << lines.size() << " lines starting from offset " << beginOffset << '\n';
+	
+	file.close();
+	return lines;
+}
+
+uint32_t offset = 1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/; 
+uint32_t size = 0;
+uint32_t x = 0;
+
 void runFrame(CPU& cpu) {
+	static auto lines = readFile("logs2.txt", size, offset);
+	
 	while(true) {
 		for(int i = 0; i < 100; i++) {
+			if(x >= offset && size > 0) {
+				// String to pass to a file for comparsions
+				std::string content = "PC: " + std::to_string(cpu.pc) + " ";
+				
+				// Add the 32 CPU registers
+				for (int i = 0; i < 32; i++) {
+					content += "Reg" + std::to_string(i) + ": " + std::to_string(cpu.reg(i)) + " ";
+				}
+				
+				// Add Hi, and Lo, for the dividers/multipliers
+				content += "Hi: " + std::to_string(cpu.hi) + " Lo: " + std::to_string(cpu.lo) + " ";
+				
+				// Finally add COP0 registers
+				content += "Cause: " + std::to_string(cpu.cause) + " SR: " + std::to_string(cpu.sr) + "\r";
+				
+				auto index = x - offset;
+				if(!content._Equal(lines[index])) {
+					printf("Mismatch at %d:\nGot:    %s\nWanted: %s\n", (index), content.c_str(), lines[index].c_str());
+					std::cerr << "";
+				}
+			}
+			
+			x++;
+			
 			if (cpu.pc != 0x80030000 || 1) {
 				cpu.executeNextInstruction();
 			} else {
@@ -514,7 +588,7 @@ int main(int argc, char* argv[]) {
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
 	// TODO; For now, manually load in disc
-	cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (USA)/Crash Bandicoot (USA).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
 	
 	glfwSetKeyCallback(gpu.renderer->window, Emulator::IO::SIO::keyCallback);
 	
