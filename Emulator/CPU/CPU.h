@@ -301,6 +301,9 @@ public:
     }
     
     void setLoad(uint32_t index, uint32_t val) {
+        if(index == 0)
+            return;
+        
         //load = {index, val};
         if(loads[0].index == index) {
             // Override previous write to the same register

@@ -9,6 +9,8 @@
 
 #include "../Utils/Bitwise.h"
 
+static uint32_t x = 0;
+
 /**
  * Byte - 8 bits or 1 byte
  * HalfWord - 16 bits or 2 bytes
@@ -17,6 +19,7 @@
 void CPU::executeNextInstruction() {
     // R0 is "hardwired" to 0
     //regs[0] = 0;
+    x++;
     
     /**
      * First amazing error, here I got "0x1300083c" which means..
@@ -485,13 +488,13 @@ void CPU::opsltu(Instruction& instruction) {
 }
 
 void CPU::opslti(Instruction& instruction) {
-    int32_t i = static_cast<int32_t>(instruction.imm_se());
+    auto i = static_cast<int32_t>(instruction.imm_se());
     uint32_t s = instruction.s(); 
     uint32_t t = instruction.t();
     
-    uint32_t v = (static_cast<int32_t>(reg(s))) < i;
+    bool v = (static_cast<int32_t>(reg(s))) < i;
     
-    set_reg(t, static_cast<uint32_t>(v));
+    set_reg(t, v);
 }
 
 void CPU::opslt(Instruction& instruction) {
@@ -667,7 +670,7 @@ void CPU::oplw(Instruction& instruction) {
 }
 
 void CPU::oplwl(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
+    auto i = instruction.imm_se();
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
     
@@ -717,7 +720,7 @@ void CPU::oplwl(Instruction& instruction) {
 }
 
 void CPU::oplwr(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
+    auto i = instruction.imm_se();
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
     
@@ -792,7 +795,7 @@ void CPU::oplh(Instruction& instruction) {
 }
 
 void CPU::oplhu(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
+    auto i = instruction.imm_se();
     uint32_t t = instruction.t();
     uint32_t s = instruction.s();
     
@@ -846,7 +849,7 @@ void CPU::addiu(Instruction& instruction) {
 }
 
 void CPU::addi(Instruction& instruction) {
-    int32_t i = static_cast<int32_t>(instruction.imm_se());
+    auto i = static_cast<int32_t>(instruction.imm_se());
     uint32_t t = instruction.t();
     uint32_t sReg = instruction.s();
     
@@ -1738,19 +1741,24 @@ void CPU::opj(Instruction& instruction) {
 
 void CPU::opjr(Instruction& instruction) {
     uint32_t s = instruction.s();
-    
-    nextpc = reg(s);
+    uint32_t addr = reg(s);
     
     branchSlot = true;
+    
+    if(addr & 3) {
+        exception(LoadAddressError);
+        
+        return;
+    }
+    
+    nextpc = addr;
 }
 
 void CPU::opjal(Instruction& instruction) {
     // Store return address in £31($ra)
-    uint32_t ra = nextpc;
+    set_reg(31, nextpc);
     
     opj(instruction);
-    
-    set_reg(31, ra);
     
     branchSlot = true;
 }
@@ -1766,7 +1774,6 @@ void CPU::opjalr(Instruction& instruction) {
     
     if(addr & 3) {
         exception(LoadAddressError);
-        badVaddr = addr;
         
         return;
     }
@@ -1803,40 +1810,57 @@ void CPU::opbxx(Instruction& instruction) {
     }
     
     if(test != 0) {
-        branch(i);
+        int32_t offset = (int32_t((pc) + (i * 4)));
+        
+        branch(offset);
     }
+    
+    branchSlot = true;
 }
 
 void CPU::opbne(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
+    auto i = instruction.imm_se();
     uint32_t s = instruction.s();
     uint32_t t = instruction.t();
     
     // Check if not equal
     if(reg(s) != reg(t)) {
         // Jump to the offset of i
-        branch(i);
+        int32_t offset = (int32_t((pc) + (i * 4)));
+        
+        branch(offset);
     }
+    
+    branchSlot = true;
 }
 
 void CPU::opbeq(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
+    auto i = instruction.imm_se();
     uint32_t s = instruction.s();
     uint32_t t = instruction.t();
     
-    if(reg(s) == reg(t))
-        branch(i);
+    if(reg(s) == reg(t)) {
+        int32_t offset = (int32_t((pc) + (i * 4)));
+        //nextpc = static_cast<uint32_t>(offset);
+        branch(offset);
+    }
+    
+    branchSlot = true;
 }
 
 void CPU::opbqtz(Instruction& instruction) {
-    uint32_t i = instruction.imm_se();
+    auto i = instruction.imm_se();
     uint32_t s = instruction.s();
     
     int32_t v = static_cast<int32_t>(reg(s));
     
     if(v > 0) {
-        branch(i);
+        int32_t offset = (int32_t((pc) + (i * 4)));
+        
+        branch(offset);
     }
+    
+    branchSlot = true;
 }
 
 void CPU::opbltz(Instruction& instruction) {
@@ -1846,16 +1870,20 @@ void CPU::opbltz(Instruction& instruction) {
     int32_t v = static_cast<int32_t>(reg(s));
     
     if(v <= 0) {
-        branch(i);
+        int32_t offset = (int32_t((pc) + (i * 4)));
+        
+        branch(offset);
     }
+    
+    branchSlot = true;
 }
 
 void CPU::branch(uint32_t offset) {
     // Offset immediate are always shifted to two places,
     // to the right as 'PC' addresses have to be aligned with 32 bits.
-    offset = offset << 2;
+    //offset = offset << 2;
     
-    nextpc = pc + offset;
+    nextpc = offset;//pc + (offset * 4);
     
     branchSlot = true;
 }

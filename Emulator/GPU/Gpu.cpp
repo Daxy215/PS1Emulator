@@ -447,6 +447,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         }
         case 0x65: {
             // GP0(65h) - Textured Rectangle, variable size, opaque, raw-texture
+            // Used to draw title screens
             
             curAttribute = { 0, 0, 2};
             
@@ -662,7 +663,6 @@ void Emulator::Gpu::gp0(uint32_t val) {
                         vram->endTransfer();
                         
                         gp0CommandRemaining = 0;
-                        
                         gp0Mode = Command;
                         
                         return true;
@@ -672,11 +672,9 @@ void Emulator::Gpu::gp0(uint32_t val) {
                 return false;
             };
             
-            gp0CommandRemaining = 1;
-            
             vram->writePixel(curX, curY, val & 0xFFFF);
             if(step()) return;
-            
+             
             vram->writePixel(curX, curY, (val >> 16) & 0xFFFF);
             if(step()) return;
         }
@@ -910,7 +908,7 @@ void Emulator::Gpu::gp0VarTexturedRectangleMonoOpaque(uint32_t val) {
     uint16_t width = sizeData & 0xFFFF;
     uint16_t height = sizeData >> 16;
     
-    //renderRectangle(position, color, uv, width, height);
+    renderRectangle(position, color, uv, width, height);
 }
 
 void Emulator::Gpu::gp0DotRectangleMonoOpaque(uint32_t val) {

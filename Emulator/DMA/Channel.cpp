@@ -2,6 +2,9 @@
 
 //#include <stdexcept>
 
+#include <stdexcept>
+#include <string>
+
 #include "Dma.h"
 #include "../Memory/IRQ.h"
 
@@ -38,7 +41,7 @@ void Channel::setControl(uint32_t val) {
 		sync = LinkedList;
 		break;
 	default:
-		//throw std::runtime_error("Unknown DMA sync mode; " + ((val >> 9) & 3));
+		throw std::runtime_error("Unknown DMA sync mode; " + ((val >> 9) & 3));
 		
 		break;
 	}
@@ -90,17 +93,24 @@ std::optional<uint32_t> Channel::transferSize() {
 	switch (sync) {
 	case Manual:
 		// For manual mode only the block size is used
-			return bs;
+		return bs;
+		
 		break;
 	case Request:
 		// In DMA request mode we must transfer 'bc' blocks
-			return (bc * bs);
+		return (bc * bs);
+		
 		break;
 	case LinkedList:
 		// In linked list mode the size is not known ahead of
-			// time: We stop when we encounter the "end of list"
-				// marker (0xffffff)
-					return std::nullopt;
+		// time: We stop when we encounter the "end of list"
+		// marker (0xffffff)
+		return std::nullopt;
+		
+		break;
+	default:
+		throw std::runtime_error("Unknown DMA sync mode; " + std::to_string(sync));
+		
 		break;
 	}
 }

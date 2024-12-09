@@ -106,8 +106,8 @@ uint32_t CDROM::load<uint32_t>(uint32_t addr) {
 		return readByte();
 	} else if(addr == 3) {
 		switch (_index) {
-		case 0: return IE/* | 0xE0*/;
-		case 1: return IF/* | 0xE0*/;
+		case 0: return IE | 0xE0;
+		case 1: return IF | 0xE0;
 		case 2: return IE; // Mirrored
 		case 3: return IF; // Mirrored
 		default:
@@ -254,6 +254,9 @@ void CDROM::decodeAndExecute(uint8_t command) {
 	} else if(command == 0x06) {
 		// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
 		ReadN();
+	} else if(command == 0x08) {
+		// 0x08Stop - Command 08h --> INT3(stat) --> INT2(stat)
+		Stop();
 	} else if(command == 0x09) {
 		// Pause - Command 09h --> INT3(stat) --> INT2(stat)
 		Pause();
@@ -405,6 +408,19 @@ void CDROM::ReadN() {
 	INT3();
 }
 
+void CDROM::Stop() {
+	// Stop - Command 08h --> INT3(stat) --> INT2(stat)
+	
+	// Stops motor with magnetic brakes
+	// moves the drive head to the beginning of the first track.
+	_stats.setMode(Stats::Mode::None);
+	// TODO; Stop audio
+	_stats.motor = 0;
+	
+	INT3();
+	INT2();
+}
+
 void CDROM::Pause() {
 	INT3();
 	
@@ -526,6 +542,11 @@ void CDROM::GetID() {
 	responses.push('C');
 	responses.push('E');
 	responses.push('E');
+}
+
+void CDROM::INT2() {
+	interrupts.push(2);
+	responses.push(_stats._reg);	
 }
 
 void CDROM::INT3() {

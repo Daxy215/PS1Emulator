@@ -50,8 +50,6 @@ uint32_t Interconnect::loadInstruction(uint32_t addr) {
     icache[index] = ICache(tag, data);
     
     return data;
-    
-    throw std::runtime_error("Unhandled PC load!");
 }
 
 uint32_t Interconnect::dmaReg(uint32_t offset) {
@@ -159,7 +157,7 @@ void Interconnect::dmaBlock(Port port) {
                      * draws using 0x38, but I'm drawing it using OpenGL,
                      * so I'm unsure how to really do this...
                      */
-                    srcWord = gpu.read();
+                    srcWord = 0;//gpu.read();
                     
                     break;
                 case Port::CdRom: {
@@ -185,9 +183,6 @@ void Interconnect::dmaBlock(Port port) {
         
         addr = CPU::wrappingAdd(addr, increment);
         remsz.value() -= 1;
-        
-        // TODO;
-        Emulator::Timers::Scheduler::tick(1);
     }
     
     channel.done(dma, port);

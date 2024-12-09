@@ -140,6 +140,7 @@ private:
 	void GetStat();
 	void SetLoc();
 	void ReadN();
+	void Stop();
 	void Pause();
 	void SetMode();
 	void Init();
@@ -148,6 +149,7 @@ private:
 
 private:
 	// Interrupts
+	void INT2();
 	void INT3();
 
 private:

@@ -119,9 +119,11 @@ Emulator::Renderer::Renderer() {
     textureDepthUni = glGetUniformLocation(program, "texture_depth");
     glUniform1i(textureDepthUni, 0);
     
-    //glDisable(GL_BLEND);
+    glDisable(GL_BLEND);
     
-    glEnable(GL_BLEND);
+    // This does fix a weird texture issue,
+    // but also the "sony" part in the VRAM becomes non-existent
+    //glEnable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     GLenum ersr = glGetError();
@@ -349,8 +351,8 @@ void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
 
 void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
     // 839, 479
-    glUniform2i(drawingUni, 839, 479);
-    //glUniform2i(drawingUni, right, bottom);
+    //glUniform2i(drawingUni, 839, 479);
+    glUniform2i(drawingUni, right, bottom);
 }
 
 void Emulator::Renderer::setTextureDepth(int textureDepth) {

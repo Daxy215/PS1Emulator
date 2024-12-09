@@ -514,16 +514,16 @@ std::vector<std::string> readFile(const std::string& filePath, std::size_t sizeL
 	return lines;
 }
 
-uint32_t offset = 1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/; 
+uint32_t offset = 0;//1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/; 
 uint32_t size = 0;
 uint32_t x = 0;
 
 void runFrame(CPU& cpu) {
-	static auto lines = readFile("logs2.txt", size, offset);
+	static auto lines = readFile("logs3.txt", size, offset);
 	
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			if(x >= offset && size > 0) {
+			if(x >= (170004627 + 8000000) && size > 0) {
 				// String to pass to a file for comparsions
 				std::string content = "PC: " + std::to_string(cpu.pc) + " ";
 				
@@ -547,7 +547,7 @@ void runFrame(CPU& cpu) {
 			
 			x++;
 			
-			if (cpu.pc != 0x80030000 || 1) {
+			if (cpu.pc != 0x80030000 || 0) {
 				cpu.executeNextInstruction();
 			} else {
 				handleLoadExe(cpu);
