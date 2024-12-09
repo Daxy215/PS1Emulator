@@ -598,12 +598,12 @@ int main(int argc, char* argv[]) {
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
 	// TODO; For now, manually load in disc
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
+	cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
 	
 	glfwSetKeyCallback(gpu.renderer->window, Emulator::IO::SIO::keyCallback);
 	
 	// TODO; Use ImGui
-	while(true) {
+	while(!glfwWindowShouldClose(gpu.renderer->window)) {
 		runFrame(cpu);
 		
 		glfwPollEvents();

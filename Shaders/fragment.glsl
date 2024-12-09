@@ -122,7 +122,7 @@ void main() {
         return;
     }
     
-    if (int(attr.z) == 0) { 
+    if (int(attr.z) == 0) {
         fragColor = vec4(color, alpha);
     } else if(int(attr.z) == 1) {
         fragColor = sample_texel();
@@ -131,5 +131,9 @@ void main() {
         vec4 c = mix(sample_texel(), color, 0.5f);
         
         fragColor = vec4(c.r, c.g, c.b, alpha);
+    }
+    
+    if(fragColor.rgb == vec3(0.0)) {
+        discard;
     }
 }

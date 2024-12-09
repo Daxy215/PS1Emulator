@@ -119,10 +119,10 @@ Emulator::Renderer::Renderer() {
     textureDepthUni = glGetUniformLocation(program, "texture_depth");
     glUniform1i(textureDepthUni, 0);
     
-    glDisable(GL_BLEND);
+    //glDisable(GL_BLEND);
     
-    /*glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);*/
+    glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     GLenum ersr = glGetError();
     if (ersr!= GL_NO_ERROR) {
@@ -350,32 +350,12 @@ void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
 void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
     // 839, 479
     glUniform2i(drawingUni, 839, 479);
+    //glUniform2i(drawingUni, right, bottom);
 }
 
 void Emulator::Renderer::setTextureDepth(int textureDepth) {
     //glUniform1ui for uint
     glUniform1i(textureDepthUni, textureDepth);
-}
-
-void Emulator::Renderer::updateVramTextures(uint32_t texture4, uint32_t texture8, uint32_t texture16) {
-    // Use the shader program
-    /*glUseProgram(program);
-    
-    // Upload texture
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture4);
-    GLint textureSample4Loc = glGetUniformLocation(program, "texture_sample4");
-    glUniform1i(textureSample4Loc, 0);*/
-    
-    /*glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture8);
-    GLint textureSample8Loc = glGetUniformLocation(program, "texture_sample8");
-    glUniform1i(textureSample8Loc, 1);
-    
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, texture16);
-    GLint textureSample16Loc = glGetUniformLocation(program, "texture_sample16");
-    glUniform1i(textureSample16Loc, 2);*/
 }
 
 GLuint Emulator::Renderer::compileShader(const char* source, GLenum shaderType) {

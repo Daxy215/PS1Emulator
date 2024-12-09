@@ -92,37 +92,11 @@ bool Emulator::Gpu::step(uint32_t cycles) {
     if(_scanLine == vtiming - 1) {
         _scanLine = 0;
         frames++;
-        //IRQ::trigger(IRQ::VBlank);
         
         renderer->display();
         
         return true;
     }
-    
-    /*if(_cycles >= htiming) {
-        _cycles -= htiming;
-        _scanLine++;
-        
-        if(vres != VerticalRes::Y480Lines) {
-            isOddLine = (_scanLine & 0x1);
-        }
-        
-        if(_scanLine >= vtiming) {
-            _scanLine = 0;
-            
-            if(interlaced && vres == VerticalRes::Y480Lines) {
-                isOddLine = !isOddLine;
-                field = static_cast<Field>(!isOddLine);
-            }
-            
-            //renderer->display();
-            
-            //if(_scanLine == vtiming - 1 && _cycles >= displayHorizEnd) {
-            //}
-            
-            IRQ::trigger(IRQ::VBlank);
-        }
-    }*/
     
     return false;
 }
@@ -1118,7 +1092,7 @@ void Emulator::Gpu::gp0QuadTextureBlendOpaque(uint32_t val) {
         UV::fromGp0(gp0Command.index(8), c, p, *this),
     };
     
-    //renderer->pushQuad(positions, colors, uvs, curAttribute);
+    renderer->pushQuad(positions, colors, uvs, curAttribute);
 }
 
 // FF

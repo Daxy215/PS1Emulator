@@ -38,8 +38,6 @@ namespace Emulator {
         void setDrawingArea(int16_t right, int16_t bottom);
         void setTextureDepth(int textureDepth);
         
-        void updateVramTextures(uint32_t texture4, uint32_t texture8, uint32_t texture16);
-        
         GLuint compileShader(const char* source, GLenum shaderType);
         GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
         GLuint getProgramAttrib(GLuint program, const std::string& attr);
