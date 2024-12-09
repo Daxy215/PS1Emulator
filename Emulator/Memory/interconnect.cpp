@@ -103,9 +103,6 @@ void Interconnect::doDma(Port port) {
     }
 }
 
-// Im too lazy
-//bool reset = false;
-
 void Interconnect::dmaBlock(Port port) {
     Channel& channel = dma.getChannel(port);
     
@@ -114,11 +111,6 @@ void Interconnect::dmaBlock(Port port) {
     
     // Transfer size in words
     std::optional<uint32_t> remsz = channel.transferSize();
-    
-    // TODO; Testing.. im too lazy
-    /*if((channel.direction != ToRam || port != Gpu)) {
-        reset = true;
-    }*/
     
     while(remsz.value() > 0) {
         // Not sure what happens if the address is bogus,
@@ -133,13 +125,13 @@ void Interconnect::dmaBlock(Port port) {
                 
                 switch (port) {
                 case Gpu:
-                    //printf("GPU data %08x", srcWord);
                     gpu.gp0(srcWord);
                     break;
                 default:
                     throw std::runtime_error("Unhandled DMA destination port " + std::to_string(static_cast<uint8_t>(port)));
                     break;
                 }
+                
                 break;
             }
             case ToRam: {
@@ -160,16 +152,13 @@ void Interconnect::dmaBlock(Port port) {
                 case Port::Gpu:
                     // This gets called before the,
                     // menu pops up after the PS logo
-                    //TODO; Implement
                     
-                    /*if(reset) {
-                        reset = false;
-                        
-                        gpu.curX = gpu.curY = gpu.startX = gpu.startY = 0;
-                        gpu.endX = gpu.vram->MAX_WIDTH;
-                        gpu.endY = gpu.vram->MAX_HEIGHT;
-                    }*/
-                    
+                    /**
+                     * This for the menu. It tries to read from VRAM,
+                     * at 640, which seems to be from a quad that it,
+                     * draws using 0x38, but I'm drawing it using OpenGL,
+                     * so I'm unsure how to really do this...
+                     */
                     srcWord = gpu.read();
                     
                     break;

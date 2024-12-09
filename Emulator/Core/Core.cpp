@@ -571,14 +571,24 @@ int main(int argc, char* argv[]) {
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
 	
-	/**
-	 * TODO; Implement more channels
-	 */
+	// TODO; Implement more channels
 	Dma dma;
 	
 	// TODO; Line rendering
 	// TODO; Semi-transparency(different modes of transparency)
 	// TODO; Blending-textures?
+	// TODO; VRAM issue(DMA)
+	// TODO; Copying parameters from textures not implemented
+	/**
+	 * TOOD;
+	 * So, not sure if this is correct but,
+	 * sometimes, the GPU is drawing outside,
+	 * the "main" drawing area, and it seems that,
+	 * the CPU tries to fetch from those, but to me,
+	 * I am drawing them using OpenGL so I'm not really sure,
+	 * what I should be doing to solve this.. As it does sometimes,
+	 * be required to drawn normally using VBOS?
+	 */
     Emulator::Gpu gpu;
     
     // TODO; Implement(probably won't implement for a very while)

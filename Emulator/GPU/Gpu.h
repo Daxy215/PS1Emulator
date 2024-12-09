@@ -160,6 +160,20 @@ namespace Emulator {
                 //uint16_t depth = (gpu.textureDepth == TextureDepth::T4Bit) ? 4 : (gpu.textureDepth == TextureDepth::T8Bit) ? 8 : 16;
                 //assert(depth == 4);
                 
+                /**
+                 * 0 -> 4 bits
+                 * 1 -> 8 bits
+                 * 2 -> 16 bits
+                 * 3 -> 16 bits?
+                 */
+                // TODO; Copy other parameters
+                auto depth = ((page & 0x180) >> 7);
+                if(depth != 0) {
+                    printf("");
+                }
+                
+                gpu.setTextureDepth(static_cast<Emulator::TextureDepth>(depth));
+                
                 float u = static_cast<float>((val) & 0xFF);
                 float v = static_cast<float>((val >> 8) & 0xFF);
                 
@@ -226,6 +240,10 @@ namespace Emulator {
                 
                 pageX = static_cast<uint16_t>((p & 0xF) << 6);
                 pageY = static_cast<uint16_t>(((p >> 4) & 1) << 8);*/
+            }
+            
+            bool usesColor() {
+                return (useTextureMode != 1);
             }
             
             bool useTextures() {
@@ -347,9 +365,6 @@ namespace Emulator {
         // From CPU to VRAM
         void gp0ImageLoad(uint32_t val);
         
-        // TODO; Remove
-        uint32_t startX, startY, curX, curY, endX, endY;
-        
         // GP0(0xC0): Load Store
         // From VRAM to CPU
         void gp0ImageStore(uint32_t val);
@@ -386,50 +401,55 @@ namespace Emulator {
         // GP1(0x02): Acknowledge Interrupt
         void gp1AcknowledgeIrq(uint32_t val);
         
-        float getRefreshRate() const;
-        
         // Retrieve value of the "read" register
         uint32_t read();
+
+    private:
+        void setTextureDepth(TextureDepth depth);
         
     public:
-        uint8_t pageBaseX;           // Texture page base X coordinate (4 bits, 64 byte increment)
-        uint8_t pageBaseY;           // Texture page base Y coordinate (1 bit, 256 line increment)
-        uint8_t semiTransparency;    // Semi-transparency value
-        TextureDepth textureDepth;   // Texture page color depth
-        bool dithering;              // Enable dithering from 24 to 15 bits RGB
-        bool drawToDisplay;          // Allow drawing to the display area
-        bool forceSetMaskBit;        // Force "mask" bit of the pixel to 1 when writing to VRAM
-        bool preserveMaskedPixels;   // Don't draw to pixels which have the "mask" bit set
-        Field field;                 // Currently displayed field
-        bool textureDisable;         // When true all textures are disabled
-        HorizontalRes hres;          // Video output horizontal resolution
-        VerticalRes vres;            // Video output vertical resolution
-        VMode vmode;                 // Video mode
-        DisplayDepth displayDepth;   // Display depth
-        bool interlaced;             // Output interlaced video signal instead of progressive
-        bool displayEnabled;         // Whether the display is on or not
-        bool interrupt;              // True when the interrupt is active
-        DmaDirection dmaDirection;   // DMA request direction
-        bool rectangleTextureFlipX;  // Mirror textured rectangles along the x axis
-        bool rectangleTextureFlipY;  // Mirror textured rectangles along the Y axis
+        uint8_t pageBaseX;          // Texture page base X coordinate (4 bits, 64 byte increment)
+        uint8_t pageBaseY;          // Texture page base Y coordinate (1 bit, 256 line increment)
+        uint8_t semiTransparency;   // Semi-transparency value
+        TextureDepth textureDepth;  // Texture page color depth
+        bool dithering;             // Enable dithering from 24 to 15 bits RGB
+        bool drawToDisplay;         // Allow drawing to the display area
+        bool forceSetMaskBit;       // Force "mask" bit of the pixel to 1 when writing to VRAM
+        bool preserveMaskedPixels;  // Don't draw to pixels which have the "mask" bit set
+        Field field;                // Currently displayed field
+        bool textureDisable;        // When true all textures are disabled
+        HorizontalRes hres;         // Video output horizontal resolution
+        VerticalRes vres;           // Video output vertical resolution
+        VMode vmode;                // Video mode
+        DisplayDepth displayDepth;  // Display depth
+        bool interlaced;            // Output interlaced video signal instead of progressive
+        bool displayEnabled;        // Whether the display is on or not
+        bool interrupt;             // True when the interrupt is active
+        DmaDirection dmaDirection;  // DMA request direction
+        bool rectangleTextureFlipX; // Mirror textured rectangles along the x axis
+        bool rectangleTextureFlipY; // Mirror textured rectangles along the Y axis
         
-        uint8_t textureWindowXMask; // Texture window x mask (8 pixel steps)
-        uint8_t textureWindowYMask; // Texture window y mask (8 pixel steps)
+        uint8_t textureWindowXMask;   // Texture window x mask (8 pixel steps)
+        uint8_t textureWindowYMask;   // Texture window y mask (8 pixel steps)
         uint8_t textureWindowXOffset; // Texture window x offset (8 pixel steps)
         uint8_t textureWindowYOffset; // Texture window y offset (8 pixel steps)
-        uint16_t drawingAreaLeft; // Left-most column of drawing area
-        uint16_t drawingAreaTop; // Top-most line of drawing area
-        uint16_t drawingAreaRight; // Right-most column of drawing area
-        uint16_t drawingAreaBottom; // Bottom-most line of drawing area
-        int16_t drawingXOffset; // Horizontal drawing offset applied to all vertices
-        int16_t drawingYOffset; // Vertical drawing offset applied to all vertices
-        uint16_t displayVramXStart; // First column of the display area in VRAM
-        uint16_t displayVramYStart; // First line of the display area in VRAM
-        uint16_t displayHorizStart; // Display output horizontal start relative to HSYNC
-        uint16_t displayHorizEnd; // Display output horizontal end relative to HSYNC
-        uint16_t displayLineStart; // Display output first line relative to VSYNC
-        uint16_t displayLineEnd; // Display output last line relative to VSYNC
+        uint16_t drawingAreaLeft;     // Left-most column of drawing area
+        uint16_t drawingAreaTop;      // Top-most line of drawing area
+        uint16_t drawingAreaRight;    // Right-most column of drawing area
+        uint16_t drawingAreaBottom;   // Bottom-most line of drawing area
+        int16_t drawingXOffset;       // Horizontal drawing offset applied to all vertices
+        int16_t drawingYOffset;       // Vertical drawing offset applied to all vertices
+        uint16_t displayVramXStart;   // First column of the display area in VRAM
+        uint16_t displayVramYStart;   // First line of the display area in VRAM
+        uint16_t displayHorizStart;   // Display output horizontal start relative to HSYNC
+        uint16_t displayHorizEnd;     // Display output horizontal end relative to HSYNC
+        uint16_t displayLineStart;    // Display output first line relative to VSYNC
+        uint16_t displayLineEnd;      // Display output last line relative to VSYNC
         
+    private:
+        uint32_t startX, startY, curX, curY, endX, endY;
+        
+    private:
         uint32_t _read = 0;
         
         const float ntscVideoClock = 53693175.0f / 60.0f;
@@ -438,11 +458,13 @@ namespace Emulator {
         uint32_t _scanLine = 0;
         uint32_t _cycles = 0;
         uint32_t frames = 0;
-        
+
+    public:
         bool isInHBlank = false;
         bool isInVBlank = false;
         uint32_t dot = 1;
         
+    private:
         bool isOddLine = false;
         
         // 10, 8, 5, 4, 7
