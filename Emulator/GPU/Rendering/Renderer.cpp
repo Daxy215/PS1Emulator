@@ -351,7 +351,7 @@ void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
 
 void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
     // 839, 479
-    //glUniform2i(drawingUni, 839, 479);
+    //glUniform2i(drawingUni, 640, 480);
     glUniform2i(drawingUni, right, bottom);
 }
 

@@ -24,22 +24,22 @@ public:
     
     // Returns bits [15:11] of the instruction
     uint32_t d() {
-        return {(op >> 11) & 0x1F};
+        return (op >> 11) & 0x1F;
     }
     
     // Returns register index in bits [20:16]
     uint32_t t() {
-        return {(op >> 16) & 0x1F};
+        return (op >> 16) & 0x1F;
     }
     
     // Returns register index in bits [25:21]
     uint32_t s() {
-        return {(op >> 21) & 0x1F};
+        return (op >> 21) & 0x1F;
     }
     
     // Returns immediate value in bits [16:0]
     uint32_t imm() {
-        return {op & 0xFFFF};
+        return op & 0xFFFF;
     }
     
     // Returns the immediate value in bts [16:0] as sign-extended 32 bits.
@@ -50,12 +50,12 @@ public:
     
     // Jumps to target stored in bits [25:0]
     uint32_t imm_jump() {
-        return {(op & 0x3FFFFFF)};
+        return (op & 0x3FFFFFF);
     }
     
     // Returns bits [31:26] of the instruction
     uint32_t func() {
-        return {op >> 26};
+        return (op >> 26) & 0x3F;
     }
     
     // Returns the immediate values that are stored in bits [5:0]

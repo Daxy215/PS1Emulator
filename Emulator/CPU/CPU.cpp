@@ -57,21 +57,12 @@ void CPU::executeNextInstruction() {
     
     loads[0] = loads[1];
     loads[1].index = 32;
-    
-    // Check for interrupt
-    if((IRQ::status & IRQ::mask)) {
-        this->cause |= 0x400;
-    } else {
-        this->cause &= ~0x400;
-    }
 }
 
 void CPU::decodeAndExecute(Instruction& instruction) {
     // Gotta decode the instructions using the;
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
-    
-    Emulator::Timers::Scheduler::tick(1);
     
     //checkForTTY();
     
@@ -1333,6 +1324,20 @@ void CPU::exception(const Exception exception) {
     if(currentpc == 0x8004aa9d || (currentpc - 4) == 0x8004aa9d) {
         printf("");
     }
+    
+    /**
+     * Been stuck at this issue for a while so I'm cheating:
+     * Avocado seems to set this bit this way, docs say:
+     * 
+     * 28-29 CE Contains the coprocessor number if the exception
+     *          occurred because of a coprocessor instuction for
+     *          a coprocessor which wasn't enabled in SR.
+     */
+    Instruction load = load32(currentpc);
+    uint8_t coprocessorNumber = load.func() & 0x3;
+    
+    this->cause &= ~(0x3 << 28);
+    this->cause |= (coprocessorNumber << 28);
     
     if(delaySlot) {
         // When an exception occurs in a delay slot 'EPC' points

@@ -1003,7 +1003,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Emulator\Core\Scheduler.h" />
     <ClInclude Include="Emulator\CPU\COP\COP2.h" />
     <ClInclude Include="Emulator\CPU\CPU.h" />
     <ClInclude Include="Emulator\CPU\Instruction.h" />

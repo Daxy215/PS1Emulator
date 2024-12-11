@@ -1,16 +1,18 @@
 ﻿
 //#include <stdexcept>
 
+#include <stdexcept>
+
 // DMA transfer direction
 enum Direction {
-	FromRam,
-	ToRam,
+	ToRam = 0,
+	FromRam = 1,
 };
 
 // DMA transfer step
 enum Step {
-	Decrement,
-	Increment
+	Increment = 0,
+	Decrement = 1,
 };
 
 // DMA transfer synchronization mode
@@ -60,7 +62,7 @@ struct PortC {
 		case 4: return Spu;
 		case 5: return Pio;
 		case 6: return Otc;
-		//default: throw std::runtime_error("Invalid port; " + index);
+		default: throw std::runtime_error("Invalid port; " + index);
 		}
 	}
 };

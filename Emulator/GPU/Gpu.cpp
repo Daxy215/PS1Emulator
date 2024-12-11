@@ -1304,7 +1304,7 @@ void Emulator::Gpu::gp1Reset(uint32_t val) {
     vres = VerticalRes::Y240Lines;
     
     vmode = VMode::Ntsc;
-    interlaced = true;
+    interlaced = false;
     displayHorizStart = 0x200;
     displayHorizEnd = 0xC00;
     displayLineStart = 0x10;
@@ -1327,8 +1327,7 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     vres = (val & 0x4) != 0 ? VerticalRes::Y480Lines : VerticalRes::Y240Lines;
     vmode = (val & 0x8) != 0 ? VMode::Pal : VMode::Ntsc;
     
-    // No clue why this was inverted?
-    displayDepth = (val & 0x10) != 0 ? DisplayDepth::D15Bits : DisplayDepth::D24Bits;
+    displayDepth = (val & 0x10) != 0 ? DisplayDepth::D24Bits : DisplayDepth::D15Bits;
     interlaced = (val & 0x20) != 0;
     
     field = static_cast<Field>(interlaced);

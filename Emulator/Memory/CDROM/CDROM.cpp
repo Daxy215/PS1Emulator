@@ -315,15 +315,13 @@ void CDROM::decodeAndExecuteSub() {
 	if(command == 0x20) {
 		//   20h      -   INT3(yy,mm,dd,ver) ;Get cdrom BIOS date/version (yy,mm,dd,ver)
 		
-		// 95h,05h,16h,C1h  ;PSX (LATE-PU-8)          16 May 1995, version vC1 (a)
-		// Idk what any of this shit means
-		responses.push(0x95);
-		responses.push(0x05);
-		responses.push(0x16);
-		responses.push(0xC1);
-		
-		// INT3
 		interrupts.push(3);
+		
+		// 95h,05h,16h,C1h  ;PSX (LATE-PU-8)          16 May 1995, version vC1 (a)
+		responses.push(0x94);
+		responses.push(0x09);
+		responses.push(0x19);
+		responses.push(0xC0);
 	} else {
 		printf("");
 	}
@@ -538,10 +536,10 @@ void CDROM::GetID() {
 	responses.push(0x20); // Type
 	responses.push(0x00); // Atip (Always zero)
 	
-	responses.push('S');
-	responses.push('C');
-	responses.push('E');
-	responses.push('E');
+	responses.push('M');
+	responses.push('9');
+	responses.push('Z');
+	responses.push('B');
 }
 
 void CDROM::INT2() {

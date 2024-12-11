@@ -15,10 +15,8 @@
 #include <iostream>
 
 // To avoid, "gl.h included before "glew.h"
-#include <span>
 #include <GL/wglew.h>
 
-#include "Scheduler.h"
 #include "../GPU/Rendering/renderer.h"
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -393,8 +391,8 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
 	
 	// Requires controller
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
@@ -514,8 +512,9 @@ std::vector<std::string> readFile(const std::string& filePath, std::size_t sizeL
 	return lines;
 }
 
-uint32_t offset = 0;//1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/; 
-uint32_t size = 0;
+uint32_t initalOffset = 1000000 + 4174082;
+uint32_t offset = 0;//1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/;
+uint32_t size = 100;//24715783;//1351344710;
 uint32_t x = 0;
 
 void runFrame(CPU& cpu) {
@@ -523,8 +522,14 @@ void runFrame(CPU& cpu) {
 	
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			if(x >= (170004627 + 8000000) && size > 0) {
-				// String to pass to a file for comparsions
+			if(x == 19970716) {
+				printf("");
+			}
+			
+			x++;
+			
+			if(x >= (initalOffset + offset) && size > 0) {
+				// String to pass to a file for comparisons
 				std::string content = "PC: " + std::to_string(cpu.pc) + " ";
 				
 				// Add the 32 CPU registers
@@ -535,32 +540,44 @@ void runFrame(CPU& cpu) {
 				// Add Hi, and Lo, for the dividers/multipliers
 				content += "Hi: " + std::to_string(cpu.hi) + " Lo: " + std::to_string(cpu.lo) + " ";
 				
-				// Finally add COP0 registers
+				// Finally, add COP0 registers
 				content += "Cause: " + std::to_string(cpu.cause) + " SR: " + std::to_string(cpu.sr) + "\r";
 				
-				auto index = x - offset;
+				auto index = x - offset - initalOffset;
 				if(!content._Equal(lines[index])) {
-					printf("Mismatch at %d:\nGot:    %s\nWanted: %s\n", (index), content.c_str(), lines[index].c_str());
+					printf("Mismatch at %d:\nGot:    %s\nWanted: %s\n", (x), content.c_str(), lines[index].c_str());
 					std::cerr << "";
 				}
 			}
 			
-			x++;
+			// Breakpoint
+			if(x == 3233617) {
+				return;
+			}
 			
-			if (cpu.pc != 0x80030000 || 0) {
+			if (cpu.pc != 0x80030000 || 1) {
 				cpu.executeNextInstruction();
 			} else {
 				handleLoadExe(cpu);
 			}
 		}
 		
+		// Ik this is cheesy but im lazy
+		// Check for interrupt
+		auto updateCause = [](auto& cpu) {
+			cpu.cause = (IRQ::status & IRQ::mask) ? (cpu.cause | 0x400) : (cpu.cause & ~0x400);
+		};
+		
+		cpu.interconnect.step(300);
+		
 		if(cpu.interconnect.gpu.step(300)) {
 			IRQ::trigger(IRQ::VBlank);
+			updateCause(cpu);
+			
 			break;
 		}
 		
-		cpu.interconnect.step(300);
-		Emulator::Timers::Scheduler::resetTicks();
+		updateCause(cpu);
 	}
 }
 
@@ -644,6 +661,8 @@ int main(int argc, char* argv[]) {
 				fps = frames;
 				frames = 0;
 				
+				runFrame(cpu);
+				
 				std::cerr << "FPS: " << std::to_string(fps) << "\n";
 			}
  		}
@@ -651,16 +670,18 @@ int main(int argc, char* argv[]) {
 		if(render) {
 			gpu.renderer->display();
 			glfwPollEvents();
-			//runFrame(cpu);
+			
+			/*cpu.executeNextInstruction();
+			cpu.interconnect.step(3);#1#
 			
 			frames++;
 		} else {
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
-	}
+	}*/
 	
-	thread.join();
-	*/
+	//thread.join();
+	
 	
 	glfwTerminate();
     
