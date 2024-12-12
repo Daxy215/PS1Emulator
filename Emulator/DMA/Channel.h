@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-//#include <stdint.h>
 #include <optional>
 
 #include "Attributes.h"
@@ -17,10 +16,7 @@ public:
     uint32_t blockControl();
     
     // Set value of the Block Control register
-    void setBlockControl(uint32_t val) {
-        blockSize = static_cast<uint16_t>(val);
-        blockCount = static_cast<uint16_t>((val >> 16));
-    }
+    void setBlockControl(uint32_t val);
     
     void setBase(uint32_t val);
     
@@ -32,7 +28,9 @@ public:
     
     // Set the channel status to "completed" state
     void done(Dma dma, Port port);
-
+    
+public:
+    
     bool enable = false;
     
     // Used to start the DMA transfer whe 'sync' is 'Manual'

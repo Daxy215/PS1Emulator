@@ -351,27 +351,11 @@ public:
     // Next value of the PC - Used to simulate the branch delay slot
     uint32_t nextpc;
     
-    // Cop0; register 8; BadVaddr - Bad Virtual Address (R)
-    uint32_t badVaddr = 0;
-    
-    // Cop0; register 12; Status Register
-    uint32_t sr = 0;
-    
-    // Cop0; register 13; Cause Register
-    uint32_t cause = 0;
-    
-    // Cop0; register 14; EPC
-    uint32_t epc = 0;
-    
     // High register for division remainder and multiplication high
     uint32_t hi = 0;
     
     // Low register for division quotient and multiplication low
     uint32_t lo = 0;
-    
-    // Load delay slot emulation.
-    // Contains output of the current instruction
-    //RegisterIndex outRegs[32];
     
     // Load initiated by the current instruction
     //Load load = {{0}, 0};
@@ -383,6 +367,8 @@ public:
     
 public:
     Interconnect interconnect;
+    
+    COP0 _cop0;
     
 private:
     COP2 _cop2;

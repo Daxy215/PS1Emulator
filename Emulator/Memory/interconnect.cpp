@@ -33,9 +33,6 @@ uint32_t Interconnect::loadInstruction(uint32_t addr) {
     
     // I-Cache
     
-    // Addr in this case it's the PC
-    //auto pc = addr;
-    
     // Cache is only active in the cached regions (KUSEG and KSEG0).
     uint32_t tag = ((addr & 0xFFFFF000) >> 12) | 0x80000000;
     uint16_t index = (addr & 0xFFC) >> 2;
@@ -53,6 +50,9 @@ uint32_t Interconnect::loadInstruction(uint32_t addr) {
 }
 
 uint32_t Interconnect::dmaReg(uint32_t offset) {
+    uint32_t align = offset & 3;
+    offset = offset & ~3;
+    
     uint32_t major = (offset & 0x70) >> 4;
     uint32_t minor = offset & 0xF;
     
@@ -62,8 +62,12 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
         Channel& channel = dma.getChannel(PortC::fromIndex(major));
         
         switch (minor) {
+        case 0:
+            return channel.base >> (align * 8);
+        case 4:
+            return channel.blockControl() >> (align * 8);
         case 8:
-            return channel.control();
+            return channel.control() >> (align * 8);
         default:
             throw std::runtime_error("Unhandled DMA minor read at " + std::to_string(minor));
             break;
@@ -75,9 +79,9 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
     case 7: {
         switch (minor) {
             case 0:
-                return dma.control;
+                return dma.control >> (align * 8);
             case 4:
-                return dma.interrupt();
+                return dma.interrupt() >> (align * 8);
             default:
                 throw std::runtime_error("Unhandled DMA read at " + std::to_string(offset));
         }
@@ -99,12 +103,14 @@ void Interconnect::doDma(Port port) {
     } else {
         dmaBlock(port);
     }
+    
+    dma.getChannel(port).done(dma, port);
 }
 
 void Interconnect::dmaBlock(Port port) {
     Channel& channel = dma.getChannel(port);
     
-    uint32_t increment = (channel.step == Increment) ? 4 : static_cast<uint32_t>(-4);
+    uint32_t increment = (channel.step == Increment) ? 4 : static_cast<uint32_t>(static_cast<int32_t>(-4));
     uint32_t addr = channel.base;
     
     // Transfer size in words
@@ -115,7 +121,7 @@ void Interconnect::dmaBlock(Port port) {
         // Mednafen just makes addr this way, maybe that's,
         // how the hardware behaves (i.e. the RAM address,
         // wraps and the two LSB are ignored, seems reasonable enough.
-        uint32_t curAddr = addr & 0x1FFFFE;
+        uint32_t curAddr = addr & 0x1FFFFC;
         
         switch (channel.direction) {
             case FromRam: {
@@ -143,7 +149,7 @@ void Interconnect::dmaBlock(Port port) {
                         srcWord = 0xFFFFFF;
                     } else {
                         // Pointer to the previous entry
-                        srcWord = CPU::wrappingSub(addr, 4) & 0x1FFFFF;
+                        srcWord = (addr - 4) & 0x1FFFFF;
                     }
                     
                     break;
@@ -157,7 +163,7 @@ void Interconnect::dmaBlock(Port port) {
                      * draws using 0x38, but I'm drawing it using OpenGL,
                      * so I'm unsure how to really do this...
                      */
-                    srcWord = 0;//gpu.read();
+                    srcWord = gpu.read();
                     
                     break;
                 case Port::CdRom: {
@@ -181,11 +187,11 @@ void Interconnect::dmaBlock(Port port) {
             }
         }
         
-        addr = CPU::wrappingAdd(addr, increment);
+        addr += increment;
         remsz.value() -= 1;
     }
     
-    channel.done(dma, port);
+    //channel.done(dma, port);
 }
 
 void Interconnect::dmaLinkedList(Port port) {
@@ -233,13 +239,15 @@ void Interconnect::dmaLinkedList(Port port) {
         
         addr = header & 0x1FFFFC;
     }
-    
-    channel.done(dma, port);
 }
 
 void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
+    uint32_t align = offset & 3;
+    val = val << (align * 8);
+    offset = offset & ~3;
+    
     uint32_t major = (offset & 0x70) >> 4;
-    uint32_t minor = offset & 0xf;
+    uint32_t minor = offset & 0xF;
     std::optional<Port> activePort = std::nullopt;
     
     switch (major) {
@@ -287,13 +295,4 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     if(activePort.has_value()) {
         doDma(activePort.value());
     }
-    
-    /*switch (offset) {  // NOLINT(hicpp-multiway-paths-covered)
-    case 0x70:
-        dma.setControl(val);
-        break;
-    default:
-        printf("Unhandled DMA write access %x", offset);
-        break;
-    }*/
 }

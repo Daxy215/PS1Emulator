@@ -19,13 +19,13 @@ enum Step {
 enum Sync {
 	// Transfer starts when the CPU writes to the Trigger bit,
 	// and transfers everything at once
-	Manual,
+	Manual = 0,
     
 	// Sync blocks to DMA requests
-	Request,
+	Request = 1,
     
 	// Used to transfer GPU command lists
-	LinkedList
+	LinkedList = 2
 };
 
 // The 7 DMA ports

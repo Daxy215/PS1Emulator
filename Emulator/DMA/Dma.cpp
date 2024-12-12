@@ -2,10 +2,16 @@
 
 #include <functional>
 
+#include "../Memory/IRQ.h"
+
+void Dma::step() {
+    
+}
+
 uint32_t Dma::interrupt() {
     uint32_t r = 0;
     
-    r |= static_cast<uint32_t>(irqDummy);
+    r |= (static_cast<uint32_t>(irqDummy));
     r |= (static_cast<uint32_t>(forceIrq)) << 15;
     r |= (static_cast<uint32_t>(channelIrqEn)) << 16;
     r |= (static_cast<uint32_t>(irqEn)) << 23;
@@ -16,6 +22,8 @@ uint32_t Dma::interrupt() {
 }
 
 void Dma::setInterrupt(uint32_t val) {
+    auto prevIrq = irq();
+    
     // Unknown what bts [5:0] do
     irqDummy = static_cast<uint8_t>(val & 0x3F);
     
@@ -28,12 +36,16 @@ void Dma::setInterrupt(uint32_t val) {
     // Writing 1 to a flag rests it
     uint8_t ack = ((val >> 24) & 0x3F);
     channelIraqFlags &= ~ack;
+    
+    if(!prevIrq && irq()) {
+        IRQ::trigger(IRQ::Interrupt::Dma);
+    }
 }
 
 bool Dma::irq() {
     auto channelIrq = this->channelIraqFlags & this->channelIrqEn;
     
-    return forceIrq || (this->irqEn && channelIrq != 0);
+    return forceIrq || (this->irqEn && (channelIrq != 0));
 }
 
 void Dma::setControl(uint32_t val) {

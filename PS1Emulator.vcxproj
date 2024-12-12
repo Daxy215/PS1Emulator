@@ -239,6 +239,7 @@
       <AdditionalIncludeDirectories>..\libs\glfw-3.4.bin.WIN64\include;..\libs\glew-2.2.0\include</AdditionalIncludeDirectories>
       <LinkCompiled>true</LinkCompiled>
     </ClCompile>
+    <ClCompile Include="Emulator\CPU\COP\COP0.cpp" />
     <ClCompile Include="Emulator\CPU\COP\COP2.cpp" />
     <ClCompile Include="Emulator\CPU\CPU.cpp">
       <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
@@ -1003,6 +1004,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Emulator\CPU\COP\COP0.h" />
     <ClInclude Include="Emulator\CPU\COP\COP2.h" />
     <ClInclude Include="Emulator\CPU\CPU.h" />
     <ClInclude Include="Emulator\CPU\Instruction.h" />

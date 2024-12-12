@@ -514,7 +514,7 @@ std::vector<std::string> readFile(const std::string& filePath, std::size_t sizeL
 
 uint32_t initalOffset = 1000000 + 4174082;
 uint32_t offset = 0;//1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/;
-uint32_t size = 100;//24715783;//1351344710;
+uint32_t size = 0;//24715783;//1351344710;
 uint32_t x = 0;
 
 void runFrame(CPU& cpu) {
@@ -522,11 +522,9 @@ void runFrame(CPU& cpu) {
 	
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			if(x == 19970716) {
+			if(x == 19972317) {
 				printf("");
 			}
-			
-			x++;
 			
 			if(x >= (initalOffset + offset) && size > 0) {
 				// String to pass to a file for comparisons
@@ -541,7 +539,7 @@ void runFrame(CPU& cpu) {
 				content += "Hi: " + std::to_string(cpu.hi) + " Lo: " + std::to_string(cpu.lo) + " ";
 				
 				// Finally, add COP0 registers
-				content += "Cause: " + std::to_string(cpu.cause) + " SR: " + std::to_string(cpu.sr) + "\r";
+				content += "Cause: " + std::to_string(cpu._cop0.cause) + " SR: " + std::to_string(cpu._cop0.sr) + "\r";
 				
 				auto index = x - offset - initalOffset;
 				if(!content._Equal(lines[index])) {
@@ -549,6 +547,8 @@ void runFrame(CPU& cpu) {
 					std::cerr << "";
 				}
 			}
+			
+			x++;
 			
 			// Breakpoint
 			if(x == 3233617) {
@@ -562,22 +562,13 @@ void runFrame(CPU& cpu) {
 			}
 		}
 		
-		// Ik this is cheesy but im lazy
-		// Check for interrupt
-		auto updateCause = [](auto& cpu) {
-			cpu.cause = (IRQ::status & IRQ::mask) ? (cpu.cause | 0x400) : (cpu.cause & ~0x400);
-		};
-		
 		cpu.interconnect.step(300);
 		
 		if(cpu.interconnect.gpu.step(300)) {
 			IRQ::trigger(IRQ::VBlank);
-			updateCause(cpu);
 			
 			break;
 		}
-		
-		updateCause(cpu);
 	}
 }
 
@@ -615,7 +606,7 @@ int main(int argc, char* argv[]) {
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
 	
 	// TODO; For now, manually load in disc
-	cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
 	
 	glfwSetKeyCallback(gpu.renderer->window, Emulator::IO::SIO::keyCallback);
 	

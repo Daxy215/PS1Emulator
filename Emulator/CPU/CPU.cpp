@@ -307,21 +307,14 @@ void CPU::handleInterrupts() {
         return;
     }
     
-    auto c = cause | (static_cast<uint32_t>(IRQ::active()) << 10);
-    auto pending = (c & sr) & 0x700;
-    bool irq = (sr & 1) != 0;
+    auto c = _cop0.cause | (static_cast<uint32_t>(IRQ::active()) << 10);
+    auto pending = (c & _cop0.sr) & 0x700;
+    bool irq = (_cop0.sr & 1) != 0;
     bool so = (irq && pending) != 0;
     
-    // Check for interrupt
-    if((IRQ::status & interconnect._irq.mask)) {
-        this->cause |= 0x400;
-    } else {
-        this->cause &= ~0x400;
-    }
-    
-    bool IEC = (sr & 0x1) == 1;
-    uint8_t IM = static_cast<uint8_t>(sr >> 8) & 0xFF;
-    uint8_t IP = static_cast<uint8_t>(this->cause >> 8) & 0xFF;
+    bool IEC = (_cop0.sr & 0x1) == 1;
+    uint8_t IM = static_cast<uint8_t>(_cop0.sr >> 8) & 0xFF;
+    uint8_t IP = static_cast<uint8_t>(_cop0.cause >> 8) & 0xFF;
     bool yes = IEC && (IM & IP) > 0;
     
     if((yes && !so) || (!yes && so)) {
@@ -1158,13 +1151,13 @@ void CPU::opmtc0(Instruction& instruction) {
         
         break;
     case 12: {
-        bool shouldInterrupt = (sr & 0x1) == 1;
+        bool shouldInterrupt = (_cop0.sr & 0x1) == 1;
         bool cur = (v & 0x1) == 1;
         
-        sr = v;
+        _cop0.sr = v;
         
         uint32_t IM = (v >> 8) & 0x3;
-        uint32_t IP = (cause >> 8) & 0x3;
+        uint32_t IP = (_cop0.cause >> 8) & 0x3;
         
         if(!shouldInterrupt && cur && (IM & IP) > 0) {
             pc = nextpc;
@@ -1177,8 +1170,8 @@ void CPU::opmtc0(Instruction& instruction) {
         break;
     }
     case 13: {
-        cause &= ~0x300;
-        cause |= v & 0x300;
+        _cop0.cause &= ~0x300;
+        _cop0.cause |= v & 0x300;
         
         break;
     }
@@ -1223,16 +1216,16 @@ void CPU::opmfc0(Instruction& instruction) {
     case 7:
         break;
     case 8:
-        v = badVaddr;
+        v = _cop0.badVaddr;
         break;
     case 12:
-        v = sr;
+        v = _cop0.sr;
         break;
     case 13:
-        v = cause;
+        v = _cop0.cause;
         break;
     case 14:
-        v = epc;
+        v = _cop0.epc;
         break;
     case 15:
         /*
@@ -1260,9 +1253,9 @@ void CPU::oprfe(Instruction& instruction) {
         throw std::runtime_error("Invalid cop0 instruction; " + instruction.op);
     }
     
-    uint32_t mode = sr & 0x3F;
-    sr &= ~0xF;
-    sr |= mode >> 2;
+    uint32_t mode = _cop0.sr & 0x3F;
+    _cop0.sr &= ~0xF;
+    _cop0.sr |= mode >> 2;
 }
 
 void CPU::opmfc2(Instruction& instruction) {
@@ -1308,18 +1301,18 @@ void CPU::opgte(Instruction& instruction) {
 void CPU::exception(const Exception exception) {
     // Only 0x4h and 0x5h updates BadVaddr
     if(exception == LoadAddressError || exception == StoreAddressError) {
-        badVaddr = currentpc;
+        _cop0.badVaddr = currentpc;
     }
     
     // Shift bits [5:0] of 'SR' two places to the left
-    uint32_t mode = sr & 0x3f;
+    uint32_t mode = _cop0.sr & 0x3f;
     
-    sr &= ~0x3f;
-    sr |= (mode << 2) & 0x3f;
+    _cop0.sr &= ~0x3f;
+    _cop0.sr |= (mode << 2) & 0x3f;
     
     // Update 'CAUSE' register with the exception code (bits [6:2])
-    this->cause &= ~0x7C;
-    this->cause |= static_cast<uint32_t>(exception) << 2;
+    _cop0.cause &= ~0x7C;
+    _cop0.cause |= static_cast<uint32_t>(exception) << 2;
     
     if(currentpc == 0x8004aa9d || (currentpc - 4) == 0x8004aa9d) {
         printf("");
@@ -1336,22 +1329,22 @@ void CPU::exception(const Exception exception) {
     Instruction load = load32(currentpc);
     uint8_t coprocessorNumber = load.func() & 0x3;
     
-    this->cause &= ~(0x3 << 28);
-    this->cause |= (coprocessorNumber << 28);
+    _cop0.cause &= ~(0x3 << 28);
+    _cop0.cause |= (coprocessorNumber << 28);
     
     if(delaySlot) {
         // When an exception occurs in a delay slot 'EPC' points
         // to the branch instruction and bit 31 of 'CAUSE' is set.
-        epc = currentpc - 4;
-        this->cause |= (static_cast<uint32_t>(1) << (31));
+        _cop0.epc = currentpc - 4;
+        _cop0.cause |= (static_cast<uint32_t>(1) << (31));
     } else {
         // Save current instruction address in 'EPC'
-        epc = currentpc;
-        this->cause &= ~(static_cast<uint32_t>(1) << 31);
+        _cop0.epc = currentpc;
+        _cop0.cause &= ~(static_cast<uint32_t>(1) << 31);
     }
     
     // Determine the exception handler address based on the 'BEV' bit
-    uint32_t handler = (sr & (1 << 22)) != 0 ? 0xbfc00180 : 0x80000080;
+    uint32_t handler = (_cop0.sr & (1 << 22)) != 0 ? 0xbfc00180 : 0x80000080;
     
     // Exceptions don’t have a branch delay, we jump directly into the handler
     pc = handler;
@@ -1941,7 +1934,7 @@ uint8_t CPU::load8(uint32_t addr) {
 
 void CPU::store32(uint32_t addr, uint32_t val) {
     // Check if cache is isolated
-    if((sr & 0x10000) != 0) {
+    if((_cop0.sr & 0x10000) != 0) {
         handleCache(addr, val);
     } else {
         interconnect.store<uint32_t>(addr, val);
@@ -1952,7 +1945,7 @@ void CPU::store16(uint32_t addr, uint16_t val) {
     // Check if cache is isolated
     //assert((sr & 0x10000) == 0x10000);
     
-    if((sr & 0x10000) != 0) {
+    if((_cop0.sr & 0x10000) != 0) {
         handleCache(addr, val);
     } else {
         interconnect.store<uint16_t>(addr, val);
@@ -1963,7 +1956,7 @@ void CPU::store8(uint32_t addr, uint8_t val) {
     // Check if cache is isolated
     //assert((sr & 0x10000) == 0);
     
-    if((sr & 0x10000) != 0) {
+    if((_cop0.sr & 0x10000) != 0) {
         handleCache(addr, val);
     } else {
         interconnect.store<uint8_t>(addr, val);

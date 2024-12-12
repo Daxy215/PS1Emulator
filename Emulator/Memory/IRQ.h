@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "../CPU/COP/COP0.h"
+
 class IRQ {
 public:
 	enum Interrupt {
@@ -18,8 +20,8 @@ public:
 	
 	IRQ() = default;
 	
-	explicit operator bool() const {
-		return status & mask;
+	static void step() {
+		COP0::cause = (IRQ::status & IRQ::mask) ? (COP0::cause | 0x400) : (COP0::cause & ~0x400);
 	}
 	
 	[[nodiscard]] uint16_t getStatus() const {
@@ -28,6 +30,8 @@ public:
 	
 	void acknowledge(uint16_t ack) noexcept {
 		status &= ack;
+		
+		step();
 	}
 	
 	[[nodiscard]] uint16_t getMask() const {
@@ -36,16 +40,18 @@ public:
 	
 	void setMask(uint16_t mask) {
 		this->mask = mask;
+		
+		step();
 	}
 	
 	static uint32_t active() {
 		return (status & mask) != 0;
 	}
-
+	
 	static void trigger(Interrupt interrupt) {
-		//status |= (interrupt);
-		//status |= static_cast<int32_t>(interrupt);
 		status |= (1 << static_cast<uint16_t>((interrupt)));
+		
+		step();
 	}
 	
 public:

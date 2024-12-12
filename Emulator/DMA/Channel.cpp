@@ -25,7 +25,7 @@ uint32_t Channel::control() {
 }
 
 void Channel::setControl(uint32_t val) {
-	direction = ((val & 1) != 0) ? FromRam : ToRam; 
+	direction = ((val & 1) != 0)        ? FromRam   : ToRam; 
 	step      = (((val >> 1) & 1) != 0) ? Decrement : Increment;
 	
 	chop = ((val >> 8) & 1) != 0;
@@ -41,7 +41,7 @@ void Channel::setControl(uint32_t val) {
 		sync = LinkedList;
 		break;
 	default:
-		throw std::runtime_error("Unknown DMA sync mode; " + ((val >> 9) & 3));
+		throw std::runtime_error("Unknown DMA sync mode; " + std::to_string((val >> 9) & 3));
 		
 		break;
 	}
@@ -50,7 +50,7 @@ void Channel::setControl(uint32_t val) {
 	chopCpuSz = static_cast<uint8_t>(((val >> 20) & 7));
 	
 	enable = ((val >> 24) & 1) != 0;
-	this->trigger = ((val >> 28) & 1)!= 0;
+	trigger = ((val >> 28) & 1)!= 0;
 	
 	dummy = static_cast<uint8_t>((val >> 29) & 3);
 }
@@ -62,6 +62,11 @@ uint32_t Channel::blockControl() {
 	return (bc << 16) | bs;
 }
 
+void Channel::setBlockControl(uint32_t val) {
+	blockSize = static_cast<uint16_t>(val);
+	blockCount = static_cast<uint16_t>((val >> 16));
+}
+
 void Channel::setBase(uint32_t val) {
 	base = val & 0xFFFFFF;
 }
@@ -69,16 +74,13 @@ void Channel::setBase(uint32_t val) {
 bool Channel::active() {
 	// In manual sync mode the CPU must set the "trigger",
 	// bit to start the transfer
-	bool trigger = false;
+	bool trigger;
 	
 	switch (sync) {
 	case Manual:
 		trigger = this->trigger;
 		break;
-	case Request:
-		trigger = true;
-		break;
-	case LinkedList:
+	default:
 		trigger = true;
 		break;
 	}
@@ -94,37 +96,31 @@ std::optional<uint32_t> Channel::transferSize() {
 	case Manual:
 		// For manual mode only the block size is used
 		return bs;
-		
-		break;
 	case Request:
 		// In DMA request mode we must transfer 'bc' blocks
 		return (bc * bs);
-		
-		break;
 	case LinkedList:
 		// In linked list mode the size is not known ahead of
 		// time: We stop when we encounter the "end of list"
 		// marker (0xffffff)
 		return std::nullopt;
-		
-		break;
-	default:
-		throw std::runtime_error("Unknown DMA sync mode; " + std::to_string(sync));
-		
-		break;
 	}
+	
+	throw std::runtime_error("Unknown DMA sync mode; " + std::to_string(sync));
 }
 
 void Channel::done(Dma dma, Port port) {
 	enable = false;
 	trigger = false;
 	
-	// XXX need to set the correct value for the other fields,
-	// (in particular interrupts)
 	auto prvIrq = dma.irq();
 	
 	auto en = dma.channelIrqEn & (1 << (static_cast<size_t>(port)));
-	dma.channelIrqEn |= en;
+	
+	/**
+	 * Was updating the wrong flag ;-;
+	 */
+	dma.channelIraqFlags |= en;
 	
 	if(!prvIrq && dma.irq()) {
 		IRQ::trigger(IRQ::Interrupt::Dma);

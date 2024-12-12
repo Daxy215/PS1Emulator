@@ -1,12 +1,12 @@
 ﻿#pragma once
 
-//#include <stdint.h>
-
 #include "Channel.h"
 
 class Dma {
 public:
     Dma() = default;
+    
+    void step();
     
     // Helper functions
     // Retrieve the value of the interrupt register
