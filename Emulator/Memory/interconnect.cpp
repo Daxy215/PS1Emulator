@@ -8,23 +8,40 @@
 #include "../CPU/CPU.h"
 
 void Interconnect::step(uint32_t cycles) {
-    _cdrom.step(cycles * 1.5f);
+    _cdrom.step(cycles / 1.5f);
     _sio.step(1);
+    
+    dma.step();
     
     _timers.sync(gpu.isInHBlank, gpu.isInVBlank, gpu.dot);
     _timers.step(cycles);
+    
+    /*static float spuCounter = 0;
+    
+    float magicNumber = 1.575f;
+    if (gpu.vmode != Emulator::VMode::Ntsc) {
+        // Hack to prevent crackling audio on PAL games
+        // Note - this overclocks SPU clock, bugs might appear.
+        magicNumber *= 50.f / 60.f;
+    }
+    spuCounter += (float)300 / magicNumber / (float)0x300;
+    if (spuCounter >= 1.f) {
+        //spu->step(0);
+        spuCounter -= 1.0f;
+    }*/
 }
 
 uint32_t Interconnect::loadInstruction(uint32_t addr) {
     if(_cacheControl.isCacheEnabled() == 0 || addr >= 0xA0000000) {
         uint32_t abs_addr = map::maskRegion(addr);
+        uint32_t offset = 0;
         
-        if (auto offset = map::RAM.contains(abs_addr)) {
-            return ram.load<uint32_t>(offset.value());
+        if (map::RAM.contains(abs_addr, offset)) {
+            return ram.load<uint32_t>(offset);
         }
         
-        if (auto offset = map::BIOS.contains(abs_addr)) {
-            return bios.load<uint32_t>(offset.value());
+        if (map::BIOS.contains(abs_addr, offset)) {
+            return bios.load<uint32_t>(offset);
         }
         
         // TODO; Testing
@@ -131,6 +148,16 @@ void Interconnect::dmaBlock(Port port) {
                 case Gpu:
                     gpu.gp0(srcWord);
                     break;
+                case MdecIn:
+                    // TODO; MDEC command
+                    break;
+                case Spu:
+                    spu->write(0x1a8, srcWord);
+                    spu->write(0x1a8, srcWord >> 8);
+                    spu->write(0x1a8, srcWord >> 16);
+                    spu->write(0x1a8, srcWord >> 24);
+                    
+                    break;    
                 default:
                     throw std::runtime_error("Unhandled DMA destination port " + std::to_string(static_cast<uint8_t>(port)));
                     break;
@@ -173,6 +200,13 @@ void Interconnect::dmaBlock(Port port) {
                     srcWord |= _cdrom.readByte() << 8;
                     srcWord |= _cdrom.readByte() << 16;
                     srcWord |= _cdrom.readByte() << 24;
+                    
+                    break;
+                }
+                
+                case Port::MdecOut: {
+                    // TODO; MDEC
+                    srcWord = 0;
                     
                     break;
                 }

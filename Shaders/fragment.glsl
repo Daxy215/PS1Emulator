@@ -21,13 +21,36 @@ in vec4 UVs;
  * 1 = blendTexture
  * 2 = useTextures ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
  */
-flat in uvec3 attr;
+flat in int attr;
 
 out vec4 fragColor;
 
 uniform sampler2D texture_sample4;
 
-uniform int texture_depth;
+//uniform int texture_depth;
+uniform vec4 textureWindow;
+
+const int IS_SEMITRANSPARENT_MASK = 0x1;
+const int BLEND_TEXTURE_MASK = 0x2;
+const int TEXTURE_MODE_MASK = 0x1C;
+const int TEXTURE_MODE_SHIFT = 2;
+const int TEXTURE_DEPTH_SHIFT = 5;
+const int TEXTURE_DEPTH_MASK = 0x3;
+
+vec2 calculateTexel() {
+    uvec2 texel = uvec2(uint(UVs.x) % 256u, uint(UVs.y) % 256u);
+    
+    /*uvec2 mask = uvec2((fragTextureWindow) & 0x1fu, (fragTextureWindow >> 5) & 0x1fu);
+    uvec2 offset = uvec2((fragTextureWindow >> 10) & 0x1fu, (fragTextureWindow >> 15) & 0x1fu);*/
+    
+    uvec2 mask = uvec2(textureWindow.x, textureWindow.y);
+    uvec2 offset = uvec2(textureWindow.z, textureWindow.w);
+    
+    texel.x = (texel.x & ~(mask.x * 8u)) | ((offset.x & mask.x) * 8u);
+    texel.y = (texel.y & ~(mask.y * 8u)) | ((offset.y & mask.y) * 8u);
+    
+    return vec2(texel);
+}
 
 uint internalToPsxColor(vec4 c) {
     uint a = uint(floor(c.a + 0.5));
@@ -42,31 +65,31 @@ vec4 read(int x, int y) {
     return texelFetch(texture_sample4, ivec2(x, y), 0);
 }
 
-vec4 clut4bit(ivec2 clut, ivec2 page) {
-    int texX = int(UVs.x / 4.0) + page.x;
-    int texY = int(UVs.y)       + page.y;
+vec4 clut4bit(vec2 coords, ivec2 clut, ivec2 page) {
+    int texX = int(coords.x / 4.0) + page.x;
+    int texY = int(coords.y)       + page.y;
     
     uint index = internalToPsxColor(read(texX, texY));
-    uint which = (index >> ((uint(UVs.x) & 3u) * 4u)) & 0xfu;
+    uint which = (index >> ((uint(coords.x) & 3u) * 4u)) & 0xfu;
     
     return read(clut.x + int(which), clut.y);
 }
 
-vec4 clut8bit(ivec2 clut, ivec2 page) {
-    int texX =  int(UVs.x / 2.0) + page.x;
-    int texY =  int(UVs.y)       + page.y;
+vec4 clut8bit(vec2 coords, ivec2 clut, ivec2 page) {
+    int texX =  int(coords.x / 2.0) + page.x;
+    int texY =  int(coords.y)       + page.y;
     
     uint index = internalToPsxColor(read(texX, texY));
-    uint which = (index >> ((uint(UVs.x) & 1u) * 8u)) & 0xffu;
+    uint which = (index >> ((uint(coords.x) & 1u) * 8u)) & 0xffu;
     
     return read(int(which) + clut.x, clut.y);
 }
 
-vec4 clut16bit(ivec2 page) {
-    return read(int(UVs.x) + page.x, int(UVs.y) + page.y);
+vec4 clut16bit(vec2 coords, ivec2 page) {
+    return read(int(coords.x) + page.x, int(coords.y) + page.y);
 }
 
-vec4 sample_texel() {
+vec4 sample_texel(int textureDepth) {
     /*
      * Extract clut and page
      */
@@ -91,49 +114,62 @@ vec4 sample_texel() {
     
     return clutColor;*/
     
+    vec2 texel = calculateTexel();
+    
     /**
      * T4Bit = 0,
      * T8Bit = 1,
      * T15Bit = 2,
      */
-    if (texture_depth == 0) {
-        return clut4bit(ivec2(clutX, clutY), ivec2(pageX, pageY));
-    } else if(texture_depth == 1) {
-        return clut8bit(ivec2(clutX, clutY), ivec2(pageX, pageY));
-    } else if(texture_depth == 2) {
-        return clut16bit(ivec2(pageX, pageY));
+    if (textureDepth == 0) {
+        return clut4bit(texel, ivec2(clutX, clutY), ivec2(pageX, pageY));
+    } else if(textureDepth == 1) {
+        return clut8bit(texel, ivec2(clutX, clutY), ivec2(pageX, pageY));
+    } else if(textureDepth == 2) {
+        return clut16bit(texel, ivec2(pageX, pageY));
     }
     
     return vec4(1, 0, 0, 1);
 }
 
 void main() {
+    int isSemiTransparent = int(attr) & IS_SEMITRANSPARENT_MASK;
+    int blendTexture = (int(attr) & BLEND_TEXTURE_MASK) >> 1;
+    int textureMode = (int(attr) & TEXTURE_MODE_MASK) >> TEXTURE_MODE_SHIFT;
+    
     // Apply transparency
     // TODO; Apply different level of transparency
-    float alpha = (float(attr.x) == 1) ? 0.5 : 1.0;
+    float alpha = 1.0;//(isSemiTransparent == 1) ? 0.5 : 1.0;
     
-    // TODO; Implement attr.z == 2, texture + color
+    // TODO; Implement texture blend?
     
     // This is for testing
-    if(int(attr.z) == 6) {
+    if(textureMode == 3) {
         vec4 c = texture(texture_sample4, UVs.xy);
         fragColor = c;
         
         return;
     }
     
-    if (int(attr.z) == 0) {
+    if (textureMode == 0) {
         fragColor = vec4(color, alpha);
-    } else if(int(attr.z) == 1) {
-        fragColor = sample_texel();
-    } else if(int(attr.z) == 2) {
-        vec4 color = vec4(color, 1);
-        vec4 c = mix(sample_texel(), color, 0.5f);
+    } else if(textureMode == 1 || textureMode == 2) {
+        int textureDepth = (attr >> TEXTURE_DEPTH_SHIFT) & TEXTURE_DEPTH_MASK;
         
-        fragColor = vec4(c.r, c.g, c.b, alpha);
-    }
-    
-    if(fragColor.rgb == vec3(0.0)) {
-        discard;
+        vec4 samp = sample_texel(textureDepth);
+        
+        if(internalToPsxColor(samp) == 0x0000u) {
+            discard;
+        }
+        
+        if(textureMode == 2) {
+            vec4 f = vec4(color, 1);
+            vec4 c = mix(samp, f, 0.5f);
+            
+            fragColor = vec4(c.r, c.g, c.b, alpha);
+        } else {
+            // TODO; Check if alpha is needed?
+            fragColor = samp;
+        }
     }
 }

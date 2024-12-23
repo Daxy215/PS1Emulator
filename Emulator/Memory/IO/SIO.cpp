@@ -1,5 +1,6 @@
 ﻿#include "SIO.h"
 
+#include <cassert>
 #include <iostream>
 
 #include "../IRQ.h"
@@ -33,20 +34,22 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		 * 24-31 Preview            (4th RX FIFO entry) (5th..8th cannot be previewed)
 		 */
 		
-		uint32_t data = 0;
-		
-		isRXFull = false;
-		
-		return rxData;
-		
-		// TODO; Check wtf does this shit mean:
-		
 		/**
 		 * A data byte can be read when SIO_STAT.1=1.
 		 * Some emulators behave incorrectly when this register,
 		 * is read using a 16/32-bit memory access,
 		 * so it should only be accessed as an 8-bit register.
 		 */
+		//assert(isRXFull);
+		
+		if(!isRXFull)
+			return 0xFF;
+		
+		uint32_t data = 0;
+		
+		isRXFull = false;
+		
+		return rxData;
 		
 		return data;
  	} else if(addr == 0x1F801044) {
@@ -163,6 +166,8 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 				// Memory card
 				std::cerr << "MEMORY CARD\n";
 				_connectedDevice = MemoryCard;
+			} else {
+				printf("");
 			}
 		}
 		
@@ -170,13 +175,13 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		if(dtrOutput) {
 			txIdle = true;
 			
-			// TODO; Handle ports..
-			if(sio0Selected) {
+			// TODO; Handle 2nd port..
+			/*if(sio0Selected) {
 				rxData = 0xFF;
 				dsrInputLevel = false;
 				
 				return;
-			}
+			}*/
 			
 			if(_connectedDevice == Controller) {
 				rxData = _controler.load(txData);
@@ -187,6 +192,10 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 				}
 			} else if(_connectedDevice == MemoryCard) {
 				// TODO; Transfer data
+				
+				//if(dsrInputLevel) {
+					//timer = 3;
+				//}
 			} else {
 				dsrInputLevel = false;
 			}

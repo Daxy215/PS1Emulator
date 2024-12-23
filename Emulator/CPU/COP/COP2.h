@@ -1,14 +1,10 @@
 ﻿#pragma once
 
-#include <stdint.h>
-
 /**
  * C++ being the biggest bitch in existence rn
  */
 #include "D:/libs/glm/glm/vec3.hpp"
 #include "D:/libs/glm/glm/mat3x3.hpp"
-
-class Instruction;
 
 class COP2 {
 public:
@@ -23,7 +19,7 @@ public:
 			uint32_t mvmvaMultiplyMatrix    : 2; // (0=Rotation. 1=Light, 2=Color, 3=Reserved)
 			uint32_t sf                     : 1;
 			uint32_t                        : 5; // Ignored by hardware?
-			uint32_t imm25                  : 7; // Must be 0100101b for "COP2 imm25) instructions
+			uint32_t imm25                  : 7; // Must be 0100101b for "COP2 imm25" instructions
 		};
 		
 		uint32_t reg;
@@ -193,8 +189,40 @@ private:
 	// cop2r6     4xU8  RGBC                  Color/code value
 	glm::vec4 RGBC;
 	
+	// cop2r7     1xU16 OTZ                   Average Z value (for Ordering Table)
+	uint16_t OTZ = 0;
+	
 	// cop2r8     1xS16 IR0                   16bit Accumulator (Interpolate)
-	uint16_t IR0 = 0;
+	int16_t IR0 = 0;
+	
+	// cop2r9-11  3xS16 IR1,IR2,IR3           16bit Accumulator (Vector)
+	int16_t IR1 = 0;
+	int16_t IR2 = 0;
+	int16_t IR3 = 0;
+	
+	// cop2r12-15 6xS16 SXY0,SXY1,SXY2,SXYP   Screen XY-coordinate FIFO  (3 stages)
+	glm::vec2 SXY0;
+	glm::vec2 SXY1;
+	glm::vec2 SXY2;
+	glm::vec2 SXY3;
+	
+	// cop2r16-19 4xU16 SZ0,SZ1,SZ2,SZ3       Screen Z-coordinate FIFO   (4 stages)
+	uint16_t SZ0 = 0;
+	uint16_t SZ1 = 0;
+	uint16_t SZ2 = 0;
+	uint16_t SZ3 = 0;
+
+	// cop2r24    1xS32 MAC0                  32bit Maths Accumulators (Value)
+	uint32_t MAC0 = 0;
+
+	// cop2r25-27 3xS32 MAC1,MAC2,MAC3        32bit Maths Accumulators (Vector)
+	int32_t MAC1 = 0;
+	int32_t MAC2 = 0;
+	int32_t MAC3 = 0;
+	
+	// cop2r30-31 2xS32 LZCS,LZCR             Count Leading-Zeroes/Ones (sign bits)
+	int32_t LZCS = 0;
+	int32_t LZCR = 0;
 	
 private:
 	uint32_t sf = 0, lm = 0;

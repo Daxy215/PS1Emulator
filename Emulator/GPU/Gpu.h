@@ -3,7 +3,6 @@
 #ifndef GPU_H
 #define GPU_H
 
-#include <assert.h>
 #include <stdint.h>
 #include <functional>
 #include <stdexcept>
@@ -38,7 +37,12 @@ namespace Emulator {
     // Video output horizontal resolution
     struct HorizontalRes {
         uint32_t value;
-        uint32_t hr1, hr2;
+        
+        // (0=256, 1=320, 2=512, 3=640)
+        uint32_t hr1;
+        
+        // (0=256/320/512/640, 1=368)
+        uint32_t hr2;
         
         static HorizontalRes fromFields(uint32_t hr1, uint32_t hr2) {
             uint32_t hr = (hr2 & 1) | ((hr1 & 3) << 1);
@@ -46,7 +50,8 @@ namespace Emulator {
         }
         
         uint32_t intoStatus() const {
-            return static_cast<uint32_t>(value) << 16;
+            auto f = static_cast<uint32_t>(value) << 16;
+            return f;
         }
     };
     
@@ -127,6 +132,9 @@ namespace Emulator {
                 float x = static_cast<float>(static_cast<int16_t>(val));
                 float y = static_cast<float>(static_cast<int16_t>(val >> 16));
                 
+                x += Gpu::drawingXOffset;
+                y += Gpu::drawingYOffset;
+                
                 return {x, y};
             }
             
@@ -146,6 +154,15 @@ namespace Emulator {
                 uint8_t b = static_cast<uint8_t>(val >> 16);
                 
                 return {r, g, b};
+            }
+            
+            uint32_t toU32() const {
+                uint32_t a = (uint32_t)(1 + 0.5);
+                uint32_t r = (uint32_t)(floor(this->r * 31.0 + 0.5));
+                uint32_t g = (uint32_t)(floor(this->g * 31.0 + 0.5));
+                uint32_t b = (uint32_t)(floor(this->b * 31.0 + 0.5));
+                
+                return (a << 15) | (b << 10) | (g << 5) | (r);
             }
             
             GLubyte r, g, b;
@@ -168,10 +185,6 @@ namespace Emulator {
                  */
                 // TODO; Copy other parameters
                 auto depth = ((page & 0x180) >> 7);
-                if(depth != 0) {
-                    printf("");
-                }
-                
                 gpu.setTextureDepth(static_cast<Emulator::TextureDepth>(depth));
                 
                 float u = static_cast<float>((val) & 0xFF);
@@ -190,7 +203,7 @@ namespace Emulator {
                 float dataX = (clutX << 16) | (pageX);
                 float dataY = (clutY << 16) | (pageY);
                 
-                return {u, v, dataX, dataY};
+                return {(u), v, dataX, dataY};
                 //return {ux, vc, dataX, dataY};
             }
             
@@ -217,52 +230,38 @@ namespace Emulator {
             float dataX, dataY;
         };
         
-        struct Attributes {
+        /**
+         * TODO; Make this use uint32_t,
+         * and pass the "offset" variables, as well as the,
+         * textureDepth to fix the flickering issue(I hope so)
+         */
+        enum TextureMode : GLint { ColorOnly = 0, TextureOnly = 1, TextureColor = 2, TestVRAM = 3 };
+        
+        union Attributes {
+            struct {
+                GLint isSemiTransparent : 1;
+                GLint blendTexture      : 1; // TODO; Unimplemented
+                TextureMode textureMode : 3;
+                GLint textureDepth      : 2;   
+            };
+            
             Attributes() = default;
-            
-            Attributes(GLubyte isSemiTransparent, GLubyte blendTexture, GLubyte useTextures = 0)
-                : isSemiTransparent(isSemiTransparent),
-                  blendTexture(blendTexture),
-                  useTextureMode(useTextures)
-                  /*clutX(0),
-                  clutY(0),
-                  pageX(0),
-                  pageY(0)*/ {
-                
-            }
-            
-            void setTextureParameters(uint32_t clut, uint32_t page) {
-                uint16_t c = static_cast<uint16_t>(clut >> 16);
-                uint16_t p = static_cast<uint16_t>(page >> 16);
-                
-                /*clutX = static_cast<uint16_t>((c & 0x3F) << 4);
-                clutY = static_cast<uint16_t>((c >> 6) & 0x1FF);
-                
-                pageX = static_cast<uint16_t>((p & 0xF) << 6);
-                pageY = static_cast<uint16_t>(((p >> 4) & 1) << 8);*/
+            Attributes(GLint reg) : _reg(reg) {}
+            Attributes(GLint isSemiTransparent, GLint blendTexture, TextureMode textureMode = ColorOnly) {
+                this->isSemiTransparent = isSemiTransparent;
+                this->blendTexture = blendTexture;
+                this->textureMode = textureMode;
             }
             
             bool usesColor() {
-                return (useTextureMode != 1);
+                return (textureMode != TextureOnly);
             }
             
             bool useTextures() {
-                return (useTextureMode != 0);
+                return (textureMode != ColorOnly);
             }
             
-            GLubyte isSemiTransparent = 0;
-            GLubyte blendTexture = 0;
-            
-            /**
-             * I'm too lazy to create an enum
-             * 0 = No texture,
-             * 1 = Texture,
-             * 2 = Texture + color
-             */
-            GLubyte useTextureMode = 0;
-            
-            /*GLushort clutX = 0, clutY = 0;
-            GLushort pageX = 0, pageY = 0;*/
+            GLint _reg = 0;
         };
         
     public:
@@ -296,11 +295,6 @@ namespace Emulator {
         // GP0(0x00): No operations
         void gp0Nop(uint32_t val) {
             // NOP
-        }
-        
-        // TODO; Move to a utils class
-        static inline bool get_bit(uint32_t num, int b) {
-            return num & (1 << b);
         }
         
         // GP0(0x28): Momochrome Opaque Quadrilateral
@@ -338,9 +332,6 @@ namespace Emulator {
         void gp08RectangleTexturedOpaqu(uint32_t val);
         void gp016RectangleMonoOpaque(uint32_t val);
         void gp016RectangleTextured(uint32_t val);
-        
-        // TODO; Testing
-        void gp0Rectangle(uint32_t val);
         
         // GP0(0x01): Clear Cache
         void gp0ClearCache(uint32_t val);
@@ -433,12 +424,12 @@ namespace Emulator {
         uint8_t textureWindowYMask;   // Texture window y mask (8 pixel steps)
         uint8_t textureWindowXOffset; // Texture window x offset (8 pixel steps)
         uint8_t textureWindowYOffset; // Texture window y offset (8 pixel steps)
-        uint16_t drawingAreaLeft;     // Left-most column of drawing area
-        uint16_t drawingAreaTop;      // Top-most line of drawing area
-        uint16_t drawingAreaRight;    // Right-most column of drawing area
-        uint16_t drawingAreaBottom;   // Bottom-most line of drawing area
-        int16_t drawingXOffset;       // Horizontal drawing offset applied to all vertices
-        int16_t drawingYOffset;       // Vertical drawing offset applied to all vertices
+        int16_t drawingAreaLeft;     // Left-most column of drawing area
+        int16_t drawingAreaTop;      // Top-most line of drawing area
+        int16_t drawingAreaRight;    // Right-most column of drawing area
+        int16_t drawingAreaBottom;   // Bottom-most line of drawing area
+        static inline int16_t drawingXOffset;       // Horizontal drawing offset applied to all vertices
+        static inline int16_t drawingYOffset;       // Vertical drawing offset applied to all vertices
         uint16_t displayVramXStart;   // First column of the display area in VRAM
         uint16_t displayVramYStart;   // First line of the display area in VRAM
         uint16_t displayHorizStart;   // Display output horizontal start relative to HSYNC
@@ -454,7 +445,8 @@ namespace Emulator {
         
         const float ntscVideoClock = 53693175.0f / 60.0f;
         const float palVideoClock = 53203425.0f / 60.0f;
-        
+
+    public:
         uint32_t _scanLine = 0;
         uint32_t _cycles = 0;
         uint32_t frames = 0;
@@ -471,7 +463,7 @@ namespace Emulator {
         uint32_t dotCycles[5] = { 10, 8, 5, 4, 7};
         
     private:
-        Attributes curAttribute = {0, 0, 0};
+        Attributes curAttribute = {};
         
     public:
         // Buffer containing the current GP0 command

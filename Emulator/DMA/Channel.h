@@ -27,10 +27,9 @@ public:
     std::optional<uint32_t> transferSize();
     
     // Set the channel status to "completed" state
-    void done(Dma dma, Port port);
+    void done(Dma& dma, Port port);
     
 public:
-    
     bool enable = false;
     
     // Used to start the DMA transfer whe 'sync' is 'Manual'
@@ -38,6 +37,8 @@ public:
     
     // If the DMA 'chops' the transfer and lets the CPU run in the gaps
     bool chop = false;
+    
+    bool interruptPending = false;
     
     // Chopping DMA window size (log2 number of words)
     uint8_t chopDmaSz = 0;

@@ -15,7 +15,7 @@ public:
 		PadMemCard = 7, // Byte Received Interrupt
 		SIO = 8, // ??
 		SPU = 9,
-		Controller = 10, // Lightpen interrupt. Also shared by PIO and DTL cards
+		LightPen = 10, // Lightpen interrupt. Also shared by PIO and DTL cards
 	};
 	
 	IRQ() = default;
@@ -39,7 +39,7 @@ public:
 	}
 	
 	void setMask(uint16_t mask) {
-		this->mask = mask;
+		IRQ::mask = mask;
 		
 		step();
 	}

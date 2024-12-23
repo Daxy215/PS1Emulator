@@ -5,8 +5,13 @@
 
 #include "../CPU/CPU.h"
 #include "../Memory/Bios/Bios.h"
-#include "../SPU/SPU.h"
+
 #include "../Utils/FileSystem/FileManager.h"
+#include "../GPU/Rendering/renderer.h"
+
+#include <../../imgui-1.91.6/imgui.h>
+#include "../../imgui-1.91.6/backends/imgui_impl_glfw.h"
+#include "../../imgui-1.91.6/backends/imgui_impl_opengl2.h"
 
 #include <GLFW/glfw3.h>
 
@@ -16,8 +21,6 @@
 
 // To avoid, "gl.h included before "glew.h"
 #include <GL/wglew.h>
-
-#include "../GPU/Rendering/renderer.h"
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // ! Please note most of the stuff here isn't really written by me,    !
@@ -383,16 +386,17 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
 	
 	// Other stuff
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
 	///std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
 	
-	// Requires controller
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
+	
+	// Requires controller
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
@@ -468,7 +472,7 @@ void handleLoadExe(CPU& cpu) {
 	cpu.branchSlot = false;
 }
 
-std::vector<std::string> readFile(const std::string& filePath, std::size_t sizeLimit, std::size_t beginOffset) {
+std::vector<std::string> readFile(const std::string& filePath, std::size_t sizeLimit, std::size_t& beginOffset) {
 	if(sizeLimit <= 0)
 		return {};
 	
@@ -480,53 +484,60 @@ std::vector<std::string> readFile(const std::string& filePath, std::size_t sizeL
 		return lines;
 	}
 	
-	std::size_t currentOffset = 0;
-	
-	char ch;
-	while (currentOffset < beginOffset && file.get(ch)) {
-		if (ch == '\n') {
-			currentOffset++;
-		}
-	}
-	
-	if (currentOffset < beginOffset) {
-		std::cerr << "Error: beginOffset exceeds the number of lines in the file.\n";
-		file.close();
-		return lines;
-	}
+	std::streampos charactersToSkip = /*448803262*/0;
+	file.seekg(charactersToSkip, std::ios::cur);
 	
 	std::string line;
 	std::size_t totalSize = 0;
+	std::size_t charCount = 0;
 	
 	while (std::getline(file, line)) {
-		if (totalSize++ >= sizeLimit) {
+		if (totalSize++ >= sizeLimit + beginOffset) {
 			break;
 		}
 		
-		lines.push_back(line);
+		charCount += line.size();
+		
+		if(totalSize > beginOffset)
+			lines.push_back(line);
 	}
 	
-	std::cerr << "Finished reading " << lines.size() << " lines starting from offset " << beginOffset << '\n';
+	// Last tested size -> 983,849
+	//beginOffset += 983849;
+	
+	std::cerr << "Finished reading " << lines.size() << " lines starting from offset " << beginOffset << ".\nYou can skip " << std::to_string(charCount) << " + " << std::to_string(totalSize) << " characters!\n";
 	
 	file.close();
 	return lines;
 }
 
-uint32_t initalOffset = 1000000 + 4174082;
-uint32_t offset = 0;//1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/;
-uint32_t size = 0;//24715783;//1351344710;
+#include <chrono>
+
+uint32_t initalOffset = 100'000'00 + 130'000'00 + 130'000'00;/*63206245*//*238263820*//*238263829*/;
+std::size_t offset = 50379800 + 180'000'00;//100'000'00 + 130'000'00 + 130'000'00;//50081290 - initalOffset;//1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/;
+uint32_t size = 0;//180'000'00;
 uint32_t x = 0;
 
 void runFrame(CPU& cpu) {
-	static auto lines = readFile("logs3.txt", size, offset);
+	//static auto lines = readFile("logs9.txt", size, offset);
+	//static auto lines = readFileMultiThreaded("logs3.txt", size, offset);
 	
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			if(x == 19972317) {
+			/*if(x == /*238263937#1#/*238263932#1#/*238262351#1#/*238262337#1#50379907) {
 				printf("");
 			}
 			
-			if(x >= (initalOffset + offset) && size > 0) {
+			// 238262351 -> Writes the wrong jump address to RAM from reg 3
+			// 238262339 -> Sets reg 3 to the wrong jump address through "set_reg" through load
+			// EPC is wrong, well - 4 than it needs to be.
+			// 238262317 -> Where EPC gets set but "currentpc" is the wrong part(there isn't a delay slot)?
+			
+			/*if(x > 238263920) {
+				std::cerr << "PC " << std::to_string(cpu.pc) << " - " << std::to_string(x) << "\n";
+			}#1#
+			
+			if(++x >= (offset + initalOffset) && size > 0) {
 				// String to pass to a file for comparisons
 				std::string content = "PC: " + std::to_string(cpu.pc) + " ";
 				
@@ -539,16 +550,14 @@ void runFrame(CPU& cpu) {
 				content += "Hi: " + std::to_string(cpu.hi) + " Lo: " + std::to_string(cpu.lo) + " ";
 				
 				// Finally, add COP0 registers
-				content += "Cause: " + std::to_string(cpu._cop0.cause) + " SR: " + std::to_string(cpu._cop0.sr) + "\r";
+				content += "Cause: " + std::to_string(cpu._cop0.cause) + " SR: " + std::to_string(cpu._cop0.sr)+ "\r" ;
 				
 				auto index = x - offset - initalOffset;
 				if(!content._Equal(lines[index])) {
 					printf("Mismatch at %d:\nGot:    %s\nWanted: %s\n", (x), content.c_str(), lines[index].c_str());
 					std::cerr << "";
 				}
-			}
-			
-			x++;
+			}*/
 			
 			// Breakpoint
 			if(x == 3233617) {
@@ -597,30 +606,128 @@ int main(int argc, char* argv[]) {
 	 * what I should be doing to solve this.. As it does sometimes,
 	 * be required to drawn normally using VBOS?
 	 */
+	
+	/**
+	 * TODO;
+	 * Some textures as missing
+	 * Drawing offset is weird? Keeps switching between 2 values over and over?
+	 */
     Emulator::Gpu gpu;
     
     // TODO; Implement(probably won't implement for a very while)
-    Emulator::SPU spu = Emulator::SPU();
+    //Emulator::SPU spu = Emulator::SPU();
 	
 	// TODO; JALR is bugged? Wrong value & Exception :)
-    CPU cpu = CPU(Interconnect(ram, bios, dma, gpu, spu));
+    CPU cpu = CPU(Interconnect(ram, bios, dma, gpu));
 	
 	// TODO; For now, manually load in disc
 	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Tetris X/Tetris X (Japan).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Sonic Wings Special (Europe)/Sonic Wings Special (Europe)/Sonic Wings Special (Europe).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue");
+	cpu.interconnect._cdrom.swapDisk("ROMS/Ridge Racer (Europe)/Ridge Racer (Europe).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Battle Arena Toshinden (Europe)/Battle Arena Toshinden (Europe).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Mortal/Mortal Kombat II (Japan).cue");
+	
+	// Works but need to skip all cut scenes to see anything(dont have MDEC)
+	// TODO; Uses line rendering but doesn't crash
+	// TODO; Uses CDROM (0x14 and 0x13)
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Pepsiman (Japan)/Pepsiman (Japan).cue");
+	
+	// Games that are broken
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; Missing CDROM(0x20/0x1E/0x16) SUB(0x04)
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Gex/Gex (USA) (Rev 1).cue"); // TODO; Uses line rendering
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue"); // TODO; Runs but controls don't work?
+	//cpu.interconnect._cdrom.swapDisk("ROMS/This Is Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
 	
 	glfwSetKeyCallback(gpu.renderer->window, Emulator::IO::SIO::keyCallback);
 	
+	// Intiailise ImGui
+	// Setup Dear ImGui context
+	/*IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+	//io.ConfigViewportsNoAutoMerge = true;
+	//io.ConfigViewportsNoTaskBarIcon = true;
+	
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsLight();
+	
+	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+	ImGuiStyle& style = ImGui::GetStyle();
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		style.WindowRounding = 0.0f;
+		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+	}
+	
+	// Setup Platform/Renderer backends
+	ImGui_ImplGlfw_InitForOpenGL(gpu.renderer->window, true);
+	ImGui_ImplOpenGL2_Init();*/
+	
+	double fps = 0.0;
+	auto lastFPSTime = std::chrono::high_resolution_clock::now();
+	
 	// TODO; Use ImGui
 	while(!glfwWindowShouldClose(gpu.renderer->window)) {
+		// Calculate FPS
+		auto now = std::chrono::high_resolution_clock::now();
+		if (std::chrono::duration<double>(now - lastFPSTime).count() >= 1.0) {
+			std::cerr << "FPS; " << std::to_string(fps) << "\n";
+			
+			lastFPSTime = now;
+		}
+		
+		auto start = std::chrono::high_resolution_clock::now();
 		runFrame(cpu);
+		
+		/*
+		// Start the Dear ImGui frame
+		ImGui_ImplOpenGL2_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+		
+		ImGui::ShowDemoWindow();
+		
+		// Rendering
+		ImGui::Render();
+		int display_w, display_h;
+		glfwGetFramebufferSize(gpu.renderer->window, &display_w, &display_h);
+		glViewport(0, 0, display_w, display_h);
+		glClear(GL_COLOR_BUFFER_BIT);
+		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+		
+		// Update and Render additional Platform Windows
+		// (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
+		//  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+			GLFWwindow* backup_current_context = glfwGetCurrentContext();
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+			glfwMakeContextCurrent(backup_current_context);
+		}
+		
+		glfwSwapBuffers(gpu.renderer->window);*/
+		
+		auto end = std::chrono::high_resolution_clock::now();
+		
+		auto duration = std::chrono::duration<double>(end - start);
+		fps = 1.0 / duration.count();
 		
 		glfwPollEvents();
 		
 		// TODO; Test
-		int state = glfwGetKey(gpu.renderer->window, GLFW_KEY_G);
-		
-		if (state == GLFW_PRESS) {
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_G) == GLFW_PRESS) {
 			gpu.renderer->displayVRam();
+		}
+		
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_F) == GLFW_PRESS) {
+			gpu.renderer->clear();
 		}
 	}
 	

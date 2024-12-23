@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <stdint.h>
 
-#include "DigitalController.h"
+#include "Peripherals/DigitalController.h"
 
 class GLFWwindow;
 

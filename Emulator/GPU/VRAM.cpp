@@ -33,21 +33,6 @@ Emulator::VRAM::VRAM(Gpu* gpu) : gpu(gpu) {
 }
 
 void Emulator::VRAM::endTransfer() {
-	/* Upload 16bit texture. */
-	/*glBindTexture(GL_TEXTURE_2D, texture16);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo16);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 512, GL_RED, GL_UNSIGNED_BYTE, 0);
-	
-	/* Upload 4bit texture. */
-	/*glBindTexture(GL_TEXTURE_2D, texture4);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo4);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4096, 512, GL_RED, GL_UNSIGNED_BYTE, 0);*/
-	
-	/* Upload 8bit texture. */
-	/*glBindTexture(GL_TEXTURE_2D, texture8);
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo8);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 2048, 512, GL_RGB, GL_UNSIGNED_BYTE, 0);*/
-	
 	glBindTexture(GL_TEXTURE_2D, texture16);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 512, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, ptr16);
 	
@@ -76,30 +61,7 @@ void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
     size_t index = y * MAX_WIDTH + x;
 	
 	/* Write data as 16bit. */
-	/*ptr16[index] = (static_cast<uint16_t>(color));*/
-	
-	/* Write data as 8bit. */
-	/*ptr8[index * 2 + 0] = static_cast<uint8_t>((color));
-	ptr8[index * 2 + 1] = static_cast<uint8_t>((color) >> 8);*/
-	
-	/* Write data as 4bit. */
-	/*ptr4[index * 4 + 0] = static_cast<uint8_t>((color) >> 0)  & 0xF;
-	ptr4[index * 4 + 1] = static_cast<uint8_t>((color) >> 4)  & 0xF;
-	ptr4[index * 4 + 2] = static_cast<uint8_t>((color) >> 8)  & 0xF;
-	ptr4[index * 4 + 3] = static_cast<uint8_t>((color) >> 12) & 0xF;/*
-	
-	/* Write data as 16bit. */
 	ptr16[index] = (static_cast<uint16_t>(color));
-	
-	/* Write data as 8bit. */
-	/*ptr8[index * 2 + 0] = static_cast<uint8_t>(to15Bits(static_cast<uint16_t>(color)));
-	ptr8[index * 2 + 1] = static_cast<uint8_t>(to15Bits(static_cast<uint16_t>(color) >> 8));*/
-	
-	/* Write data as 4bit. */
-	/*ptr4[index * 4 + 0] = static_cast<uint8_t>(to15Bits(static_cast<uint16_t>(color))) & 0xF;
-	ptr4[index * 4 + 1] = static_cast<uint8_t>(to15Bits(static_cast<uint16_t>(color)) >> 4) & 0xF;
-	ptr4[index * 4 + 2] = static_cast<uint8_t>(to15Bits(static_cast<uint16_t>(color)) >> 8) & 0xF;
-	ptr4[index * 4 + 3] = static_cast<uint8_t>(to15Bits(static_cast<uint16_t>(color)) >> 12) & 0xF;*/
 }
 
 uint16_t Emulator::VRAM::getPixel(uint32_t x, uint32_t y) const {

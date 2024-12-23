@@ -41,6 +41,10 @@ std::vector<uint8_t> Sector::read(size_t size) {
 	return data;
 }
 
+void const* Sector::data() const {
+	return _buffer.data();
+}
+
 bool Sector::isEmpty() {
 	return _pointer >= _size;
 }

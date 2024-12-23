@@ -6,43 +6,6 @@
 
 #include "../IRQ.h"
 
-class Location {
-public:
-	Location() = default;
-	Location(uint8_t minutes, uint8_t seconds, uint8_t sectors)
-		: minutes(minutes),
-		  seconds(seconds),
-		  sectors(sectors) {
-		
-	}
-	
-	void setLocation(uint8_t minutes, uint8_t seconds, uint8_t sectors) {
-		this->minutes = minutes;
-		this->seconds = seconds;
-		this->sectors = sectors;
-		
-		location = sectors + (seconds * 75) + (minutes * 60 * 70);
-	}
-	
-	uint32_t toLba() const { return (minutes * 60 * 75) + (seconds * 75) + sectors; }
-	
-	static Location fromLBA(uint32_t lba) {
-		uint8_t mm = static_cast<int>(lba) / 60 / 75;
-		uint8_t ss = (static_cast<int>(lba) % (60 * 75)) / 75;
-		uint8_t ff = static_cast<int>(lba) % 75;
-		
-		return {mm, ss, ff};
-	}
-	
-public:
-	uint8_t minutes = 0;
-	uint8_t seconds = 0;
-	uint8_t sectors = 0;
-	
-public:
-	uint32_t location = 0;
-};
-
 class CDROM {
 	union Stats {
 		enum class Mode { None, Reading, Seeking, Playing };
@@ -107,6 +70,22 @@ class CDROM {
 		Mode(uint8_t reg) : _reg(reg) {}
 	};
 	
+	struct Interrupt {
+		uint8_t _interrupt;
+		std::queue<uint8_t> responses;
+		
+		int32_t delay;
+		bool ack = false;
+		
+		Interrupt() = default;
+		
+		Interrupt(uint8_t interrupt, uint32_t delay)
+			: _interrupt(interrupt),
+			  delay(delay) {
+			
+		}
+	};
+	
 public:
 	CDROM();
 	
@@ -122,18 +101,14 @@ public:
 	
 	uint8_t readByte();
 	
-	void triggerInterrupt() {
-		if((IE & IF) != 0) {
-			// Interrupt
-			IRQ::trigger(IRQ::Interrupt::CDROM);
-		}
-	}
-	
 public:
 	void swapDisk(const std::string& path);
 	
 	void decodeAndExecute(uint8_t command);
 	void decodeAndExecuteSub();
+
+private:
+	bool isEmpty();	
 	
 private:
 	// CDROM Commands
@@ -146,30 +121,56 @@ private:
 	void Init();
 	void SeekL();
 	void GetID();
-
+	void ReadS();
+	
 private:
 	// Interrupts
 	void INT2();
 	void INT3();
-
+	
+	void INT(uint8_t in, uint32_t delay = 50000) {
+		interrupts.emplace(in, delay);
+	}
+	
+	void addResponse(uint8_t response) {
+		if(interrupts.empty()) {
+			printf("");
+			return;
+		}
+		
+		if(interrupts.back().responses.size() >= 16) {
+			return;
+		}
+		
+		interrupts.back().responses.push(response);
+	}
+	
 private:
 	uint8_t getParamater();
 	
 private:
 	uint8_t _index = 0;
 	
-	uint8_t IE = 0;
-	uint8_t IF = 0;
+	uint16_t IE = 0;
+	//uint8_t IF = 0;
 	
 	int32_t busyFor = 0;
 	uint32_t cycles = 0;
 	
 private:
-	uint8_t seekLocation;
-	uint8_t readLocation;
+	/**
+	 * After copying a bunch of shit from Avocado because it's been weeks...
+	 * THIS WAS THE ISSUE. I am literally out of words... ;-;
+	 */
+	int seekLocation;
+	int readLocation;
 	
 	bool transmittingCommand = false;
 	bool diskPresent = false;
+	
+	bool isBufferEmpty = false;
+	
+	bool mute = false;
 	
 private:
 	Stats _stats;
@@ -179,11 +180,12 @@ private:
 	Disk _disk;
 	Sector _readSector;
 	Sector _sector;
-
+	
 private:
 	// TODO; Make size of 16
 	// Rename to parameters
 	std::queue<uint8_t> parameters;
-	std::queue<uint8_t> responses;
-	std::queue<uint8_t> interrupts;
+	
+	//std::queue<uint8_t> responses;
+	std::queue<Interrupt> interrupts;
 };

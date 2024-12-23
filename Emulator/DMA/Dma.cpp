@@ -1,11 +1,33 @@
 ﻿#include "Dma.h"
 
-#include <functional>
-
 #include "../Memory/IRQ.h"
 
 void Dma::step() {
+    for(int i = 0; i < 7; i++) {
+        Channel& channel = channels[i];
+        
+        if(channel.interruptPending) {
+            channel.interruptPending = false;
+            
+            auto prvIrq = irq();
+	        
+            auto en = channelIrqEn & (1 << (static_cast<size_t>(i)));
+	        
+            /**
+            * Was updating the wrong flag ;-;
+            */
+            channelIrqFlags |= en;
+	        
+            if(!prvIrq && irq()) {
+                interruptPending = true;
+            }
+        }
+    }
     
+    if(interruptPending) {
+        interruptPending = false;
+        IRQ::trigger(IRQ::Interrupt::Dma);
+    }
 }
 
 uint32_t Dma::interrupt() {
@@ -15,8 +37,8 @@ uint32_t Dma::interrupt() {
     r |= (static_cast<uint32_t>(forceIrq)) << 15;
     r |= (static_cast<uint32_t>(channelIrqEn)) << 16;
     r |= (static_cast<uint32_t>(irqEn)) << 23;
-    r |= (static_cast<uint32_t>(channelIraqFlags)) << 24;
-    r |= (static_cast<uint32_t>(irq())) << 31;
+    r |= (static_cast<uint32_t>(channelIrqFlags)) << 24;
+    r |= (static_cast<uint32_t>(irqFlag)) << 31;
     
     return r;
 }
@@ -24,8 +46,8 @@ uint32_t Dma::interrupt() {
 void Dma::setInterrupt(uint32_t val) {
     auto prevIrq = irq();
     
-    // Unknown what bts [5:0] do
-    irqDummy = static_cast<uint8_t>(val & 0x3F);
+    // Unknown what bts [14:0] do
+    irqDummy = static_cast<uint8_t>(val & 0x7FFF);
     
     forceIrq = ((val >> 15) & 1) != 0;
     
@@ -35,7 +57,9 @@ void Dma::setInterrupt(uint32_t val) {
     
     // Writing 1 to a flag rests it
     uint8_t ack = ((val >> 24) & 0x3F);
-    channelIraqFlags &= ~ack;
+    channelIrqFlags &= ~ack;
+    
+    irqFlag = irq();
     
     if(!prevIrq && irq()) {
         IRQ::trigger(IRQ::Interrupt::Dma);
@@ -43,7 +67,7 @@ void Dma::setInterrupt(uint32_t val) {
 }
 
 bool Dma::irq() {
-    auto channelIrq = this->channelIraqFlags & this->channelIrqEn;
+    auto channelIrq = this->channelIrqFlags & this->channelIrqEn;
     
     return forceIrq || (this->irqEn && (channelIrq != 0));
 }

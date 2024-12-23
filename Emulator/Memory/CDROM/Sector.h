@@ -5,7 +5,7 @@ class Sector {
 public:
 	Sector() = default;
 	
-	Sector(size_t size) : _pointer(0), _size(size) {
+	Sector(size_t size) : _pointer(0), _size(0) {
 		/**
 		 * Sector contains;
 		 * 12 bytes as a sync filed; Used for syncing to identify the beginning of the sector
@@ -20,7 +20,7 @@ public:
 		 * and 304 used for ECC or other.
 		 */
 		
-		_buffer.reserve(size);
+		//_buffer.reserve(size);
 	}
 	
 	void set(const std::vector<uint8_t>& data);
@@ -31,10 +31,11 @@ public:
 	
 	std::vector<uint8_t> read();
 	std::vector<uint8_t> read(size_t size);
+	void const* data() const;
 	
 	bool isEmpty();
 	void empty();
-	
+
 private:
 	size_t _size;
 	

@@ -34,19 +34,23 @@ public:
     uint8_t channelIrqEn = 0;
     
     // IRQ flags for individual channels
-    uint8_t channelIraqFlags = 0;
+    uint8_t channelIrqFlags = 0;
     
     // When set the interrupt is active unconditionally (even if 'irq_en' is false)
     bool forceIrq = false;
+    bool interruptPending = false;
     
     // Bits [0:5] of the interrupt registers are RW but I don't know,
     // what they're supposed to do so I just store them and send them,
     // back untouched on reads
-    uint8_t irqDummy = 0;
+    uint16_t irqDummy = 0;
+    
+    bool irqFlag = false;
     
     // Rest value taken from the Nocash PSX spec
     uint32_t control = 0;//0x07654321;
     
+private:
     // The 7 channel instances
     Channel channels[7];
 };

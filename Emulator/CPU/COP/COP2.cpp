@@ -1,8 +1,6 @@
 ﻿#include "COP2.h"
 
-#include <cstdio>
-#include <iostream>
-#include <stdexcept>
+//#include <iostream>
 
 // https://hitmen.c02.at/files/docs/psx/gte.txt
 
@@ -44,33 +42,43 @@ void COP2::decode(GTEInstruction instruction) {
 	 */
 	
 	switch(instruction.cmd) {
-	case 0x01: {
-		//   01h  RTPS   15  Perspective Transformation single
-		rtps();
-		
-		break;
-	}
-	case 0x06: {
-		// 06h  NCLIP  8   Normal clipping
-		
-		break;
-	}
-	case 0x13: {
-		// 13h  NCDS   19  Normal color depth cue single vector
-		
-		break;
-	}
-	case 0x30: {
-		// 30h  RTPT   23  Perspective Transformation triple
-		rtpt();
-		
-		break;
-	}
-	default:
-		printf("Unhandled GTE instruction %x\n", instruction.cmd);
-		std::cerr << "";
-		
-		break;
+		case 0x01: {
+			//   01h  RTPS   15  Perspective Transformation single
+			rtps();
+			
+			break;
+		}
+		case 0x06: {
+			// 06h  NCLIP  8   Normal clipping
+			
+			break;
+		}
+		case 0x12: {
+			// 12h  MVMVA  8   Multiply vector by matrix and add vector (see below)
+			
+			break;
+		}
+		case 0x13: {
+			// 13h  NCDS   19  Normal color depth cue single vector
+			
+			break;
+		}
+		case 0x30: {
+			// 30h  RTPT   23  Perspective Transformation triple
+			rtpt();
+			
+			break;
+		}
+		case 0x3F: {
+			// 3Fh  NCCT   39  Normal Color Color triple vector
+			
+			break;
+		}
+		default:
+			printf("Unhandled GTE instruction %x\n", instruction.cmd);
+			//std::cerr << "";
+			
+			break;
 	}
 }
 
@@ -262,8 +270,42 @@ void COP2::setData(uint32_t r, uint32_t val) {
 	else if(r == 6) {
 		RGBC = glm::vec4((val >> 24) & 0xFF, (val >> 16) & 0xFF,
 						 (val >> 8 ) & 0xFF, (val >> 0 ) & 0xFF);
-	} else if(r == 8) {
-		IR0 = static_cast<uint16_t>(val);
+	}
+	
+	else if(r == 8) {
+		IR0 = static_cast<int16_t>(val);
+	} else if(r == 9) {
+		IR1 = static_cast<int16_t>(val);
+	} else if(r == 10) {
+		IR2 = static_cast<int16_t>(val);
+	} else if(r == 11) {
+		IR3 = static_cast<int16_t>(val);
+	}
+	
+	// cop2r16-19 4xU16 SZ0,SZ1,SZ2,SZ3       Screen Z-coordinate FIFO   (4 stages)
+	else if(r == 16) {
+		SZ0 = static_cast<uint16_t>(val);
+	} else if(r == 17) {
+		SZ1 = static_cast<uint16_t>(val);
+	} else if(r == 18) {
+		SZ2 = static_cast<uint16_t>(val);
+	} else if(r == 19) {
+		SZ3 = static_cast<uint16_t>(val);
+	}
+	
+	else if(r == 29 || r == 30) {
+		LZCS = val;
+		
+		int zeros = 0;
+		if((val & 0x80000000) == 0)
+			val = ~val;
+		
+		while((val & 0x80000000) != 0) {
+			zeros++;
+			val <<= 1;
+		}
+		
+		LZCR = zeros;
 	}
 	
 	else {
@@ -272,16 +314,67 @@ void COP2::setData(uint32_t r, uint32_t val) {
 }
 
 uint32_t COP2::getData(uint32_t r) {
+	
+	auto toU32 = [this](glm::vec2& vec) {
+		uint16_t x = vec.x;
+		uint16_t y = vec.y;
+		
+		return static_cast<uint32_t>(x) | (static_cast<uint32_t>(y) << 16);
+	};
+	
+	// cop2r7     1xU16 OTZ                   Average Z value (for Ordering Table)
 	if(r == 7) {
-		// TODO; cop2r7     1xU16 OTZ                   Average Z value (for Ordering Table)
-	} else if(r == 8) {
+		return OTZ;
+	}
+	
+	// cop2r8     1xS16 IR0                   16bit Accumulator (Interpolate)
+	else if(r == 8) {
 		return IR0;
-	} else if(r >= 12 && r <= 15) {
-		// TODO; cop2r12-15 6xS16 SXY0,SXY1,SXY2,SXYP   Screen XY-coordinate FIFO  (3 stages)
-	} else if(r >= 20 && r <= 22) {
+	}
+	
+	// cop2r9-11  3xS16 IR1,IR2,IR3           16bit Accumulator (Vector)
+	else if(r == 9) {
+		return IR1;
+	} else if(r == 10) {
+		return IR2;
+	} else if(r == 11) {
+		return IR3;
+	}
+	
+	// cop2r12-15 6xS16 SXY0,SXY1,SXY2,SXYP   Screen XY-coordinate FIFO  (3 stages)
+	else if(r == 12) {
+		return toU32(SXY0);
+	} else if(r == 13) {
+		return toU32(SXY1);
+	} else if(r == 14) {
+		return toU32(SXY2);
+	} else if(r == 15) {
+		return toU32(SXY3);
+	}
+	
+	else if(r >= 20 && r <= 22) {
 		// TODO; cop2r20-22 12xU8 RGB0,RGB1,RGB2        Color CRGB-code/color FIFO (3 stages)
-	} else if(r == 24) {
-		// TODO; cop2r24    1xS32 MAC0                  32bit Maths Accumulators (Value)
+	}
+	
+	// cop2r24    1xS32 MAC0                  32bit Maths Accumulators (Value)
+	else if(r == 24) {
+		return MAC0;
+	}
+	
+	// cop2r25-27 3xS32 MAC1,MAC2,MAC3        32bit Maths Accumulators (Vector)
+	else if(r == 25) {
+		return MAC1;
+	} else if(r == 25) {
+		return MAC1;
+	} else if(r == 26) {
+		return MAC2;
+	}
+	
+	// cop2r30-31 2xS32 LZCS,LZCR             Count Leading-Zeroes/Ones (sign bits)
+	else if(r == 30) {
+		return LZCS;
+	} else if(r == 31) {
+		return LZCR;
 	} else {
 		printf("");
 	}
@@ -290,8 +383,8 @@ uint32_t COP2::getData(uint32_t r) {
 }
 
 void COP2::setReg(uint32_t r, uint32_t val) {
-	if(r >= 32)
-		throw std::runtime_error("???");
+	//if(r >= 32)
+		//throw std::runtime_error("???");
 	
 	gte[r] = val;
 }

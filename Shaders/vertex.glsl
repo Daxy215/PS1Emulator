@@ -6,26 +6,33 @@ in vec4 texCoords;
 
 // Idk how to pass structs?
 // Not really good with GLSL
-in uvec3 attributes;
+in int attributes;
 
 out vec3 color;
 out vec4 UVs;
 
 // Not sure how to forward data,
 // to the Fragment shader right away..
-flat out uvec3 attr;
+//flat out uvec3 attr;
+flat out int attr;
 //flat out uint textureAttr[4];
 
 uniform ivec2 offset;
 uniform ivec2 drawingArea;
 
+const int TEXTURE_MODE_MASK = 0x1C;
+const int TEXTURE_MODE_SHIFT = 2;
+
 void main() {
-    // Apply the offset
-    vec2 position = vertexPosition + offset;
+    vec2 position = vertexPosition;
     ivec2 area = drawingArea;
     
     // For testing
-    if(attributes.z == uint(6)) {
+    /*uint isSemiTransparent = attributes & IS_SEMITRANSPARENT_MASK;
+    uint blendTexture = (attributes & BLEND_TEXTURE_MASK) >> 1;*/
+    int textureMode = (int(attributes) & TEXTURE_MODE_MASK) >> TEXTURE_MODE_SHIFT;
+    
+    if(textureMode == 3) {
         area = ivec2(uint(1024), uint(512));
     }
     

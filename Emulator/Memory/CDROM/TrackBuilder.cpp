@@ -22,23 +22,26 @@ std::vector<Track> TrackBuilder::parseFile(const std::string& filePath) {
 }
 
 std::vector<Track> TrackBuilder::parseCueFile(const std::string& path) {
+	std::filesystem::path filePath = path;
+	
 	std::ifstream cueFile(path);
-    std::vector<Track> tracks;
+    std::vector<Track> tracks;  // NOLINT(clang-diagnostic-shadow)
     
     std::string line;
     while (std::getline(cueFile, line)) {
         if (line.find("FILE") == 0) {
             size_t pos = line.find('"');
-            size_t endPos = line.rfind('"', pos + 1);
+            size_t endPos = line.find('"', pos + 1);
 			
         	// TODO; This is wrong
             std::string fileName = line.substr(pos + 1, endPos - pos - 1);
 			
         	// TODO; im too lazy to deal with this
-        	auto path = "ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).bin";
-            
+        	//auto path = "ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).bin";
+			auto fullPath = filePath.parent_path() / fileName;
+        	
             // Read .BIN file
-            std::ifstream binFile(path, std::ios::binary | std::ios::ate);
+            std::ifstream binFile(fullPath, std::ios::binary | std::ios::ate);
         	
             if (!binFile.is_open())
             	throw std::runtime_error("Failed to open BIN file");
@@ -52,11 +55,15 @@ std::vector<Track> TrackBuilder::parseCueFile(const std::string& path) {
 				
             	// "  TRACK 01 MODE2/2352"
                 size_t spacePos = line.find("MODE");
+				
+            	// TODO; im too lazy to handle mulitple tracks
+            	if (spacePos == std::string::npos) {
+            		continue;
+            	}
             	
                 Track track;
-            	// TODO; im too lazy
-            	track.filePath = path;
             	
+            	track.filePath = fullPath.string();
                 track.type = line.substr(0, spacePos);
                 track.mode = line.substr(spacePos, 5);
             	
@@ -68,11 +75,8 @@ std::vector<Track> TrackBuilder::parseCueFile(const std::string& path) {
                 tracks.push_back(track);
             }
             
-            //std::vector<std::vector<uint8_t>> sectors;
-			
         	// MODE2/2352 for crash
-        	// TODO; hardcoded for now
-            
+        	
             uint32_t currentSector = 0;
             for (auto& track : tracks) {
 				uint32_t sectorSize = track.modeType;

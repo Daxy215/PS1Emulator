@@ -1,16 +1,22 @@
 ﻿#pragma once
+
 #include <string>
 #include <vector>
+
+#include "Location.h"
 
 struct Track {
 	std::string filePath;
 	std::string type;
-	uint32_t trackIndex;
+	
+	uint32_t trackIndex = 0;
 	
 	std::string mode;
 	uint32_t modeType;
 	
 	uint32_t sectorCount;
+	
+	Location pregap;
 	
 	// TODO; Handle index
 	//uint32_t start;

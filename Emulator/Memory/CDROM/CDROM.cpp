@@ -1,6 +1,7 @@
 ﻿#include "CDROM.h"
 
 #include <array>
+#include <cassert>
 #include <iostream>
 
 /**
@@ -10,18 +11,29 @@
  * then there are cases where another INT5 occurs as 3rd response
  * (eg. on SetSession=02h on non-multisession-disk).
  */
-
 CDROM::CDROM() : _readSector(Sector::RAW_BUFFER), _sector(Sector::RAW_BUFFER) {
 	
 }
 
 void CDROM::step(uint32_t cycles) {
-	if(!interrupts.empty() && IF == 0) {
+	/*if(!interrupts.empty() && IF == 0) {
 		IF |= interrupts.front();
 		interrupts.pop();
+	}*/
+	
+	if(!interrupts.empty()) {
+		interrupts.front().delay -= cycles;
+		
+		if(interrupts.front().delay <= 0) {
+			transmittingCommand = false;
+			
+			if((IE & 7) & (interrupts.front()._interrupt & 7)) {
+				IRQ::trigger(IRQ::Interrupt::CDROM);
+			}
+		}
 	}
 	
-	triggerInterrupt();
+	//triggerInterrupt();
 	
 	/**
 	 * 1. Command busy flag set immediately.
@@ -53,13 +65,34 @@ void CDROM::handleSector() {
 	if(!_stats.read && !_stats.play)
 		return;
 	
+	const std::array<uint8_t, 12> sync = {{0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00}};
+	
 	Location pos = Location::fromLBA(readLocation);
 	_readSector.set(_disk.read(pos));
 	
 	readLocation++;
 	
-	interrupts.push(1);
-	responses.push(_stats._reg);
+	INT(1, 0);
+	addResponse(_stats._reg);
+	
+	if (memcmp(_readSector.data(), sync.data(), sync.size()) != 0) {
+		assert(false);
+		return;
+	}
+	
+	// uint8_t minute = rawSector[12];
+	// uint8_t second = rawSector[13];
+	// uint8_t frame = rawSector[14];
+	uint8_t mode = _readSector.loadAt(15);
+	
+	uint8_t file = _readSector.loadAt(16);
+	uint8_t channel = _readSector.loadAt(17);
+	//auto submode = static_cast<cd::Submode>(_readSector.loadAt(18));
+	//auto codinginfo = static_cast<cd::Codinginfo>(_readSector.loadAt(19));
+	
+	assert(mode == 2);
+	
+	
 }
 
 template <>
@@ -70,30 +103,31 @@ uint32_t CDROM::load<uint32_t>(uint32_t addr) {
 	if(addr == 0) {
 		uint32_t stat = 0;
 		
-		//7 BUSYSTS Command/parameter transmission busy  (1=Busy)
-		stat |= (transmittingCommand ? 1 : 0) << 7;
-		
-		// 6 DRQSTS  Data fifo empty      (0=Empty) ;triggered after reading LAST byte
-		stat |= (_sector.isEmpty()) << 6;
-		
-		// 5 RSLRRDY Response fifo empty  (0=Empty) ;triggered after reading LAST byte
-		stat |= (responses.empty() ? 0 : 1) << 5;
-		
-		// 4 PRMWRDY Parameter fifo full  (0=Full)  ;triggered after writing 16 bytes	
-		stat |= (parameters.size() >= 16 ? 0 : 1) << 4;
-		
-		// 3 PRMEMPT Parameter fifo empty (1=Empty) ;triggered before writing 1st byte
-		stat |= (parameters.empty() ? 1 : 0) << 3;
+		// 0-1 Index   Port 1F801801h-1F801803h index (0..3 = Index0..Index3)   (R/W)
+		stat |= (_index) << 0;
 		
 		// 2 ADPBUSY XA-ADPCM fifo empty  (0=Empty) ;set when playing XA-ADPCM sound
 		stat |= 0 << 2;
 		
-		// 0-1 Index   Port 1F801801h-1F801803h index (0..3 = Index0..Index3)   (R/W)
-		stat |= (_index) << 0;
+		// 3 PRMEMPT Parameter fifo empty (1=Empty) ;triggered before writing 1st byte
+		stat |= (parameters.empty() ? 1 : 0) << 3;
+		
+		// 4 PRMWRDY Parameter fifo full  (0=Full)  ;triggered after writing 16 bytes	
+		stat |= (parameters.size() >= 16 ? 0 : 1) << 4;
+		
+		// 5 RSLRRDY Response fifo empty  (0=Empty) ;triggered after reading LAST byte
+		bool responseFifo = ((interrupts.empty() || interrupts.front().responses.empty()));
+		stat |= (!responseFifo) << 5;
+		
+		// 6 DRQSTS  Data fifo empty      (0=Empty) ;triggered after reading LAST byte
+		stat |= (isBufferEmpty) << 6;
+		
+		//7 BUSYSTS Command/parameter transmission busy  (1=Busy)
+		stat |= (transmittingCommand ? 1 : 0) << 7;
 		
 		return stat;
 	} else if(addr == 1) {
-		if(responses.size() <= 0) {
+		/*if(responses.size() <= 0) {
 			printf("");
 			return 0;
 		}
@@ -101,18 +135,48 @@ uint32_t CDROM::load<uint32_t>(uint32_t addr) {
 		auto response = responses.front();
 		responses.pop();
 		
+		return response;*/
+		
+		uint8_t response = 0;
+		
+		if(!interrupts.empty()) {
+			auto& in = interrupts.front();
+			
+			if(!in.responses.empty()) {
+				response = in.responses.front();
+				in.responses.pop();
+				
+				if(in.responses.empty() && in.ack == true) {
+					interrupts.pop();
+				}
+			}
+		}
+		
 		return response;
 	} else if(addr == 2) {
 		return readByte();
 	} else if(addr == 3) {
 		switch (_index) {
-		case 0: return IE | 0xE0;
+		/*case 0: return IE | 0xE0;
 		case 1: return IF | 0xE0;
 		case 2: return IE; // Mirrored
 		case 3: return IF; // Mirrored
 		default:
 			printf("");
-			break;
+			break;*/
+			case 0:
+			case 2:
+				return IE;
+			case 1:
+			case 3: {
+				uint8_t res = 0b11100000;
+				
+				if(!interrupts.empty() && interrupts.front().delay <= 0) {
+					res |= interrupts.front()._interrupt & 7;
+				}
+				
+				return res;
+			}
 		}
 		
 		return 0;
@@ -136,7 +200,7 @@ void CDROM::store<uint32_t>(uint32_t addr, uint32_t val) {
 		switch (_index) {
 			case 0: {
 				// Command register
-				decodeAndExecute(val);
+				decodeAndExecute(val & 0xFF);
 				
 				break;
 			}
@@ -147,14 +211,13 @@ void CDROM::store<uint32_t>(uint32_t addr, uint32_t val) {
 	} else if(addr == 2) {
 		switch (_index) {
 			case 0: {
-				parameters.push(val);
+				parameters.push(val & 0xFF);
 				
 				break;
 			}
 			
 			case 1: {
-				IE = val & 0x1F;
-				triggerInterrupt();
+				IE = val & 0xFF;
 				
 				break;
 			}
@@ -176,20 +239,30 @@ void CDROM::store<uint32_t>(uint32_t addr, uint32_t val) {
 				//7   BFRD Want Data(0 = No / Reset Data Fifo, 1 = Yes / Load Data Fifo)
 				if(val & 0x80) {
 					// Load fifo
-					if(_sector.isEmpty()) {
+					if(isEmpty()) {
 						_sector.set(_readSector.read());
+						isBufferEmpty = true;
 					}
 				} else {
 					_sector.empty();
+					 isBufferEmpty = false;
 				}
 				
 				break;
 			}
 			
 			case 1: {
-				IF &= ~(val & 0x1F);
+				//IF &= ~(val & 0x1F);
 				//IF = val & 0x1F;
-				triggerInterrupt();
+				//triggerInterrupt();
+				
+				if (!interrupts.empty()) {
+					interrupts.front().ack = true;
+					
+					if (interrupts.front().responses.empty()) {
+						interrupts.pop();
+					}
+				}
 				
 				if((val & 0x40)) {
 					while(!parameters.empty())
@@ -231,6 +304,10 @@ uint8_t CDROM::readByte() {
 	}
 	
 	uint8_t data = _sector.loadAt(dataStart + _sector._pointer++);
+	
+	if(isEmpty()) {
+		isBufferEmpty = false;
+	}
 	
 	return data;
 }
@@ -275,13 +352,43 @@ void CDROM::decodeAndExecute(uint8_t command) {
 	} else if(command == 0x1A) {
 		// GetID - Command 1Ah --> INT3(stat) --> INT2/5 (stat,flags,type,atip,"SCEx")
 		GetID();
+	} else if(command == 0x1B) {
+		// ReadS - Command 1Bh --> INT3(stat) --> INT1(stat) --> datablock
+		ReadS();
 	} else {
-		INT3();
+		if(command == 0x11) {
+			INT(3, 1000);
+			addResponse(0); // track
+			addResponse(1); // index
+			addResponse(0); // minute (track)
+			addResponse(0); // second (track)
+			addResponse(0); // sector (track)
+			addResponse(0); // minute (disc)
+			addResponse(0); // second (disc)
+			addResponse(0); // sector (disc)
+			
+			assert(false);
+			
+			return;
+		} else if(command == 0x13) {
+			auto toBcd = [](uint8_t b) -> uint8_t {
+				return ((b / 10) << 4) | (b % 10); 
+			};
+			
+			INT3();
+			addResponse(toBcd(0x01));
+			addResponse(toBcd(_disk.tracks.size()));
+			
+			return;
+		}
 		
-		{
+		INT3();
+		if(command != 0x0C && command != 0x0B && command != 0x03) {
 			// ReadTOC - Command 1Eh --> INT3(stat) --> INT2(stat)
 			// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
 			// Pause - Command 09h --> INT3(stat) --> INT2(stat)
+			// Demute - Command 0Ch --> INT3(stat)
+			// Mute - Command 0Bh --> INT3(stat)
 			
 			printf("");
 		}
@@ -315,22 +422,33 @@ void CDROM::decodeAndExecuteSub() {
 	if(command == 0x20) {
 		//   20h      -   INT3(yy,mm,dd,ver) ;Get cdrom BIOS date/version (yy,mm,dd,ver)
 		
-		interrupts.push(3);
+		//interrupts.push(3);
+		INT(3);
 		
 		// 95h,05h,16h,C1h  ;PSX (LATE-PU-8)          16 May 1995, version vC1 (a)
-		responses.push(0x94);
-		responses.push(0x09);
-		responses.push(0x19);
-		responses.push(0xC0);
+		//responses.push(0x94);
+		//responses.push(0x09);
+		//responses.push(0x19);
+		//responses.push(0xC0);
+		addResponse(0x94);
+		addResponse(0x09);
+		addResponse(0x19);
+		addResponse(0xC0);
 	} else {
 		printf("");
 	}
 }
 
-void CDROM::GetStat() {
-	// INT3 - First response: Acknowledge the command
-	interrupts.push(3);
+bool CDROM::isEmpty() {
+	if(_sector.isEmpty()) return true;
 	
+	if(!mode.sectorSize && _sector._pointer >= 0x800) return true;
+	if(mode.sectorSize && _sector._pointer >= 0x924) return true;
+	
+	return false;
+}
+
+void CDROM::GetStat() {
 	/**
 	 * 7  Play          Playing CD-DA         ;\only ONE of these bits can be set
 	 * 6  Seek          Seeking               ; at a time (ie. Read/Play won't get
@@ -342,10 +460,12 @@ void CDROM::GetStat() {
 	 * 0  Error         Invalid Command/parameters (followed by Error Byte)
 	 */
 	
-	_stats.shellOpen = 0;
-	_stats.motor = 1;
+	//_stats.shellOpen = 0;
+	//_stats.motor = 1;
 	
-	responses.push(_stats._reg);
+	INT(3);
+	addResponse(_stats._reg);
+	//responses.push(_stats._reg);
 }
 
 void CDROM::SetLoc() {
@@ -379,23 +499,24 @@ void CDROM::SetLoc() {
 	 * when the disk is missing, or when the drive unit is disconnected from the mainboard.
 	 */
 	if(!diskPresent) {
-		interrupts.push(5);
-		responses.push(0x11);
-		responses.push(0x80);
+		INT(5);
+		addResponse(0x11);
+		addResponse(0x80);
 		
 		return;
 	}
 	
-	INT3();
+	INT(3, 5000);
+	addResponse(_stats._reg);
 }
 
 void CDROM::ReadN() {
 	// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
 	
 	if(!diskPresent) {
-		interrupts.push(5);
-		responses.push(0x11);
-		responses.push(0x80);
+		INT(5);
+		addResponse(0x11);
+		addResponse(0x80);
 		
 		return;
 	}
@@ -403,7 +524,8 @@ void CDROM::ReadN() {
 	readLocation = seekLocation;
 	_stats.setMode(Stats::Mode::Reading);
 	
-	INT3();
+	INT(3, 1000);
+	addResponse(_stats._reg);
 }
 
 void CDROM::Stop() {
@@ -426,14 +548,11 @@ void CDROM::Pause() {
 	_stats.setMode(Stats::Mode::None);
 	// TODO; Pause audio?
 	
-	interrupts.push(2);
-	responses.push(_stats._reg);
+	INT2();
 }
 
 void CDROM::SetMode() {
 	// Setmode - Command 0Eh,mode --> INT3(stat)
-	INT3();
-	
 	/**
 	 * 7   Speed       (0=Normal speed, 1=Double speed)
      * 6   XA-ADPCM    (0=Off, 1=Send XA-ADPCM sectors to SPU Audio Input)
@@ -447,18 +566,21 @@ void CDROM::SetMode() {
 	auto parm = getParamater();
 	
 	mode = Mode(parm);
+	
+	INT(3, 2000);
+	addResponse(_stats._reg);
 }
 
 void CDROM::Init() {
 	// Init - Command 0Ah --> INT3(stat) --> INT2(stat)
-	INT3();
+	INT(3, 0x13CE);
+	addResponse(_stats._reg);
 	
 	_stats.setMode(Stats::Mode::None);
 	
 	mode._reg = 0;
 	
-	interrupts.push(2);
-	responses.push(_stats._reg);
+	INT2();
 }
 
 void CDROM::SeekL() {
@@ -480,18 +602,19 @@ void CDROM::SeekL() {
 	 * when the disk is missing, or when the drive unit is disconnected from the mainboard.
 	 */
 	if(!diskPresent) {
-		interrupts.push(5);
-		responses.push(0x11);
-		responses.push(0x80);
+		INT(5);
+		addResponse(0x11);
+		addResponse(0x80);
 		
 		return;
 	}
 	
-	INT3();
+	INT(3, 5000);
+	addResponse(_stats._reg);
 	
 	// TODO; This gets pushed once seek is completed
-	responses.push(_stats._reg);
-	interrupts.push(2);
+	INT(2, 500000);
+	addResponse(_stats._reg);
 	
 	_stats.setMode(Stats::Mode::None);
 }
@@ -515,9 +638,9 @@ void CDROM::GetID() {
 	*/
 	
 	if (_stats.getShell()) {
-		interrupts.push(5);
-		responses.push(0x11);
-		responses.push(0x80);
+		INT(5);
+		addResponse(0x11);
+		addResponse(0x80);
 		
 		return;
 	}
@@ -526,30 +649,42 @@ void CDROM::GetID() {
 	INT3();
 	
 	if (diskPresent) {
-		interrupts.push(2);
+		INT(2);
 	} else {
-		interrupts.push(5);
+		INT(5);
+		// TODO;
 	}
 	
-	responses.push(0x02); // Stat
-	responses.push(0x00); // Flags
-	responses.push(0x20); // Type
-	responses.push(0x00); // Atip (Always zero)
+	// Licensed:Mode2         INT3(stat)     INT2(02h,00h, 20h,00h, 53h,43h,45h,4xh)
+	addResponse(0x02); // Stat
+	addResponse(0x00); // Flags
+	addResponse(0x20); // Type
+	addResponse(0x00); // Atip (Always zero)
 	
-	responses.push('M');
-	responses.push('9');
-	responses.push('Z');
-	responses.push('B');
+	addResponse('S');
+	addResponse('C');
+	addResponse('E');
+	addResponse('E');
+}
+
+void CDROM::ReadS() {
+	readLocation = seekLocation;
+	
+	// TODO; Clear audio?
+	_stats.setMode(Stats::Mode::Reading);
+	
+	INT(3, 500);
+	addResponse(_stats._reg);
 }
 
 void CDROM::INT2() {
-	interrupts.push(2);
-	responses.push(_stats._reg);	
+	INT(2);
+	addResponse(_stats._reg);
 }
 
 void CDROM::INT3() {
-	interrupts.push(3);
-	responses.push(_stats._reg);
+	INT(3);
+	addResponse(_stats._reg);
 }
 
 uint8_t CDROM::getParamater() {

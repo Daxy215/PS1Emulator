@@ -109,21 +109,10 @@ std::optional<uint32_t> Channel::transferSize() {
 	throw std::runtime_error("Unknown DMA sync mode; " + std::to_string(sync));
 }
 
-void Channel::done(Dma dma, Port port) {
+void Channel::done(Dma& dma, Port port) {
 	enable = false;
 	trigger = false;
 	
-	auto prvIrq = dma.irq();
-	
-	auto en = dma.channelIrqEn & (1 << (static_cast<size_t>(port)));
-	
-	/**
-	 * Was updating the wrong flag ;-;
-	 */
-	dma.channelIraqFlags |= en;
-	
-	if(!prvIrq && dma.irq()) {
-		IRQ::trigger(IRQ::Interrupt::Dma);
-	}
+	interruptPending = true;
 }
 

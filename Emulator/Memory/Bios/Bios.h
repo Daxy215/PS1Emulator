@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <fstream>
+#include <unordered_map>
 #include <vector>
 
 class Bios {
@@ -9,32 +10,25 @@ public:
     
     template<typename T>
     T load(size_t offset) {
-        /*uint32_t value = 0;
+        auto it = cache.find(offset);
+        if (it != cache.end()) return it->second;
         
-        for(uint32_t i = 0; i < sizeof(T); i++) {
-            value |= static_cast<uint32_t>(data[offset + i]) << (i * 8);
-        }
-        
-        return value;*/
-        //return static_cast<T>(value);
-        
-        const uint8_t* ptr = data.data() + offset;
+        const uint8_t* data = ptr + offset;
         T v;
-        std::memcpy(&v, ptr, sizeof(T));
+        std::memcpy(&v, data, sizeof(T));
         
+        cache[offset] = v;
         return v;
     }
-    
-    //uint32_t getLittleEndian(std::ifstream& file);
-    
-    /*uint32_t load32(size_t offset);
-    uint8_t load8(size_t offset);*/
     
 public:
     // The SCPH-1001 bios is exactly 512 kbs. 
     static constexpr uint64_t BIOS_SIZE = 512 * 1024; // 512 kbs
     
-public:
+private:
+    uint8_t* ptr;
+    
     std::vector<uint8_t> data;
+    std::unordered_map<size_t, uint32_t> cache;
     
 };

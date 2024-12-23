@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include <stdint.h>
-#include <vector>
 
 // https://www.reddit.com/r/EmuDev/comments/fmhtcn/article_the_ps1_gpu_texture_pipeline_and_how_to/
 
@@ -15,7 +14,7 @@ namespace Emulator {
         void endTransfer();
         
         // Pixel stuff...
-        void drawPixel(uint32_t pixel);
+        //void drawPixel(uint32_t pixel);
         
         void writePixel(uint32_t x, uint32_t y, uint16_t pixel);
         void setPixel(uint32_t x, uint32_t y, uint32_t color);
@@ -38,11 +37,8 @@ namespace Emulator {
         
     public:
         // Maybe move this to a struct?
-        uint32_t pbo4, pbo8, pbo16;
-        unsigned int texture4, texture8, texture16;
+        unsigned int texture16;
         
-        uint8_t* ptr4;
-        uint8_t* ptr8;
         uint16_t* ptr16;
     };
 }

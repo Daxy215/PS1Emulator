@@ -40,8 +40,8 @@ Bios::Bios(const std::string& path)  {
     };
     
     // Enable TTY
-    write(0x6F0C, 0x24010001);
-    write(0x6F14, 0xAF81A9C0);
+    //write(0x6F0C, 0x24010001);
+    //write(0x6F14, 0xAF81A9C0);
     
     //data.insert(data.end(), std::istreambuf_iterator<char>(file), {});
     
@@ -55,6 +55,8 @@ Bios::Bios(const std::string& path)  {
         std::swap(data[i], data[i + 3]);
         std::swap(data[i + 1], data[i + 2]);
     }*/
+    
+    ptr = data.data();
     
     if (data.size() != BIOS_SIZE) {
         throw std::runtime_error("Invalid BIOS size");

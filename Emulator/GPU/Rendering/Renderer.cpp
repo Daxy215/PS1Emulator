@@ -9,143 +9,155 @@
 #include "../Gpu.h"
 
 //#define Test
+// Ik I shouldn't do this but im lazy
+#define WIDTH  1024
+#define HEIGHT 512
 
 GLuint Emulator::Renderer::program = 0;
 
-Emulator::Renderer::Renderer() {
-    if (!glfwInit()) {
+Emulator::Renderer::Renderer(Emulator::Gpu* gpu) : gpu(gpu), _rasterizer(*gpu) {
+    if(!glfwInit()) {
         std::cerr << "GLFW could not initialize: " << glewGetErrorString(0) << " \n";
         return;
     }
-    
+
     // Set all the required options for GLFW
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Necessary on macOS
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-    
-    window = glfwCreateWindow(1024, 512, "PSX", nullptr, nullptr);
-    
-    if (window == nullptr) {
+
+    //glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
+
+    window = glfwCreateWindow(WIDTH, HEIGHT, "PSX", nullptr, nullptr);
+
+    if(window == nullptr) {
         glfwTerminate();
         return;
     }
-    
+
     glfwMakeContextCurrent(window);
-    
+
     /*if (GL_ARB_debug_output) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // Ensures errors are raised as soon as they occur
         glDebugMessageCallback(openglDebugCallback, nullptr);
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     }*/
-    
+
     //glewExperimental = GL_TRUE;
     GLenum err = glewInit();
-    
-    if (err != GLEW_OK) {
+
+    if(err != GLEW_OK) {
         std::cerr << "Error: " << glewGetErrorString(err) << '\n';
         glfwTerminate();
         return;
     }
-    
+
     // Load and bind shaders
-    std::string vertexSource   = getShaderSource("Shaders/vertex.glsl");
+    std::string vertexSource = getShaderSource("Shaders/vertex.glsl");
     std::string fragmentSource = getShaderSource("Shaders/fragment.glsl");
-    
+
     vertexShader = compileShader(vertexSource.c_str(), GL_VERTEX_SHADER);
     fragmentShader = compileShader(fragmentSource.c_str(), GL_FRAGMENT_SHADER);
-    
+
     program = linkProgram(vertexShader, fragmentShader);
     glUseProgram(program);
-    
+
     // Generate buffers & arrays
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
-    
+
     // Position buffer
     positions.create();
-    
+
     GLuint index = getProgramAttrib(program, "vertexPosition");
-    
+
     // Enable the attrib
     glEnableVertexAttribArray(index);
-    
+
     // Link the buffer and the given index.
     glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Gpu::Position), nullptr);
-    
+
     // Color buffer
     colors.create();
-    
+
     index = getProgramAttrib(program, "vertexColor");
-    
+
     // Enable the attrib
     glEnableVertexAttribArray(index);
-    
+
     // Link the buffer and the given index.
     glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
-    
+
     // UV Buffer
     uvs.create();
-    
+
     index = getProgramAttrib(program, "texCoords");
-    
+
     // Enable the attributes in the shader
     glEnableVertexAttribArray(index);
-    
+
     // Link the buffer and the given index.
     glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, sizeof(Gpu::UV), nullptr);
-    
+
     // Attributes buffer
     attributes.create();
-    
+
     index = getProgramAttrib(program, "attributes");
-    
+
     // Enable the attributes in the shader
     glEnableVertexAttribArray(index);
-    
+
     // Link the attributes to the buffer with offsets
     // Needs to be split up
-    glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
-    
+    glVertexAttribIPointer(index, 1, GL_INT, 0, nullptr);
+
     // Uniforms
     offsetUni = glGetUniformLocation(program, "offset");
     setDrawingOffset(0, 0);
-    
+
     drawingUni = glGetUniformLocation(program, "drawingArea");
     glUniform2i(drawingUni, 1024, 512);
-    
-    textureDepthUni = glGetUniformLocation(program, "texture_depth");
-    glUniform1i(textureDepthUni, 0);
-    
+
+    /*textureDepthUni = glGetUniformLocation(program, "texture_depth");
+    glUniform1i(textureDepthUni, 0);*/
+
+    textureWindowUni = glGetUniformLocation(program, "textureWindow");
+    setTextureWindow(0, 0, 0, 0);
+
     glDisable(GL_BLEND);
-    
-    // This does fix a weird texture issue,
-    // but also the "sony" part in the VRAM becomes non-existent
+
+    // TODO; Enabling this does mess up textures a bit
     //glEnable(GL_BLEND);
     //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
+
+    //glfwSwapInterval(1);
+
+    // Create frame buffers
+    mainFramebuffer = createFrameBuffer(1024, 512, mainTexture);
+    offscreenFramebuffer = createFrameBuffer(1024, 512, offscreenTexture);
+
     GLenum ersr = glGetError();
-    if (ersr!= GL_NO_ERROR) {
+    if(ersr != GL_NO_ERROR) {
         std::cerr << "OpenGLSS Error con: " << ersr << '\n';
     }
 }
 
 void Emulator::Renderer::display() {
-#ifdef Test
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-#endif
-    
     draw();
+}
+
+void Emulator::Renderer::draw() {
+    if(nVertices == 0)
+        return;
     
-    glfwSwapBuffers(window);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    GLenum ersr = glGetError();
-    if (ersr!= GL_NO_ERROR) {
-        std::cerr << "OpenGL Error con: " << std::to_string(ersr) << '\n';
-    }
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
+    
+    //nVertices = 0;
 }
 
 void Emulator::Renderer::displayVRam() {
@@ -177,40 +189,17 @@ void Emulator::Renderer::displayVRam() {
     glGetUniformiv(program, drawingUni, value);
     
     setDrawingArea(0, 0);*/
-    pushQuad(positions, colors, uvs, {0, 1, 6});
+    pushQuad(positions, colors, uvs, { 0, 1, Emulator::Gpu::TextureMode::TestVRAM });
     display();
     
     //setDrawingArea(value[0], value[1]);
 }
 
-void Emulator::Renderer::draw() {
-    // Make sure all the data is flushed to the buffer
-    //glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+void Emulator::Renderer::clear() {
+    glfwSwapBuffers(window);
     
-    //glUseProgram(program);
-    //glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
-    
-    // Wait for GPU to complete
-    /*auto sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-         
-         while(true) {
-             GLenum err = glGetError();
-             if(err != GL_NO_ERROR && err != GL_INVALID_OPERATION) {
-                 std::cerr << "OpenGL Error: " << err << '\n';
-             }
-             
-             auto r = glClientWaitSync(sync, GL_SYNC_FLUSH_COMMANDS_BIT, 10000000);
-             
-             if(r == GL_ALREADY_SIGNALED || r == GL_CONDITION_SATISFIED)
-                 // Drawing done
-                 break;
-         }*/
-    
-#ifdef Test
-    // Reset the buffers
     nVertices = 0;
-#endif
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void Emulator::Renderer::pushLine(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
@@ -223,8 +212,10 @@ void Emulator::Renderer::pushTriangle(Emulator::Gpu::Position* positions, Emulat
         // Reset the buffer size
         nVertices = 0;
         
-        display();
+        //display();
     }
+    
+    //_rasterizer.drawTriangle(positions, colors, uvs, attributes);
     
     for(int i = 0; i < 3; i++) {
         this->positions.set(nVertices, positions[i]);
@@ -240,7 +231,7 @@ void Emulator::Renderer::pushQuad(Emulator::Gpu::Position* positions, Emulator::
         // Reset the buffer size
         nVertices = 0;
         
-        display();
+        //display();
     }
     
     // First triangle
@@ -281,6 +272,8 @@ void Emulator::Renderer::pushQuad(Emulator::Gpu::Position* positions, Emulator::
     if(attributes.useTextures()) this->uvs.set(nVertices, uvs[1]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
+    
+   //_rasterizer.drawQuad(positions, colors, uvs, attributes);
 }
 
 void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Gpu::Attributes attributes) {
@@ -301,7 +294,7 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position* positions, Emula
         // Reset the buffer size
         nVertices = 0;
         
-        display();
+        //display();
     }
     
     // First triangle
@@ -346,18 +339,35 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position* positions, Emula
 }
 
 void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
+    /**
+     * Because my renderer is still...
+     * isn't completed I need to manually do this,
+     * for every game as otherwise, it causes,
+     * the entire screen to constantly flicker
+     */
+    
     glUniform2i(offsetUni, x, y);
+    //lUniform2i(offsetUni, 0, 256);
+    //glUniform2i(offsetUni, 0, 0); // GEX
+    //glUniform2i(offsetUni, 120, 160); // Pepsi man
+    //glUniform2i(offsetUni, 0, 0); // Ridge Racer
+    //glUniform2i(offsetUni, 256, 128); // Crash Bandicoot
 }
 
 void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
     // 839, 479
     //glUniform2i(drawingUni, 640, 480);
+    //glUniform2i(drawingUni, 512, 255);
     glUniform2i(drawingUni, right, bottom);
 }
 
-void Emulator::Renderer::setTextureDepth(int textureDepth) {
-    //glUniform1ui for uint
-    glUniform1i(textureDepthUni, textureDepth);
+void Emulator::Renderer::setTextureWindow(uint8_t textureWindowXMask, uint8_t textureWindowYMask, uint8_t textureWindowXOffset, uint8_t textureWindowYOffset) {
+    glUniform4f(textureWindowUni, textureWindowXMask, textureWindowYMask, textureWindowXOffset, textureWindowYOffset);
+}
+
+void Emulator::Renderer::bindFrameBuffer(GLuint buf) {
+    glBindFramebuffer(GL_FRAMEBUFFER, buf);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 GLuint Emulator::Renderer::compileShader(const char* source, GLenum shaderType) {

@@ -9,18 +9,12 @@
 
 #include "../Utils/Bitwise.h"
 
-static uint32_t x = 0;
-
 /**
  * Byte - 8 bits or 1 byte
  * HalfWord - 16 bits or 2 bytes
  * Word - 32 bits or 4 bytes.
  */
 void CPU::executeNextInstruction() {
-    // R0 is "hardwired" to 0
-    //regs[0] = 0;
-    x++;
-    
     /**
      * First amazing error, here I got "0x1300083c" which means..
      * I was reading the data in big-edian format amazingly..
@@ -31,18 +25,33 @@ void CPU::executeNextInstruction() {
     // 'EPC' in case of an exception.
     currentpc = pc;
     
-    if(currentpc % 4 != 0) {
+    /*if(currentpc % 4 != 0) {
         exception(LoadAddressError);
         return;
-    }
+    }*/
     
     // If the last instruction was a branch then we're in the delay slot
     delaySlot = branchSlot;
     branchSlot = false;
     
-    handleInterrupts();
+    /**
+     * I am currently cheating as I've been stuck for a very while,
+     * and just comparing my cpu logs to avacods cpu's logs,
+     * he updates bit 30 if an instruction actually jumped,
+     * to a different pc address though doc says it's an unkown bit?
+     * so, no idea what I'm really missing here?
+     * 
+     * 30    -      Not used (zero)=
+     */
+    delayJumpSlot = jumpSlot;
+    jumpSlot = false;
     
     Instruction instruction = Instruction(interconnect.loadInstruction(pc));
+    
+    if(handleInterrupts(instruction)) {
+        // An exception occured, update instruction based on new PC
+        instruction = Instruction(interconnect.loadInstruction(pc));
+    }
     
     // increment the PC
     this->pc = nextpc;
@@ -63,9 +72,68 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     // Gotta decode the instructions using the;
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
+
+    static constexpr size_t TABLE_SIZE = 64;
+
+    // Initialize the lookup table
+    static const std::array<std::function<void(CPU&, Instruction&)>, TABLE_SIZE> lookupTable = [] {
+        std::array<std::function<void(CPU&, Instruction&)>, TABLE_SIZE> table = {};
+
+        // Initialize all slots with the illegal operation handler
+        table.fill(&CPU::opillegal);
+
+        table[0b000000] = [](CPU& cpu, Instruction& inst) { cpu.decodeAndExecuteSubFunctions(inst); };
+        table[0b001110] = [](CPU& cpu, Instruction& inst) { cpu.opxori(inst); };
+        table[0b000001] = [](CPU& cpu, Instruction& inst) { cpu.opbxx(inst); };
+        table[0b001111] = [](CPU& cpu, Instruction& inst) { cpu.oplui(inst); };
+        table[0b001101] = [](CPU& cpu, Instruction& inst) { cpu.opori(inst); };
+        table[0b101011] = [](CPU& cpu, Instruction& inst) { cpu.opsw(inst); };
+        table[0b101010] = [](CPU& cpu, Instruction& inst) { cpu.opswl(inst); };
+        table[0b101110] = [](CPU& cpu, Instruction& inst) { cpu.opswr(inst); };
+        table[0b101001] = [](CPU& cpu, Instruction& inst) { cpu.opsh(inst); };
+        table[0b101000] = [](CPU& cpu, Instruction& inst) { cpu.opsb(inst); };
+        table[0b100011] = [](CPU& cpu, Instruction& inst) { cpu.oplw(inst); };
+        table[0b100010] = [](CPU& cpu, Instruction& inst) { cpu.oplwl(inst); };
+        table[0b100110] = [](CPU& cpu, Instruction& inst) { cpu.oplwr(inst); };
+        table[0b100001] = [](CPU& cpu, Instruction& inst) { cpu.oplh(inst); };
+        table[0b100101] = [](CPU& cpu, Instruction& inst) { cpu.oplhu(inst); };
+        table[0b100000] = [](CPU& cpu, Instruction& inst) { cpu.oplb(inst); };
+        table[0b100100] = [](CPU& cpu, Instruction& inst) { cpu.oplbu(inst); };
+        table[0b000010] = [](CPU& cpu, Instruction& inst) { cpu.opj(inst); };
+        table[0b000011] = [](CPU& cpu, Instruction& inst) { cpu.opjal(inst); };
+        table[0b001010] = [](CPU& cpu, Instruction& inst) { cpu.opslti(inst); };
+        table[0b001011] = [](CPU& cpu, Instruction& inst) { cpu.opsltiu(inst); };
+        table[0b001001] = [](CPU& cpu, Instruction& inst) { cpu.addiu(inst); };
+        table[0b001000] = [](CPU& cpu, Instruction& inst) { cpu.addi(inst); };
+        table[0b001100] = [](CPU& cpu, Instruction& inst) { cpu.opandi(inst); };
+        table[0b010000] = [](CPU& cpu, Instruction& inst) { cpu.opcop0(inst); };
+        table[0b010001] = [](CPU& cpu, Instruction& inst) { cpu.opcop1(inst); };
+        table[0b010010] = [](CPU& cpu, Instruction& inst) { cpu.opcop2(inst); };
+        table[0b010011] = [](CPU& cpu, Instruction& inst) { cpu.opcop3(inst); };
+        table[0b110000] = [](CPU& cpu, Instruction& inst) { cpu.oplwc0(inst); };
+        table[0b110001] = [](CPU& cpu, Instruction& inst) { cpu.oplwc1(inst); };
+        table[0b110010] = [](CPU& cpu, Instruction& inst) { cpu.oplwc2(inst); };
+        table[0b110011] = [](CPU& cpu, Instruction& inst) { cpu.oplwc3(inst); };
+        table[0b111000] = [](CPU& cpu, Instruction& inst) { cpu.opswc0(inst); };
+        table[0b111001] = [](CPU& cpu, Instruction& inst) { cpu.opswc1(inst); };
+        table[0b111010] = [](CPU& cpu, Instruction& inst) { cpu.opswc2(inst); };
+        table[0b111011] = [](CPU& cpu, Instruction& inst) { cpu.opswc3(inst); };
+        table[0b000101] = [](CPU& cpu, Instruction& inst) { cpu.opbne(inst); };
+        table[0b000100] = [](CPU& cpu, Instruction& inst) { cpu.opbeq(inst); };
+        table[0b000111] = [](CPU& cpu, Instruction& inst) { cpu.opbqtz(inst); };
+        table[0b000110] = [](CPU& cpu, Instruction& inst) { cpu.opbltz(inst); };
+        return table;
+    }();
     
-    //checkForTTY();
+    uint32_t func = instruction.func();
     
+    if (TABLE_SIZE > func) {
+        lookupTable[func](*this, instruction);
+    } else {
+        opillegal(instruction);
+    }
+    
+    /*
     switch (instruction.func()) {
         case 0b000000:
             decodeAndExecuteSubFunctions(instruction); // ALU operations (e.g., add, subtract, shift)
@@ -189,13 +257,9 @@ void CPU::decodeAndExecute(Instruction& instruction) {
             break;
         default:
             opillegal(instruction); // Illegal instruction
-            printf("Unhandled CPU instruction at 0x%08x = 0x%08x = %x\n ", instruction.op, instruction.func(), instruction.op);
-            std::cerr << "";
-            //std::cerr << "Unhandled instruction(CPU): " << getDetails(instruction.func()) << " = " << instruction.func() << '\n';
-            //throw std::runtime_error("Unhandled instruction(CPU): " + getDetails(instruction.op) + " = " + std::to_string(instruction.op));
             
             break;
-    }
+    }*/
 }
 
 void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
@@ -296,34 +360,28 @@ void CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
 
 // This is also stolen straight up from
 // https://github.com/BluestormDNA/ProjectPSX/blob/master/ProjectPSX/Core/CPU.cs#L128
-void CPU::handleInterrupts() {
-    uint32_t load = interconnect.loadInstruction(pc);
+bool CPU::handleInterrupts(Instruction& instruction) {
+    //uint32_t load = interconnect.loadInstruction(pc);
     
-    uint32_t instr = load >> 26;
+    uint32_t instr = instruction.op >> 26;
     
     // Delay instruction
     if(instr == 0x12) {
         // COP2 MTC2
-        return;
+        return false;
     }
-    
-    auto c = _cop0.cause | (static_cast<uint32_t>(IRQ::active()) << 10);
-    auto pending = (c & _cop0.sr) & 0x700;
-    bool irq = (_cop0.sr & 1) != 0;
-    bool so = (irq && pending) != 0;
     
     bool IEC = (_cop0.sr & 0x1) == 1;
     uint8_t IM = static_cast<uint8_t>(_cop0.sr >> 8) & 0xFF;
     uint8_t IP = static_cast<uint8_t>(_cop0.cause >> 8) & 0xFF;
-    bool yes = IEC && (IM & IP) > 0;
     
-    if((yes && !so) || (!yes && so)) {
-        printf("");
-    }
-    
-    if(yes) {
+    if(IEC && (IM & IP) > 0) {
         exception(Interrupt);
+        
+        return true;
     }
+    
+    return false;
 }
 
 void CPU::opsll(Instruction& instruction) {
@@ -600,7 +658,7 @@ void CPU::opsh(Instruction& instruction) {
     auto t = instruction.t();
     auto s = instruction.s();
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = reg(s) + i;
     
     if(addr % 2 == 0) {
         uint32_t v = reg(t);
@@ -622,7 +680,7 @@ void CPU::opsb(Instruction& instruction) {
     auto t = instruction.t();
     auto s = instruction.s();
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = reg(s) + i;
     uint32_t v    = reg(t);
     
     store8(addr, static_cast<uint8_t>(v));
@@ -648,7 +706,6 @@ void CPU::oplw(Instruction& instruction) {
         // Put the load in the delay slot
         setLoad(t, v);
     } else {
-        //printf("wtf\n");
         exception(LoadAddressError);
     }
 }
@@ -958,7 +1015,8 @@ void CPU::oplwc2(Instruction& instruction) {
     if((addr % 4) == 0) {
         uint32_t v = load32(addr);
         
-        _cop2.setData(t, v);
+        gte.write(t, v);
+        //_cop2.setData(t, v);
     } else {
         exception(LoadAddressError);
     }
@@ -987,7 +1045,7 @@ void CPU::opswc2(Instruction& instruction) {
     auto addr = wrappingAdd(reg(s), i);
     
     if(addr % 4 == 0) {
-        auto v = _cop2.getData(t);
+        auto v = gte.read(t);//_cop2.getData(t);
         
         store32(addr, v);
     } else {
@@ -1078,10 +1136,9 @@ void CPU::opcop1(Instruction& instruction) {
 void CPU::opcop2(Instruction& instruction) {
     auto opcode = instruction.copOpcode();
     
-    if(opcode & 0x10) {
-        COP2::GTEInstruction gteInstruction(instruction.op);
-        
-        _cop2.decode(gteInstruction);
+    gte::Command command(instruction.op);
+    if (instruction.op & (1 << 25)) {
+        gte.command(command);
         
         return;
     }
@@ -1218,6 +1275,10 @@ void CPU::opmfc0(Instruction& instruction) {
     case 8:
         v = _cop0.badVaddr;
         break;
+    case 9:
+        v = 0;
+        
+        break;
     case 12:
         v = _cop0.sr;
         break;
@@ -1262,7 +1323,7 @@ void CPU::opmfc2(Instruction& instruction) {
     auto t = instruction.t();
     auto d = instruction.d();
     
-    auto v = _cop2.getData(d);
+    auto v = gte.read(d);//_cop2.getData(d);
     
     setLoad(t, v);
 }
@@ -1271,7 +1332,7 @@ void CPU::opcfc2(Instruction& instruction) {
     auto t = instruction.t();
     auto d = instruction.d();
     
-    auto v = _cop2.getControl(d);
+    auto v = gte.read(d + 32);//_cop2.getControl(d);
     
     setLoad(t, v);
 }
@@ -1282,7 +1343,8 @@ void CPU::opmtc2(Instruction& instruction) {
     
     auto v = reg(t);
     
-    _cop2.setData(d, v);
+    gte.write(d, v);
+    //_cop2.setData(d, v);
 }
 
 void CPU::opctc2(Instruction& instruction) {
@@ -1291,7 +1353,8 @@ void CPU::opctc2(Instruction& instruction) {
     
     auto v = reg(t);
     
-    _cop2.setControl(d, v);
+    gte.write(d + 32, v);
+    //_cop2.setControl(d, v);
 }
 
 void CPU::opgte(Instruction& instruction) {
@@ -1310,13 +1373,13 @@ void CPU::exception(const Exception exception) {
     _cop0.sr &= ~0x3f;
     _cop0.sr |= (mode << 2) & 0x3f;
     
+    uint8_t IP = static_cast<uint8_t>(_cop0.cause >> 8) & 0xFF;
+    _cop0.cause = 0;
+    _cop0.cause |= (IP) << 8;
+    
     // Update 'CAUSE' register with the exception code (bits [6:2])
     _cop0.cause &= ~0x7C;
     _cop0.cause |= static_cast<uint32_t>(exception) << 2;
-    
-    if(currentpc == 0x8004aa9d || (currentpc - 4) == 0x8004aa9d) {
-        printf("");
-    }
     
     /**
      * Been stuck at this issue for a while so I'm cheating:
@@ -1337,6 +1400,10 @@ void CPU::exception(const Exception exception) {
         // to the branch instruction and bit 31 of 'CAUSE' is set.
         _cop0.epc = currentpc - 4;
         _cop0.cause |= (static_cast<uint32_t>(1) << (31));
+        
+        if(delayJumpSlot) {
+            _cop0.cause |= (static_cast<uint32_t>(1) << (30));
+        }
     } else {
         // Save current instruction address in 'EPC'
         _cop0.epc = currentpc;
@@ -1692,17 +1759,17 @@ void CPU::checkForTTY() {
         if(r9 < std::size(g_psx_cpu_a_kcall_symtable)) {
             auto function = g_psx_cpu_a_kcall_symtable[r9];
             
-            //std::cerr << function << "\n";
+            std::cerr << function << "\n";
         } else {
             printf("");
         }
     }
     
     if(pc == 0x000000B0) {
-        if(r9 < std::size(g_psx_cpu_b_kcall_symtable)) {
+        if(r9 < std::size(g_psx_cpu_b_kcall_symtable) && r9 != 44) {
             auto function = g_psx_cpu_b_kcall_symtable[r9];
             
-            //std::cerr << function << "\n";
+            std::cerr << function << "\n";
         } else {
             printf("");
         }
@@ -1712,21 +1779,21 @@ void CPU::checkForTTY() {
         if(r9 < std::size(g_psx_cpu_c_kcall_symtable)) {
             auto function = g_psx_cpu_c_kcall_symtable[r9];
             
-            //std::cerr << function << "\n";
+            std::cerr << function << "\n";
         } else {
             printf("");
         }
     }
     
-    if ((pc == 0x000000A0 || pc == 0x000000B0 || pc == 0x000000C0)) {
-        //if (r9 == 50/*r9 == 0x0000003C || r9 == 0x0000003D*/) {
+    /*if ((pc == 0x000000A0 || pc == 0x000000B0 || pc == 0x000000C0)) {
+        //if (r9 == 50/*r9 == 0x0000003C || r9 == 0x0000003D#1#) {
             char ch = static_cast<char>(reg(4) & 0xFF);
             
             if ((ch >= 32 && ch <= 126) || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
                 std::cerr << ch;
             }
         //}
-    }
+    }*/
 }
 
 void CPU::opj(Instruction& instruction) {
@@ -1735,6 +1802,7 @@ void CPU::opj(Instruction& instruction) {
     nextpc = (pc & 0xf0000000) | (i << 2);
     
     branchSlot = true;
+    jumpSlot = true;
 }
 
 void CPU::opjr(Instruction& instruction) {
@@ -1750,6 +1818,7 @@ void CPU::opjr(Instruction& instruction) {
     }
     
     nextpc = addr;
+    jumpSlot = true;
 }
 
 void CPU::opjal(Instruction& instruction) {
@@ -1757,8 +1826,6 @@ void CPU::opjal(Instruction& instruction) {
     set_reg(31, nextpc);
     
     opj(instruction);
-    
-    branchSlot = true;
 }
 
 void CPU::opjalr(Instruction& instruction) {
@@ -1770,6 +1837,17 @@ void CPU::opjalr(Instruction& instruction) {
     
     uint32_t addr = reg(s);
     
+    /**
+     * TODO;
+     * 
+     * jalr value error @ 0,2: got ffffffff wanted 001fc010
+     * jalr value error @ 3,2: got ffffffff wanted 801fc094
+     * jalr value error @ 6,2: got ffffffff wanted a01fc118
+     * jalr exception error @ 9: got 00000000 wanted 00000004
+     * jalr exception error @ 12: got 00000000 wanted 00000004
+     * jalr exception error @ 15: got 00000000 wanted 00000004
+     */
+    
     if(addr & 3) {
         exception(LoadAddressError);
         
@@ -1777,6 +1855,7 @@ void CPU::opjalr(Instruction& instruction) {
     }
     
     nextpc = addr;
+    jumpSlot = true;
 }
 
 void CPU::opbxx(Instruction& instruction) {
@@ -1861,6 +1940,7 @@ void CPU::opbqtz(Instruction& instruction) {
     branchSlot = true;
 }
 
+// TODO; Rename to blez(branch on less than or equal to zero)
 void CPU::opbltz(Instruction& instruction) {
     auto i = instruction.imm_se();
     auto s = instruction.s();
@@ -1884,6 +1964,7 @@ void CPU::branch(uint32_t offset) {
     nextpc = offset;//pc + (offset * 4);
     
     branchSlot = true;
+    jumpSlot = true;
 }
 
 void CPU::add(Instruction& instruction) {

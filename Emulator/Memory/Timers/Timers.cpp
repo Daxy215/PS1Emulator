@@ -29,22 +29,16 @@ uint32_t Emulator::IO::Timers::load(uint32_t addr) {
 		case 0: {
 			// Counter (R/W)
 			return static_cast<uint16_t>((timer.counter));
-			
-			break;
 		}
 		
 		case 4: {
 			// Mode (R/W)
 			return timer.getMode();
-			
-			break;
 		}
 		
 		case 8: {
 			// Target value (R/W)
 			return timer.target;
-			
-			break;
 		}
 	}
 	

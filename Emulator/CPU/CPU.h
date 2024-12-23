@@ -6,6 +6,7 @@
 #include "Instruction.h"
 #include "../Memory/interconnect.h"
 #include "COP/COP2.h"
+#include "COP/Stolen/gte/gte.h"
 
 class Instruction;
 
@@ -46,8 +47,8 @@ public:
     void executeNextInstruction();
     void decodeAndExecute(Instruction& instruction);
     void decodeAndExecuteSubFunctions(Instruction& instruction);
-
-    void handleInterrupts();
+    
+    bool handleInterrupts(Instruction& instruction);
     
     // Instructions
     // TODO; Please move those in a different class future me!
@@ -290,10 +291,13 @@ public:
     }
     
     void set_reg(uint32_t index, uint32_t val) {
+        if(index == 0)
+            return;
+        
         regs[index] = val;
         
         // We need to always rest R0 to 0
-        regs[0] = {0};
+        //regs[0] = {0};
         
         if(loads[0].index == index) {
             loads[0].index = 32;
@@ -330,7 +334,7 @@ public:
     
     template<typename T>
     static std::optional<T> check_add(T a, T b);
-
+    
     template<typename T>
     static std::optional<T> check_sub(T a, T b);
     
@@ -338,9 +342,11 @@ public:
     // Sets by the current instruction; if a branch occured,
     // and the next instruction will be in the delay slot.
     bool branchSlot = false;
+    bool jumpSlot = false;
     
     // If the current instruction executes in the delay slot
     bool delaySlot = false;
+    bool delayJumpSlot = false;
     
     // Used for setting the EPC in expections
     uint32_t currentpc;
@@ -372,4 +378,5 @@ public:
     
 private:
     COP2 _cop2;
+    GTE gte;
 };

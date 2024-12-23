@@ -2,7 +2,6 @@
 
 #include "../IRQ.h"
 #include "../../GPU/Gpu.h"
-#include "../../Utils/Bitwise.h"
 
 /**
  * Caution: Reading the Current Counter Value can be a little unstable (when using dotclk or hblank as clock source);
@@ -20,19 +19,26 @@ Emulator::IO::Timer::Timer(TimerType type) : _type(type) {
 }
 
 void Emulator::IO::Timer::step(uint32_t cycles) {
+	//if(paused)
+	//	return;
+	
 	_cycles += cycles;
+	
+	t = counter;
 	
 	switch (_type) {
 	case TimerType::DotClock:
-		if(sync) {
-			switch (syncMode) {
-				case 0: { if (isInHBlank) return; break; }
-				case 1: { if (isInHBlank) counter = 0; break; }
-				case 2: { if (isInHBlank) counter = 0; else return; break; }
+		if(mode.sync) {
+			switch (mode.syncMode) {
+				case 0: { if (isInHBlank) { t = 0; return; } break; }
+				case 1: { if (isInHBlank) t = 0; break; }
+				case 2: { if (isInHBlank) t = 0; else { t = 0; return; } break; }
 				case 3: {
 					if(!wasInHBlank && isInHBlank) {
-						sync = false;
+						mode.sync = false;
 					} else {
+						t = 0;
+						
 						return;
 					}
 					
@@ -44,26 +50,26 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 			}
 		}
 		
-		if(source == 0 || source == 2) {
+		if(mode.source == 0 || mode.source == 2) {
 			// Use System Clock
-			counter += static_cast<int>(_cycles / 1.5f);
+			t += static_cast<int>(_cycles * 1.5f);
 			_cycles %= static_cast<int>(1.5f);
 		} else {
 			// Use Dot Clock
-			counter += _cycles / 6;//(_cycles * 11 / 7 / static_cast<double>(this->dot));
+			t += _cycles / 6;//(_cycles * 11 / 7 / static_cast<double>(this->dot));
 			_cycles %= 6;
 		}
 		
 		break;
 	case TimerType::HBlank:
-		if(sync) {
-			switch (syncMode) {
-				case 0: { if (isInVBlank) return; break; }
-				case 1: { if (isInVBlank) counter = 0; break; }
-				case 2: { if (isInVBlank) counter = 0; else return; break; }
+		if(mode.sync) {
+			switch (mode.syncMode) {
+				//case 0: { if (isInVBlank) { _cycles = 0; return; } break; }
+				//case 1: { if (isInVBlank) t = 0; break; }
+				case 2: { if (isInVBlank) t = 0; break; }
 				case 3: {
 					if(!wasInVBlank && isInVBlank) {
-						sync = false;
+						mode.sync = false;
 					} else {
 						return;
 					}
@@ -73,30 +79,34 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 			}
 		}
 		
-		if(source == 0 || source == 2) {
+		if(mode.source == 0 || mode.source == 2) {
 			// Use System Clock
-			counter += static_cast<int>(_cycles / 1.5f);
+			t += static_cast<int>(_cycles * 1.5f);
 			_cycles %= static_cast<int>(1.5f);
 		} else {
 			//if(!wasInHBlank && isInHBlank) counter++;
-			counter += _cycles / 3413;
+			t += _cycles / 3413;
 			_cycles %= 3413;
 		}
 		
 		break;
 	case TimerType::SystemClock8:
-		if(sync && (syncMode == 0 || syncMode == 3)) {
+		if(mode.sync && (mode.syncMode == 0 || mode.syncMode == 3)) {
 			// Paused
+			_cycles = 0;
+			
 			return;
 		}
 		
-		if(source == 0 || source == 1) {
+		auto source = mode.source & 1;
+		
+		if(source) {
 			// Use System Clock
-			counter += static_cast<int>(_cycles / 1.5f);
+			t += static_cast<int>(_cycles * 1.5f);
 			_cycles %= static_cast<int>(1.5f);
 		} else {
 			// Use System Clock / 8
-			counter += (_cycles / (8 * 1.5f));
+			t += (int)(_cycles / (8 * 1.5f));
 			_cycles %= static_cast<int>(8 * 1.5f);
 			//_cycles = Utils::modf(_cycles, 8);
 		}
@@ -105,6 +115,8 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 	}
 	
 	handleInterrupt();
+	
+	counter = static_cast<uint16_t>(t);
 }
 
 void Emulator::IO::Timer::syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot) {
@@ -120,44 +132,39 @@ void Emulator::IO::Timer::syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot
 void Emulator::IO::Timer::handleInterrupt() {
 	bool shouldInterrupt = false;
 	
-	if(counter >= target) {
-		reachedTarget = true;
+	if(t >= target) {
+		mode.reachedTarget = true;
 		
-		if(resetType)
-			counter = 0;
+		if(mode.resetType) t = 0;
 		
-		if(interruptTarget) {
+		if(mode.interruptTarget) {
 			shouldInterrupt = true;
 		}
 	}
 	
-	if(counter >= 0xFFFF) {
-		hasWrapped = true;
+	if(t >= 0xFFFF) {
+		mode.hasWrapped = true;
 		
-		if(!resetType) counter = 0;
+		if(!mode.resetType) t = 0;
 		
-		if(interruptWrap) {
+		if(mode.interruptWrap) {
 			shouldInterrupt = true;
 		}
 	}
-	
-	// Round up counter
-	//counter &= 0xFFFF;
-	Utils::modf(counter, 0xFFFF);
 	
 	if(!shouldInterrupt)
 		return;
 	
-	if(!interruptToggleMode) {
-		interrupt = false;
+	if(!mode.interruptToggleMode) {
+		mode.interrupt = false;
 	} else {
-		interrupt = !interrupt;
+		mode.interrupt = !mode.interrupt;
 	}
 	
-	bool trigger = interrupt == 0;
+	//bool trigger = mode.interrupt == 0;
 	
-	if(!interruptMode) {
-		if(!wasIRQ && trigger) {
+	if(!mode.interruptMode) {
+		if(!wasIRQ/* && trigger*/) {
 			wasIRQ = true;
 		} else {
 			return;
@@ -177,43 +184,43 @@ void Emulator::IO::Timer::handleInterrupt() {
 		break;
 	}
 	
-	interrupt = true;
+	mode.interrupt = true;
 }
 
 void Emulator::IO::Timer::setMode(uint16_t val) {
 	/**
-	* 0     Synchronization Enable (0=Free Run, 1=Synchronize via Bit1-2)
-    * 1-2   Synchronization Mode   (0-3, see lists below)
+	 * 0     Synchronization Enable (0=Free Run, 1=Synchronize via Bit1-2)
+     * 1-2   Synchronization Mode   (0-3, see lists below)
      * 			Synchronization Modes for Counter 0:
      * 		 		0 = Pause counter during Hblank(s)
      * 		 		1 = Reset counter to 0000h at Hblank(s)
      * 		 		2 = Reset counter to 0000h at Hblank(s) and pause outside of Hblank
      * 		 		3 = Pause until Hblank occurs once, then switch to Free Run
-     * 		 
+     * 
      * 		 Synchronization Modes for Counter 1:
      * 			Same as above, but using Vblank instead of Hblank
-     * 		 
+     * 
      * 		 Synchronization Modes for Counter 2:
      * 		 	0 or 3 = Stop counter at current value (forever, no h/v-blank start)
      * 		 	1 or 2 = Free Run (same as when Synchronization Disabled)
-     * 		 
+     * 
      * 3     Reset counter to 0000h  (0=After Counter=FFFFh, 1=After Counter=Target)
      * 4     IRQ when Counter=Target (0=Disable, 1=Enable)
      * 5     IRQ when Counter=FFFFh  (0=Disable, 1=Enable)
      * 6     IRQ Once/Repeat Mode    (0=One-shot, 1=Repeatedly)
      * 7     IRQ Pulse/Toggle Mode   (0=Short Bit10=0 Pulse, 1=Toggle Bit10 on/off)
-     *		 
+     * 
      * 8-9   Clock Source (0-3, see list below)
      * 		 	Counter 0:  0 or 2 = System Clock,  1 or 3 = Dotclock
      * 		 	Counter 1:  0 or 2 = System Clock,  1 or 3 = Hblank
      * 		 	Counter 2:  0 or 1 = System Clock,  2 or 3 = System Clock/8
-     * 		 
+     * 
      * 10    Interrupt Request       (0=Yes, 1=No) (Set after Writing)    (W=1) (R)
      * 11    Reached Target Value    (0=No, 1=Yes) (Reset after Reading)        (R)
      * 12    Reached FFFFh Value     (0=No, 1=Yes) (Reset after Reading)        (R)
 	 */
 	
-	sync = Utils::Bitwise::getBit(val, 0);
+	/*sync = Utils::Bitwise::getBit(val, 0);
 	
 	// Bits 1-2
 	syncMode = (val >> 1) & 0x3;
@@ -225,19 +232,25 @@ void Emulator::IO::Timer::setMode(uint16_t val) {
 	interruptToggleMode = Utils::Bitwise::getBit(val, 7);
 	
 	// Bits 8-9
-	source = (val >> 8) & 0x3;
+	source = (val >> 8) & 0x3;*/
 	
-	// Bits 10-12 are read-only.
+	mode._reg = val;
 	
-	// Values resetted after write
-	interrupt = true;
+	// Values retested after a write
+	mode.interrupt = true;
 	wasIRQ = false;
+	//paused = false;
 	
 	counter = 0;
 }
 
 uint16_t Emulator::IO::Timer::getMode() {
-	uint16_t mode = 0;
+	mode.reachedTarget = false;
+	mode.hasWrapped = false;
+	
+	return mode._reg;
+	
+	/*uint16_t mode = 0;
 	
 	mode |= (sync) << 0;
 	
@@ -253,12 +266,11 @@ uint16_t Emulator::IO::Timer::getMode() {
 	// Bits 8-9
 	mode |= (source) << 8;
 	
-	mode |= (interrupt) << 10;
+	mode |= (!interrupt) << 10;
 	mode |= (reachedTarget) << 11;
 	mode |= (hasWrapped) << 12;
 	
-	reachedTarget = false;
-	hasWrapped = false;
 	
-	return mode;
+	
+	return mode;*/
 }

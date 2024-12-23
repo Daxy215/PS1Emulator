@@ -15,7 +15,7 @@ namespace Emulator {
 			uint32_t load(uint32_t addr);
 			void store(uint32_t addr, uint32_t val);
 			
-		private:
+		public:
 			/**
 			 * There are 3 different timers,
 			 *

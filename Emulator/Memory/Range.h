@@ -8,18 +8,27 @@
 #define MAP_H
 namespace map {
     struct Range {
-        std::optional<uint32_t> contains(uint32_t addr) const {
+        /*std::optional<uint32_t> contains(uint32_t addr) const {
             if (addr >= start && addr < start + length) {
                 return addr - start;
             }
             
             return std::nullopt;
+        }*/
+        
+        bool contains(uint32_t addr, uint32_t& offset) const {
+            if (addr >= start && addr < start + length) {
+                offset = addr - start;
+                return true;
+            }
+            
+            return false;
         }
         
         uint32_t start;
         uint32_t length;
     };
-    
+     
     // Main RAM: 2MB mirrored four times over the first 8MB (probably
     // in case they decided to use a bigger RAM later on?)
     static const Range RAM      = {0x00000000, 8 * 1024 * 1024}; // 0xa0000000

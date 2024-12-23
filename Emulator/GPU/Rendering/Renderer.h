@@ -1,9 +1,7 @@
 ﻿#pragma once
 
-#include <iostream>
-
 #include "Buffer.h"
-#include "../Gpu.h"
+#include "Rasterizer.h"
 
 /*#ifdef _WIN32
 #ifndef APIENTRY
@@ -11,19 +9,16 @@
 #endif
 #endif*/
 
-namespace Emulator {
-    class Gpu;
-}
-
 class GLFWwindow;
 
 namespace Emulator {
     class Renderer {
     public:
-        Renderer();
+        Renderer(Emulator::Gpu* gpu);
         
         void display();
         void displayVRam();
+        void clear();
         
     private:
         void draw();
@@ -34,9 +29,12 @@ namespace Emulator {
         void pushQuad(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
         void pushRectangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
         
+    public:
         void setDrawingOffset(int16_t x, int16_t y);
         void setDrawingArea(int16_t right, int16_t bottom);
-        void setTextureDepth(int textureDepth);
+        void setTextureWindow(uint8_t textureWindowXMask, uint8_t textureWindowYMask, uint8_t textureWindowXOffset, uint8_t textureWindowYOffset);
+        
+        void bindFrameBuffer(GLuint buf);
         
         GLuint compileShader(const char* source, GLenum shaderType);
         GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
@@ -60,8 +58,8 @@ namespace Emulator {
         static GLuint program;
         
         // Frame buffers
-        GLuint mainFramebuffer;
-        GLuint vRamFramebuffer;
+        GLuint mainFramebuffer, mainTexture;
+        GLuint offscreenFramebuffer, offscreenTexture;
         
         // Vertex Array Object
         GLuint VAO;
@@ -69,7 +67,8 @@ namespace Emulator {
         // Uniforms
         GLint offsetUni;
         GLint drawingUni;
-        GLint textureDepthUni;
+        //GLint textureDepthUni;
+        GLint textureWindowUni;
         
         // Buffer contains the vertices positions
         Buffer<Gpu::Position> positions;
@@ -87,5 +86,10 @@ namespace Emulator {
         uint32_t nVertices;
         
         GLFWwindow* window;
+        
+    private:
+        Emulator::Gpu* gpu;
+        
+        Rasterizer _rasterizer;
     };
 }

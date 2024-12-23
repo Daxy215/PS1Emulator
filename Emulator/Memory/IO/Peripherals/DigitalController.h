@@ -37,7 +37,7 @@ class DigitalController {
             uint16_t Cross    : 1;
             uint16_t Square   : 1;
         };
-
+        
         uint16_t _reg;
         uint8_t _byte[2];
         
@@ -52,7 +52,7 @@ public:
     
     uint16_t load(uint32_t val);
     void reset();
-
+    
 private:
     // TODO; Temp
     //   5A41h=Digital Pad         (or analog pad/stick in digital mode; LED=Off)
