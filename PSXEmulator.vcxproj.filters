@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
     <Filter Include="Header Files">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
@@ -15,10 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\libs\glew-2.2.0\src\glew.c">
+    <ClCompile Include="Emulator\CPU\COP\COP0.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Emulator\CPU\COP\COP2.cpp">
+    <ClCompile Include="Emulator\CPU\COP\Stolen\gte\gte.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\CPU\COP\Stolen\gte\math.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\CPU\COP\Stolen\gte\opcodes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Emulator\CPU\CPU.cpp">
@@ -36,13 +42,40 @@
     <ClCompile Include="Emulator\GPU\Gpu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Emulator\GPU\VRAM.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Emulator\GPU\Rendering\Buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\GPU\Rendering\Rasterizer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Emulator\GPU\Rendering\Renderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Emulator\GPU\VRAM.cpp">
+    <ClCompile Include="Emulator\Memory\interconnect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\Memory\Timers\Timer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\Memory\Timers\Timers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\Memory\Memories\Ram.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\Memory\Memories\ScratchPad.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\Memory\IO\SIO.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\Memory\IO\Peripherals\DigitalController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator\Memory\IO\Peripherals\MemoryCard.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Emulator\Memory\CDROM\CDROM.cpp">
@@ -57,49 +90,7 @@
     <ClCompile Include="Emulator\Memory\CDROM\TrackBuilder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Emulator\Core\Core.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Emulator\Memory\Bios\Bios.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\Memory\interconnect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\Memory\IO\SIO.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\Memory\Memories\Ram.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\Memory\Memories\ScratchPad.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\Memory\Timers\Timer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\Memory\Timers\Timers.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\CPU\COP\COP0.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\CPU\COP\Stolen\gte\gte.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\CPU\COP\Stolen\gte\math.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\CPU\COP\Stolen\gte\opcodes.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\GPU\Rendering\Rasterizer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\Memory\IO\Peripherals\DigitalController.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Emulator\Memory\IO\Peripherals\MemoryCard.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Emulator\SPU\Stolen\adsr.cpp">
@@ -120,30 +111,48 @@
     <ClCompile Include="Emulator\SPU\Stolen\voice.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\libs\imgui-1.91.6\backends\imgui_impl_glfw.cpp">
+    <ClCompile Include="Emulator\Utils\FileSystem\FileManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\libs\imgui-1.91.6\backends\imgui_impl_opengl3.cpp">
+    <ClCompile Include="Emulator\Core\Core.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\libs\imgui-1.91.6\imgui.cpp">
+    <ClCompile Include="..\libs\glew-2.2.0\src\glew.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\libs\imgui-1.91.6\imgui_demo.cpp">
+    <ClCompile Include="..\libs\imgui-1.91.6-docking\imgui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\libs\imgui-1.91.6\imgui_draw.cpp">
+    <ClCompile Include="..\libs\imgui-1.91.6-docking\imgui_demo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\libs\imgui-1.91.6\imgui_tables.cpp">
+    <ClCompile Include="..\libs\imgui-1.91.6-docking\imgui_draw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\libs\imgui-1.91.6\imgui_widgets.cpp">
+    <ClCompile Include="..\libs\imgui-1.91.6-docking\imgui_tables.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libs\imgui-1.91.6-docking\imgui_widgets.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libs\imgui-1.91.6-docking\backends\imgui_impl_glfw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libs\imgui-1.91.6-docking\backends\imgui_impl_opengl2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Emulator\CPU\COP\COP2.h">
+    <ClInclude Include="Emulator\CPU\COP\COP0.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\CPU\COP\Stolen\gte\command.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\CPU\COP\Stolen\gte\gte.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\CPU\COP\Stolen\gte\math.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Emulator\CPU\CPU.h">
@@ -164,46 +173,25 @@
     <ClInclude Include="Emulator\GPU\Gpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Emulator\GPU\VRAM.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Emulator\GPU\Rendering\Buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\GPU\Rendering\Rasterizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Emulator\GPU\Rendering\Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Emulator\GPU\VRAM.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\CDROM\CDROM.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\CDROM\Disk.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\CDROM\Sector.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\CDROM\TrackBuilder.h">
+    <ClInclude Include="Emulator\Memory\interconnect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Emulator\Memory\IRQ.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Emulator\Memory\Bios\Bios.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\interconnect.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\IO\SIO.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\Memories\Ram.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Emulator\Memory\Range.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\Memories\ScratchPad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Emulator\Memory\Timers\Timer.h">
@@ -212,31 +200,37 @@
     <ClInclude Include="Emulator\Memory\Timers\Timers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Emulator\Utils\Bitwise.h">
+    <ClInclude Include="Emulator\Memory\Memories\Ram.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Emulator\CPU\COP\COP0.h">
+    <ClInclude Include="Emulator\Memory\Memories\ScratchPad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Emulator\CPU\COP\Stolen\gte\command.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\CPU\COP\Stolen\gte\gte.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\CPU\COP\Stolen\gte\math.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\GPU\Rendering\Rasterizer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Emulator\Memory\CDROM\Location.h">
+    <ClInclude Include="Emulator\Memory\IO\SIO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Emulator\Memory\IO\Peripherals\DigitalController.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Emulator\Memory\IO\Peripherals\MemoryCard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\Memory\CDROM\CDROM.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\Memory\CDROM\Disk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\Memory\CDROM\Location.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\Memory\CDROM\Sector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\Memory\CDROM\TrackBuilder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator\Memory\Bios\Bios.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Emulator\SPU\Stolen\adsr.h">
@@ -263,28 +257,37 @@
     <ClInclude Include="Emulator\SPU\Stolen\voice.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libs\imgui-1.91.6\backends\imgui_impl_glfw.h">
+    <ClInclude Include="Emulator\Utils\Bitwise.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libs\imgui-1.91.6\backends\imgui_impl_opengl3.h">
+    <ClInclude Include="Emulator\Utils\FileSystem\FileManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\libs\imgui-1.91.6\imconfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libs\imgui-1.91.6\imgui.h">
+    <ClInclude Include="..\libs\imgui-1.91.6-docking\imconfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libs\imgui-1.91.6\imgui_internal.h">
+    <ClInclude Include="..\libs\imgui-1.91.6-docking\imgui.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libs\imgui-1.91.6\imstb_rectpack.h">
+    <ClInclude Include="..\libs\imgui-1.91.6-docking\imgui_internal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libs\imgui-1.91.6\imstb_textedit.h">
+    <ClInclude Include="..\libs\imgui-1.91.6-docking\imstb_rectpack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\libs\imgui-1.91.6\imstb_truetype.h">
+    <ClInclude Include="..\libs\imgui-1.91.6-docking\imstb_textedit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libs\imgui-1.91.6-docking\imstb_truetype.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libs\imgui-1.91.6-docking\backends\imgui_impl_glfw.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\libs\imgui-1.91.6-docking\backends\imgui_impl_opengl2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

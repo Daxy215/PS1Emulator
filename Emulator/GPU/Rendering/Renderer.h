@@ -3,6 +3,8 @@
 #include "Buffer.h"
 #include "Rasterizer.h"
 
+#include "glm/vec2.hpp"
+
 /*#ifdef _WIN32
 #ifndef APIENTRY
 #define APIENTRY __stdcall
@@ -14,20 +16,23 @@ class GLFWwindow;
 namespace Emulator {
     class Renderer {
     public:
-        Renderer(Emulator::Gpu* gpu);
+        Renderer(Emulator::Gpu& gpu);
         
         void display();
         void displayVRam();
         void clear();
         
     private:
-        void draw();
+        void draw() const;
         
     public:
-        void pushLine(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
-        void pushTriangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
-        void pushQuad(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
-        void pushRectangle(Emulator::Gpu::Position* positions, Emulator::Gpu::Color* colors, Emulator::Gpu::UV* uvs, Emulator::Gpu::Attributes attributes);
+        void pushLine(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
+        void pushTriangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
+        void pushQuad(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
+        void pushRectangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
+        
+    private:
+        bool checkIfWithin(Emulator::Gpu::Position positions[], int length[]);
         
     public:
         void setDrawingOffset(int16_t x, int16_t y);
@@ -57,10 +62,6 @@ namespace Emulator {
         // TODO; For testing imma make this static
         static GLuint program;
         
-        // Frame buffers
-        GLuint mainFramebuffer, mainTexture;
-        GLuint offscreenFramebuffer, offscreenTexture;
-        
         // Vertex Array Object
         GLuint VAO;
         
@@ -88,7 +89,7 @@ namespace Emulator {
         GLFWwindow* window;
         
     private:
-        Emulator::Gpu* gpu;
+        Emulator::Gpu& gpu;
         
         Rasterizer _rasterizer;
     };

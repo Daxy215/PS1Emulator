@@ -9,7 +9,7 @@ namespace Emulator {
     
     class VRAM {
     public:
-        VRAM(Gpu* gpu);
+        VRAM(Gpu& gpu);
         
         void endTransfer();
         
@@ -33,7 +33,7 @@ namespace Emulator {
         const int32_t MAX_HEIGHT = 512;
         
     private:
-        Gpu* gpu;
+        Gpu& gpu;
         
     public:
         // Maybe move this to a struct?

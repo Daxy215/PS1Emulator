@@ -30,14 +30,14 @@ void Emulator::IO::Timer::step(uint32_t cycles) {
 	case TimerType::DotClock:
 		if(mode.sync) {
 			switch (mode.syncMode) {
-				case 0: { if (isInHBlank) { t = 0; return; } break; }
-				case 1: { if (isInHBlank) t = 0; break; }
-				case 2: { if (isInHBlank) t = 0; else { t = 0; return; } break; }
+				case 0: { if (isInHBlank) { _cycles = 0; return; } break; }
+				case 1: { if (isInHBlank) _cycles = 0; break; }
+				case 2: { if (isInHBlank) _cycles = 0; else { _cycles = 0; return; } break; }
 				case 3: {
 					if(!wasInHBlank && isInHBlank) {
 						mode.sync = false;
 					} else {
-						t = 0;
+						_cycles = 0;
 						
 						return;
 					}

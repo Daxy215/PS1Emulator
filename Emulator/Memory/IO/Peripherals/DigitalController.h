@@ -6,9 +6,10 @@
 // Controller types: https://psx-spx.consoledev.net/controllersandmemorycards/#controller-id-halfword-number-0
 
 class DigitalController {
+public:
     enum Mode {
         Idle,
-        Transfering,
+        Transferring,
         Connected
     };
     
@@ -63,7 +64,7 @@ private:
 public:
     bool _interrupt = false;
     
-private:
+public:
     Mode _mode = Idle;
     
 public:

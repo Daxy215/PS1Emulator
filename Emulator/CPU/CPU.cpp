@@ -6,6 +6,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <optional>
 
 #include "../Utils/Bitwise.h"
 
@@ -72,16 +73,17 @@ void CPU::decodeAndExecute(Instruction& instruction) {
     // Gotta decode the instructions using the;
     // Playstation R3000 processor
     // https://en.wikipedia.org/wiki/R3000
-
+    
+    // TODO; Handle cycles correctly - Currently all instructions are 2 cycles:
+    // https://gist.github.com/allkern/b6ab6db6ac32f1489ad571af6b48ae8b
+    
     static constexpr size_t TABLE_SIZE = 64;
-
-    // Initialize the lookup table
+    
     static const std::array<std::function<void(CPU&, Instruction&)>, TABLE_SIZE> lookupTable = [] {
         std::array<std::function<void(CPU&, Instruction&)>, TABLE_SIZE> table = {};
-
-        // Initialize all slots with the illegal operation handler
+        
         table.fill(&CPU::opillegal);
-
+        
         table[0b000000] = [](CPU& cpu, Instruction& inst) { cpu.decodeAndExecuteSubFunctions(inst); };
         table[0b001110] = [](CPU& cpu, Instruction& inst) { cpu.opxori(inst); };
         table[0b000001] = [](CPU& cpu, Instruction& inst) { cpu.opbxx(inst); };
@@ -688,17 +690,11 @@ void CPU::opsb(Instruction& instruction) {
 
 // Load word
 void CPU::oplw(Instruction& instruction) {
-    /*if((sr & 0x10000) != 0) {
-        std::cout << "Ignoring store while cache is isolated!";
-        
-        return;
-    }*/
-    
     auto i = instruction.imm_se();
     auto t = instruction.t();
     auto s = instruction.s();
     
-    auto addr = reg(s) +  i;
+    auto addr = reg(s) + i;
     
     if(addr % 4 == 0) {
         uint32_t v = load32(addr);

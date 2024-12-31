@@ -356,7 +356,49 @@ void CDROM::decodeAndExecute(uint8_t command) {
 		// ReadS - Command 1Bh --> INT3(stat) --> INT1(stat) --> datablock
 		ReadS();
 	} else {
-		if(command == 0x11) {
+		if(command == 0x03) {
+			// Too many args
+			if (parameters.size() > 1) {
+				INT(5);
+				addResponse(0x01);
+				addResponse(0x20);
+				
+				return;
+			}
+			
+			auto toBinary = [](uint8_t b) -> uint8_t {
+				int hi = (b >> 4) & 0xF;
+				int lo = b & 0xF;
+				
+				return hi * 10 + lo; 
+			};
+			
+			int trackNo = 0;
+			if (parameters.size() == 1) {
+				trackNo = toBinary(getParamater());
+			}
+			
+			Location pos = Location::fromLBA(readLocation);
+			
+			// Start playing track n
+			if (trackNo > 0) {
+				int track = std::min(trackNo - 1, (int)_disk.tracks.size() - 1);
+				pos = _disk.getTrackStart(track);
+			} else {
+				if (readLocation != 0) {
+					pos = Location::fromLBA(readLocation);
+					readLocation = 0;
+				}
+			}
+			
+			readLocation = pos.toLba();
+			_stats.setMode(Stats::Mode::Playing);
+			
+			INT(3);
+			addResponse(_stats._reg);
+			
+			return;
+		} else if(command == 0x11) {
 			INT(3, 1000);
 			addResponse(0); // track
 			addResponse(1); // index
@@ -367,7 +409,8 @@ void CDROM::decodeAndExecute(uint8_t command) {
 			addResponse(0); // second (disc)
 			addResponse(0); // sector (disc)
 			
-			assert(false);
+			// TODO;
+			//assert(false);
 			
 			return;
 		} else if(command == 0x13) {
@@ -380,10 +423,49 @@ void CDROM::decodeAndExecute(uint8_t command) {
 			addResponse(toBcd(_disk.tracks.size()));
 			
 			return;
+		} else if(command == 0x14) {
+			// GetTD - Command 14h,track --> INT3(stat,mm,ss) ;BCD
+			auto toBinary = [](uint8_t b) -> uint8_t {
+				int hi = (b >> 4) & 0xF;
+				int lo = b & 0xF;
+				
+				return hi * 10 + lo; 
+			};
+			
+			auto toBcd = [](uint8_t b) -> uint8_t {
+				return ((b / 10) << 4) | (b % 10); 
+			};
+			
+			auto track = toBinary(getParamater());
+			
+			if (track == 0) {  // end of last track
+				auto diskSize = _disk.getSize();
+				
+				INT(3);
+				addResponse(_stats._reg);
+				addResponse(toBcd(diskSize.minutes));
+				addResponse(toBcd(diskSize.seconds));
+			} else if (track <= _disk.tracks.size()) {  // Start of n track
+				//assert(false);
+				
+				auto start = _disk.getTrackStart(track - 1);
+				
+				INT(3);
+				addResponse(_stats._reg);
+				addResponse(toBcd(start.minutes));
+				addResponse(toBcd(start.seconds));
+			} else {  // error
+				INT(5);
+				addResponse(0x10);
+				
+				return;
+			}
+			
+			return;
 		}
 		
 		INT3();
-		if(command != 0x0C && command != 0x0B && command != 0x03) {
+		if(command != 0x0C && command != 0x0B) {
 			// ReadTOC - Command 1Eh --> INT3(stat) --> INT2(stat)
 			// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
 			// Pause - Command 09h --> INT3(stat) --> INT2(stat)
@@ -426,14 +508,10 @@ void CDROM::decodeAndExecuteSub() {
 		INT(3);
 		
 		// 95h,05h,16h,C1h  ;PSX (LATE-PU-8)          16 May 1995, version vC1 (a)
-		//responses.push(0x94);
-		//responses.push(0x09);
-		//responses.push(0x19);
-		//responses.push(0xC0);
-		addResponse(0x94);
-		addResponse(0x09);
-		addResponse(0x19);
-		addResponse(0xC0);
+		addResponse(0x95);
+		addResponse(0x05);
+		addResponse(0x16);
+		addResponse(0xC1);
 	} else {
 		printf("");
 	}

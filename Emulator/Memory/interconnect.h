@@ -50,7 +50,7 @@ struct ICache {
 
 class Interconnect {
 public:
-    Interconnect(Ram ram, Bios bios, Dma dma, Emulator::Gpu gpu/*, Emulator::SPU spu*/)
+    Interconnect(Ram& ram, Bios& bios, Dma& dma, Emulator::Gpu& gpu/*, Emulator::SPU spu*/)
         : memControl{}, ram(ram), _scratchPad(), _timers(), bios(bios), dma(dma), gpu(gpu), spu(new spu::SPU())
     /*, spu(spu)*/ {}
     
@@ -352,7 +352,7 @@ private:
     uint32_t memControl[9];
     
 public:
-    Ram ram;
+    Ram& ram;
     CDROM _cdrom;
     ScratchPad _scratchPad;
     //Joypad _joypad;
@@ -367,9 +367,9 @@ public:
     // The i-Cache can hold 4096 bytes, or 1024 instructions.
     ICache icache[1024];
     
-    Bios bios;
-    Dma dma;
-    Emulator::Gpu gpu;
+    Bios& bios;
+    Dma& dma;
+    Emulator::Gpu& gpu;
     spu::SPU* spu;
     //Emulator::SPU spu;
 };

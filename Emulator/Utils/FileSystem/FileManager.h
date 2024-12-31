@@ -1,6 +1,9 @@
 ﻿#pragma once
+
 #include <string>
 #include <vector>
+#include <fstream>
+#include <iostream>
 
 namespace Emulator {
 	namespace Utils {

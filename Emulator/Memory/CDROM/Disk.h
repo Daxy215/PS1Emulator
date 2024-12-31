@@ -12,10 +12,14 @@ class Location;
 class Disk {
 public:
 	Disk();
-
+	
 	std::vector<uint8_t> read(Location location);
 	
 	void set(const std::string& path);
+	
+public:
+	Location getSize();
+	Location getTrackStart(int i);
 
 private:
 	int getTrackPosition(Location location);

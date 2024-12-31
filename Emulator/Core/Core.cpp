@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 #include "../CPU/CPU.h"
 #include "../Memory/Bios/Bios.h"
@@ -9,10 +10,15 @@
 #include "../Utils/FileSystem/FileManager.h"
 #include "../GPU/Rendering/renderer.h"
 
-#include <../../imgui-1.91.6/imgui.h>
-#include "../../imgui-1.91.6/backends/imgui_impl_glfw.h"
-#include "../../imgui-1.91.6/backends/imgui_impl_opengl2.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
+#include <stdio.h>
+#define GL_SILENCE_DEPRECATION
+#if defined(IMGUI_IMPL_OPENGL_ES2)
+#include <GLES2/gl2.h>
+#endif
 #include <GLFW/glfw3.h>
 
 #include <chrono>
@@ -383,12 +389,12 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // TODO; Passed but without textures
+	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // Passed
 	
 	// Other stuff
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
 	///std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Squished
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Unsupported format
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
@@ -410,7 +416,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cdrom/cdltest.ps-exe");
 	
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/access-time/access-time.exe"); // TODO; All timings return 4
-	//std ::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/cop/cop.exe"); // TODO; Fails some tests?
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu/io-access-bitwidth/io-access-bitwidth.exe"); // TODO; Fails many tests
 	
@@ -421,7 +427,7 @@ void handleLoadExe(CPU& cpu) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Just a benchmark.. Not really a test
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/quad/quad.exe"); // Ig pases?
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/version-detect/version-detect.exe"); // Not really a tested but I suppose (0* GPU version 2 [New 208pin GPU (LATE-PU-8 and up)])
-	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Wrong address somewhere :)
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Unhandled commands
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/triangle/triangle.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/input/pad/pad.exe");
@@ -472,98 +478,9 @@ void handleLoadExe(CPU& cpu) {
 	cpu.branchSlot = false;
 }
 
-std::vector<std::string> readFile(const std::string& filePath, std::size_t sizeLimit, std::size_t& beginOffset) {
-	if(sizeLimit <= 0)
-		return {};
-	
-	std::ifstream file(filePath, std::ios::binary);
-	std::vector<std::string> lines;
-	
-	if (!file.is_open()) {
-		std::cerr << "Error: Could not open file." << '\n';
-		return lines;
-	}
-	
-	std::streampos charactersToSkip = /*448803262*/0;
-	file.seekg(charactersToSkip, std::ios::cur);
-	
-	std::string line;
-	std::size_t totalSize = 0;
-	std::size_t charCount = 0;
-	
-	while (std::getline(file, line)) {
-		if (totalSize++ >= sizeLimit + beginOffset) {
-			break;
-		}
-		
-		charCount += line.size();
-		
-		if(totalSize > beginOffset)
-			lines.push_back(line);
-	}
-	
-	// Last tested size -> 983,849
-	//beginOffset += 983849;
-	
-	std::cerr << "Finished reading " << lines.size() << " lines starting from offset " << beginOffset << ".\nYou can skip " << std::to_string(charCount) << " + " << std::to_string(totalSize) << " characters!\n";
-	
-	file.close();
-	return lines;
-}
-
-#include <chrono>
-
-uint32_t initalOffset = 100'000'00 + 130'000'00 + 130'000'00;/*63206245*//*238263820*//*238263829*/;
-std::size_t offset = 50379800 + 180'000'00;//100'000'00 + 130'000'00 + 130'000'00;//50081290 - initalOffset;//1100000 + (1758753 * 2) + (1758753 * 4 + 7035012)/*18687530 + 3*/;
-uint32_t size = 0;//180'000'00;
-uint32_t x = 0;
-
 void runFrame(CPU& cpu) {
-	//static auto lines = readFile("logs9.txt", size, offset);
-	//static auto lines = readFileMultiThreaded("logs3.txt", size, offset);
-	
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			/*if(x == /*238263937#1#/*238263932#1#/*238262351#1#/*238262337#1#50379907) {
-				printf("");
-			}
-			
-			// 238262351 -> Writes the wrong jump address to RAM from reg 3
-			// 238262339 -> Sets reg 3 to the wrong jump address through "set_reg" through load
-			// EPC is wrong, well - 4 than it needs to be.
-			// 238262317 -> Where EPC gets set but "currentpc" is the wrong part(there isn't a delay slot)?
-			
-			/*if(x > 238263920) {
-				std::cerr << "PC " << std::to_string(cpu.pc) << " - " << std::to_string(x) << "\n";
-			}#1#
-			
-			if(++x >= (offset + initalOffset) && size > 0) {
-				// String to pass to a file for comparisons
-				std::string content = "PC: " + std::to_string(cpu.pc) + " ";
-				
-				// Add the 32 CPU registers
-				for (int i = 0; i < 32; i++) {
-					content += "Reg" + std::to_string(i) + ": " + std::to_string(cpu.reg(i)) + " ";
-				}
-				
-				// Add Hi, and Lo, for the dividers/multipliers
-				content += "Hi: " + std::to_string(cpu.hi) + " Lo: " + std::to_string(cpu.lo) + " ";
-				
-				// Finally, add COP0 registers
-				content += "Cause: " + std::to_string(cpu._cop0.cause) + " SR: " + std::to_string(cpu._cop0.sr)+ "\r" ;
-				
-				auto index = x - offset - initalOffset;
-				if(!content._Equal(lines[index])) {
-					printf("Mismatch at %d:\nGot:    %s\nWanted: %s\n", (x), content.c_str(), lines[index].c_str());
-					std::cerr << "";
-				}
-			}*/
-			
-			// Breakpoint
-			if(x == 3233617) {
-				return;
-			}
-			
 			if (cpu.pc != 0x80030000 || 1) {
 				cpu.executeNextInstruction();
 			} else {
@@ -591,26 +508,24 @@ int main(int argc, char* argv[]) {
 	// TODO; Implement more channels
 	Dma dma;
 	
-	// TODO; Line rendering
-	// TODO; Semi-transparency(different modes of transparency)
-	// TODO; Blending-textures?
-	// TODO; VRAM issue(DMA)
-	// TODO; Copying parameters from textures not implemented
 	/**
-	 * TOOD;
+	 * TODO;
 	 * So, not sure if this is correct but,
 	 * sometimes, the GPU is drawing outside,
 	 * the "main" drawing area, and it seems that,
 	 * the CPU tries to fetch from those, but to me,
 	 * I am drawing them using OpenGL so I'm not really sure,
-	 * what I should be doing to solve this.. As it does sometimes,
-	 * be required to drawn normally using VBOS?
+	 * what I should be doing to solve this..
 	 */
-	
 	/**
-	 * TODO;
-	 * Some textures as missing
-	 * Drawing offset is weird? Keeps switching between 2 values over and over?
+	 * TODO; Dithering isn't implemented
+	 * TODO; Transparency isn't implemented
+	 * TODO; Line rendering isn't implemented
+	 * TODO; Offset bug? Not exactly sure what it is
+	 * TODO; Blending-textures?
+     * TODO; VRAM issue(DMA), sometimes DMA tries to fetch from a polygon but it doesn't exists.. As it isn't in the VRAM
+     * TODO; Copying parameters from textures not implemented
+	 * TODO; Sometimes, GPU draws an image in the display area of the VRAM. Ensure to render the pixels using VBOS as well
 	 */
     Emulator::Gpu gpu;
     
@@ -621,14 +536,28 @@ int main(int argc, char* argv[]) {
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu));
 	
 	// TODO; For now, manually load in disc
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Tetris X/Tetris X (Japan).cue");
 	//cpu.interconnect._cdrom.swapDisk("ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Sonic Wings Special (Europe)/Sonic Wings Special (Europe)/Sonic Wings Special (Europe).cue");
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue");
-	cpu.interconnect._cdrom.swapDisk("ROMS/Ridge Racer (Europe)/Ridge Racer (Europe).cue");
+	
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
 	//cpu.interconnect._cdrom.swapDisk("ROMS/Battle Arena Toshinden (Europe)/Battle Arena Toshinden (Europe).cue");
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Mortal/Mortal Kombat II (Japan).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Sonic Wings Special (Europe)/Sonic Wings Special (Europe)/Sonic Wings Special (Europe).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Tetris X/Tetris X (Japan).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Ridge Racer (Europe)/Ridge Racer (Europe).cue");
+	
+	/**
+	 * Had an issue with the controller but now it's fixed,
+	 * TODO; Missing some GP0 commands
+	 * GP0(48h) - Monochrome Poly-line, opaque
+	 * 
+	 */
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
+	
+	/**
+	 * Also had controller issues.
+	 * TODO; Missing command:
+	 * GP0(52h) - Shaded line, semi-transparent
+	 */
+	cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
 	
 	// Works but need to skip all cut scenes to see anything(dont have MDEC)
 	// TODO; Uses line rendering but doesn't crash
@@ -637,44 +566,20 @@ int main(int argc, char* argv[]) {
 	
 	// Games that are broken
 	//cpu.interconnect._cdrom.swapDisk("ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; Missing CDROM(0x20/0x1E/0x16) SUB(0x04)
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Gex/Gex (USA) (Rev 1).cue"); // TODO; Uses line rendering
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue"); // TODO; Runs but controls don't work?
 	//cpu.interconnect._cdrom.swapDisk("ROMS/This Is Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue"); // TODO; Just a black screen
+	
+	// TODO; CPU issue? Keeps getting "LoadAddressError" exception through "lw"
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Twisted Metal 4 (USA) (Rev 1)/Twisted Metal 4 (USA) (Rev 1).cue");
 	
 	glfwSetKeyCallback(gpu.renderer->window, Emulator::IO::SIO::keyCallback);
-	
-	// Intiailise ImGui
-	// Setup Dear ImGui context
-	/*IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
-	//io.ConfigViewportsNoAutoMerge = true;
-	//io.ConfigViewportsNoTaskBarIcon = true;
-	
-	// Setup Dear ImGui style
-	ImGui::StyleColorsDark();
-	//ImGui::StyleColorsLight();
-	
-	// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-	ImGuiStyle& style = ImGui::GetStyle();
-	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-		style.WindowRounding = 0.0f;
-		style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-	}
-	
-	// Setup Platform/Renderer backends
-	ImGui_ImplGlfw_InitForOpenGL(gpu.renderer->window, true);
-	ImGui_ImplOpenGL2_Init();*/
 	
 	double fps = 0.0;
 	auto lastFPSTime = std::chrono::high_resolution_clock::now();
 	
 	// TODO; Use ImGui
-	while(!glfwWindowShouldClose(gpu.renderer->window)) {
+	/*while(!glfwWindowShouldClose(gpu.renderer->window)) {
 		// Calculate FPS
 		auto now = std::chrono::high_resolution_clock::now();
 		if (std::chrono::duration<double>(now - lastFPSTime).count() >= 1.0) {
@@ -684,35 +589,15 @@ int main(int argc, char* argv[]) {
 		}
 		
 		auto start = std::chrono::high_resolution_clock::now();
+		
+		//gpu.renderer->clear();
 		runFrame(cpu);
 		
-		/*
-		// Start the Dear ImGui frame
-		ImGui_ImplOpenGL2_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-		
-		ImGui::ShowDemoWindow();
-		
-		// Rendering
-		ImGui::Render();
-		int display_w, display_h;
-		glfwGetFramebufferSize(gpu.renderer->window, &display_w, &display_h);
-		glViewport(0, 0, display_w, display_h);
-		glClear(GL_COLOR_BUFFER_BIT);
-		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
-		
-		// Update and Render additional Platform Windows
-		// (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
-		//  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-			GLFWwindow* backup_current_context = glfwGetCurrentContext();
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-			glfwMakeContextCurrent(backup_current_context);
+		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_G) == GLFW_PRESS) {
+			gpu.renderer->displayVRam();
+		} else {
+			gpu.renderer->display();
 		}
-		
-		glfwSwapBuffers(gpu.renderer->window);*/
 		
 		auto end = std::chrono::high_resolution_clock::now();
 		
@@ -720,18 +605,14 @@ int main(int argc, char* argv[]) {
 		fps = 1.0 / duration.count();
 		
 		glfwPollEvents();
-		
-		// TODO; Test
-		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_G) == GLFW_PRESS) {
-			gpu.renderer->displayVRam();
-		}
+		glfwSwapBuffers(gpu.renderer->window);
 		
 		if (glfwGetKey(gpu.renderer->window, GLFW_KEY_F) == GLFW_PRESS) {
 			gpu.renderer->clear();
 		}
-	}
+	}*/
 	
-	/*int frames = 0, fps = 0;
+	int frames = 0;
 	double frameTime = 0;
 	std::chrono::steady_clock::time_point firstTime;
 	std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
@@ -759,27 +640,28 @@ int main(int argc, char* argv[]) {
 				fps = frames;
 				frames = 0;
 				
-				runFrame(cpu);
+				std::cerr << "FPS: " << std::to_string(fps) << " - " << std::to_string(gpu.frames) << "\n";
 				
-				std::cerr << "FPS: " << std::to_string(fps) << "\n";
+				gpu.frames = 0;
 			}
  		}
 		
 		if(render) {
-			gpu.renderer->display();
-			glfwPollEvents();
+			if (glfwGetKey(gpu.renderer->window, GLFW_KEY_G) == GLFW_PRESS) {
+				gpu.renderer->displayVRam();
+			} else {
+				runFrame(cpu);
+				gpu.renderer->display();
+			}
 			
-			/*cpu.executeNextInstruction();
-			cpu.interconnect.step(3);#1#
+			glfwSwapBuffers(gpu.renderer->window);
+			glfwPollEvents();
 			
 			frames++;
 		} else {
-			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
-	}*/
-	
-	//thread.join();
-	
+	}
 	
 	glfwTerminate();
     

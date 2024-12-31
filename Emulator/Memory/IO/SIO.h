@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "Peripherals/DigitalController.h"
+#include "Peripherals/MemoryCard.h"
 
 class GLFWwindow;
 
@@ -86,7 +87,9 @@ namespace Emulator {
 			
 		private:
 			// TODO; Temp
-			static DigitalController _controler;
+			static DigitalController _controllers[2];
+			
+			::MemoryCard _memoryCard = {};
 		};
 	}
 }

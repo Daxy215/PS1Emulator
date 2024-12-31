@@ -15,8 +15,9 @@ std::vector<uint8_t> Disk::read(Location location) {
 	
 	if(pos == -1) {
 		printf("");
+		return {};
 	}
-	
+		
 	static auto f = fopen(tracks[0].filePath.c_str(), "rb");
 	if (!f) {
 		std::printf("Unable to load file %s\n", tracks[0].filePath.c_str());
@@ -36,6 +37,20 @@ std::vector<uint8_t> Disk::read(Location location) {
 
 void Disk::set(const std::string& path) {
 	tracks = _builder.parseFile(path);
+}
+
+Location Disk::getSize() {
+	size_t frames = 75 * 2;
+	
+	for(auto t : tracks) {
+		frames += t.pregap.toLba() + t.sectorCount;
+	}
+	
+	return Location::fromLBA(frames);
+}
+
+Location Disk::getTrackStart(int track) {
+	return getTrackBegin(track) + tracks[track].pregap;
 }
 
 int Disk::getTrackPosition(Location loc) {

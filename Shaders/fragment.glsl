@@ -139,7 +139,7 @@ void main() {
     
     // Apply transparency
     // TODO; Apply different level of transparency
-    float alpha = 1.0;//(isSemiTransparent == 1) ? 0.5 : 1.0;
+    float alpha = (isSemiTransparent == 1) ? 0.5 : 1.0;
     
     // TODO; Implement texture blend?
     
@@ -158,7 +158,7 @@ void main() {
         
         vec4 samp = sample_texel(textureDepth);
         
-        if(internalToPsxColor(samp) == 0x0000u) {
+        if(internalToPsxColor(samp) == 0u) {
             discard;
         }
         

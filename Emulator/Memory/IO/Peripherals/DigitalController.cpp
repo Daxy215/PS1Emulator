@@ -50,7 +50,7 @@ uint16_t DigitalController::load(uint32_t val) {
 			break;
 		}
 		
-		case Transfering: {
+		case Transferring: {
 			uint8_t d = data.front();
 			data.pop();
 			
@@ -64,7 +64,7 @@ uint16_t DigitalController::load(uint32_t val) {
 		
 		case Connected: {
 			if(val == 0x42) {
-				_mode = Transfering;
+				_mode = Transferring;
 				_interrupt = true;
 				
 				uint8_t b0 = TYPE & 0xFF;
@@ -99,4 +99,5 @@ uint16_t DigitalController::load(uint32_t val) {
 
 void DigitalController::reset() {
 	_mode = Idle;
+	_interrupt = false;
 }

@@ -53,6 +53,15 @@ namespace Emulator {
             auto f = static_cast<uint32_t>(value) << 16;
             return f;
         }
+        
+        uint32_t getResolution() const {
+            if (hr2 == 1) return 368;
+            /*if (hr1 == 0) return 256;
+            if (hr1 == 1) return 320;
+            if (hr1 == 2) return 512;
+            if (hr1 == 3) return 640;*/
+            return hr1;
+        }
     };
     
     // Video output vertical resolution
@@ -124,9 +133,8 @@ namespace Emulator {
         struct Position {
             Position() = default;
             
-            Position(float x, float y) : x(x), y(y) {
-                
-            }
+            Position(uint32_t x, uint32_t y) : x(x), y(y) {}
+            Position(float x, float y) : x(x), y(y) {}
             
             static Position fromGp0(uint32_t val) {
                 float x = static_cast<float>(static_cast<int16_t>(val));
@@ -157,12 +165,13 @@ namespace Emulator {
             }
             
             uint32_t toU32() const {
-                uint32_t a = (uint32_t)(1 + 0.5);
-                uint32_t r = (uint32_t)(floor(this->r * 31.0 + 0.5));
-                uint32_t g = (uint32_t)(floor(this->g * 31.0 + 0.5));
-                uint32_t b = (uint32_t)(floor(this->b * 31.0 + 0.5));
+                uint32_t color = 0;
                 
-                return (a << 15) | (b << 10) | (g << 5) | (r);
+                color |= (r & 0xF8) >> 3;
+                color |= (g & 0xF8) << 2;
+                color |= (b & 0xF8) << 7;
+                
+                return color;
             }
             
             GLubyte r, g, b;
@@ -184,8 +193,10 @@ namespace Emulator {
                  * 3 -> 16 bits?
                  */
                 // TODO; Copy other parameters
-                auto depth = ((page & 0x180) >> 7);
-                gpu.setTextureDepth(static_cast<Emulator::TextureDepth>(depth));
+                int depth = ((page & 0x180) >> 7);
+                //gpu.setTextureDepth(static_cast<Emulator::TextureDepth>(depth));
+                
+                gpu.curAttribute.textureDepth = depth;
                 
                 float u = static_cast<float>((val) & 0xFF);
                 float v = static_cast<float>((val >> 8) & 0xFF);
@@ -253,11 +264,11 @@ namespace Emulator {
                 this->textureMode = textureMode;
             }
             
-            bool usesColor() {
+            bool usesColor() const {
                 return (textureMode != TextureOnly);
             }
             
-            bool useTextures() {
+            bool useTextures() const {
                 return (textureMode != ColorOnly);
             }
             
@@ -360,7 +371,7 @@ namespace Emulator {
         // From VRAM to CPU
         void gp0ImageStore(uint32_t val);
         
-        void gp0VramToVram(uint32_t val) const;
+        void gp0VramToVram(uint32_t val);
         
         // Handles writes to the GP1 command register
         void gp1(uint32_t val);
@@ -430,8 +441,8 @@ namespace Emulator {
         int16_t drawingAreaBottom;   // Bottom-most line of drawing area
         static inline int16_t drawingXOffset;       // Horizontal drawing offset applied to all vertices
         static inline int16_t drawingYOffset;       // Vertical drawing offset applied to all vertices
-        uint16_t displayVramXStart;   // First column of the display area in VRAM
-        uint16_t displayVramYStart;   // First line of the display area in VRAM
+        int16_t displayVramXStart;   // First column of the display area in VRAM
+        int16_t displayVramYStart;   // First line of the display area in VRAM
         uint16_t displayHorizStart;   // Display output horizontal start relative to HSYNC
         uint16_t displayHorizEnd;     // Display output horizontal end relative to HSYNC
         uint16_t displayLineStart;    // Display output first line relative to VSYNC
@@ -445,12 +456,12 @@ namespace Emulator {
         
         const float ntscVideoClock = 53693175.0f / 60.0f;
         const float palVideoClock = 53203425.0f / 60.0f;
-
+		
     public:
         uint32_t _scanLine = 0;
         uint32_t _cycles = 0;
         uint32_t frames = 0;
-
+		
     public:
         bool isInHBlank = false;
         bool isInVBlank = false;
@@ -482,6 +493,7 @@ namespace Emulator {
     public:
         Renderer* renderer;
         VRAM* vram;
+        
     };
 }
 #endif // GPU_H

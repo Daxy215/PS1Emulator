@@ -3,12 +3,13 @@
 #include <cassert>
 #include <iostream>
 
+#include "imgui_impl_opengl3_loader.h"
 #include "../IRQ.h"
 #include "../../Utils/Bitwise.h"
 
 #include "GLFW/glfw3.h"
 
-DigitalController Emulator::IO::SIO::_controler = {};
+DigitalController Emulator::IO::SIO::_controllers[] = {};
 
 void Emulator::IO::SIO::step(uint32_t cycles) {
 	if(timer > 0) {
@@ -73,8 +74,8 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		// Reset the stat register
 		stat = 0;
 		
-		stat |= budTimer << 11;
-		stat |= (interrupt) << 9;
+		//stat |= budTimer << 11;
+		//stat |= (interrupt) << 9;
 		stat |= (dsrInputLevel) << 7;
 		
 		// Bit 3: RX Parity Error (0=No, 1=Error; Wrong Parity, when enabled)
@@ -83,6 +84,8 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		stat |= (txIdle) << 2;
 		stat |= (isRXFull) << 1;
 		stat |= (txReady) << 0;
+		
+ 		dsrInputLevel = false;
 		
 		return stat;
 	} else if(addr == 0x1F801048) {
@@ -152,7 +155,6 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		txReady = true;
 		txIdle = false;
 		
-		// TODO; Start transfer;
 		// If TXEN was set and is currently cleaned,
 		// then it should still start a transfer
 		// This is used in Wipeout 2097
@@ -164,7 +166,6 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 				_connectedDevice = Controller;
 			} else if(val == 0x81) {
 				// Memory card
-				std::cerr << "MEMORY CARD\n";
 				_connectedDevice = MemoryCard;
 			} else {
 				printf("");
@@ -175,27 +176,26 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		if(dtrOutput) {
 			txIdle = true;
 			
-			// TODO; Handle 2nd port..
-			/*if(sio0Selected) {
-				rxData = 0xFF;
-				dsrInputLevel = false;
-				
-				return;
-			}*/
-			
 			if(_connectedDevice == Controller) {
-				rxData = _controler.load(txData);
-				dsrInputLevel = _controler._interrupt;
+				rxData = _controllers[sio0Selected].load(txData);
+				dsrInputLevel = _controllers[sio0Selected]._interrupt;
 				
 				if(dsrInputLevel) {
 					timer = 5;
 				}
 			} else if(_connectedDevice == MemoryCard) {
-				// TODO; Transfer data
+				// TODO; Temp - Handle 2nd port
+				if(sio0Selected) {
+					rxData = 0xFF;
+					dsrInputLevel = false;
+				} else {
+					rxData = _memoryCard.handle(txData);
+					dsrInputLevel = _memoryCard._interrupt;
+				}
 				
-				//if(dsrInputLevel) {
-					//timer = 3;
-				//}
+				if(dsrInputLevel) {
+					timer = 3;
+				}
 			} else {
 				dsrInputLevel = false;
 			}
@@ -206,8 +206,10 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		} else {
 			_connectedDevice = None;
 			
-			// TODO; reset controller & memory card
-			_controler.reset();
+			_memoryCard.reset();
+			
+			// TODO; Not sure if I should reset both controllers?
+			_controllers[sio0Selected].reset();
 			
 			dsrInputLevel = false;
 		}
@@ -300,7 +302,10 @@ void Emulator::IO::SIO::setCtrl(uint32_t val) {
 		baudtimerRate = 0;
 		
 		_connectedDevice = None;
-		_controler.reset();
+		
+		_memoryCard.reset();
+		_controllers[0].reset();
+		_controllers[1].reset();
 		
 		mode = 0;
 		
@@ -309,7 +314,12 @@ void Emulator::IO::SIO::setCtrl(uint32_t val) {
 	
 	if (!dtrOutput) {
 		_connectedDevice = None;
-		_controler.reset();
+		
+		// TODO; Idk if I should reset the memory card?
+		_memoryCard.reset();
+		
+		_controllers[0].reset();
+		_controllers[1].reset();
 	}
 }
 
@@ -318,23 +328,26 @@ void Emulator::IO::SIO::keyCallback(GLFWwindow* window, int key, int scancode, i
 	if (action == GLFW_PRESS || action == GLFW_RELEASE) {
 		bool isPressed = (action == GLFW_PRESS);
 		
+		// TODO; Handle 2nd controller input
+		auto& controller = _controllers[0];
+		
 		switch (key) {
-			case GLFW_KEY_ENTER:       _controler._input.Start    = isPressed; break;
-			case GLFW_KEY_BACKSPACE:   _controler._input.Select   = isPressed; break;
-			case GLFW_KEY_UP:          _controler._input.Up       = isPressed; break;
-			case GLFW_KEY_RIGHT:       _controler._input.Right    = isPressed; break;
-			case GLFW_KEY_DOWN:        _controler._input.Down     = isPressed; break;
-			case GLFW_KEY_LEFT:        _controler._input.Left     = isPressed; break;
-			case GLFW_KEY_Z:           _controler._input.Cross    = isPressed; break;
-			case GLFW_KEY_X:           _controler._input.Circle   = isPressed; break;
-			case GLFW_KEY_A:           _controler._input.Square   = isPressed; break;
-			case GLFW_KEY_S:           _controler._input.Triangle = isPressed; break;
-			case GLFW_KEY_Q:           _controler._input.L1       = isPressed; break;
-			case GLFW_KEY_E:           _controler._input.R1       = isPressed; break;
-			case GLFW_KEY_1:           _controler._input.L2       = isPressed; break;
-			case GLFW_KEY_2:           _controler._input.R2       = isPressed; break;
-			case GLFW_KEY_LEFT_SHIFT:  _controler._input.L3       = isPressed; break;
-			case GLFW_KEY_RIGHT_SHIFT: _controler._input.R3       = isPressed; break;
+			case GLFW_KEY_ENTER:       controller._input.Start    = isPressed; break;
+			case GLFW_KEY_BACKSPACE:   controller._input.Select   = isPressed; break;
+			case GLFW_KEY_UP:          controller._input.Up       = isPressed; break;
+			case GLFW_KEY_RIGHT:       controller._input.Right    = isPressed; break;
+			case GLFW_KEY_DOWN:        controller._input.Down     = isPressed; break;
+			case GLFW_KEY_LEFT:        controller._input.Left     = isPressed; break;
+			case GLFW_KEY_Z:           controller._input.Cross    = isPressed; break;
+			case GLFW_KEY_X:           controller._input.Circle   = isPressed; break;
+			case GLFW_KEY_A:           controller._input.Square   = isPressed; break;
+			case GLFW_KEY_S:           controller._input.Triangle = isPressed; break;
+			case GLFW_KEY_Q:           controller._input.L1       = isPressed; break;
+			case GLFW_KEY_E:           controller._input.R1       = isPressed; break;
+			case GLFW_KEY_1:           controller._input.L2       = isPressed; break;
+			case GLFW_KEY_2:           controller._input.R2       = isPressed; break;
+			case GLFW_KEY_LEFT_SHIFT:  controller._input.L3       = isPressed; break;
+			case GLFW_KEY_RIGHT_SHIFT: controller._input.R3       = isPressed; break;
 			default: break;
 		}
 	}

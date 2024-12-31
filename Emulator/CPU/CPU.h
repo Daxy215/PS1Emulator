@@ -5,7 +5,7 @@
 
 #include "Instruction.h"
 #include "../Memory/interconnect.h"
-#include "COP/COP2.h"
+//#include "COP/COP2.h"
 #include "COP/Stolen/gte/gte.h"
 
 class Instruction;
@@ -377,6 +377,6 @@ public:
     COP0 _cop0;
     
 private:
-    COP2 _cop2;
+    //COP2 _cop2;
     GTE gte;
 };
