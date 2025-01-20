@@ -115,11 +115,11 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     glVertexAttribIPointer(index, 1, GL_INT, 0, nullptr);
     
     // Uniforms
-    //offsetUni = glGetUniformLocation(program, "offset");
-    //setDrawingOffset(0, 0);
+    offsetUni = glGetUniformLocation(program, "offset");
+    setDrawingOffset(0, 0);
     
     drawingUni = glGetUniformLocation(program, "drawingArea");
-    setDrawingArea(1024, 512);
+    glUniform2i(drawingUni, 1024, 512);
     
     textureWindowUni = glGetUniformLocation(program, "textureWindow");
     setTextureWindow(0, 0, 0, 0);
@@ -279,8 +279,10 @@ void Emulator::Renderer::pushTriangle(Emulator::Gpu::Position positions[], Emula
     
     _rasterizer.drawTriangle(positions, colors, uvs, attributes);
     
-    if(!checkIfWithin(positions, 3))
+    int length[] = { 0, 1, 2 };
+    if(!checkIfWithin(positions, length)) {
         return;
+    }
     
     for(int i = 0; i < 3; i++) {
         this->positions.set(nVertices, positions[i]);
@@ -302,11 +304,14 @@ void Emulator::Renderer::pushQuad(Emulator::Gpu::Position positions[], Emulator:
     _rasterizer.drawQuad(positions, colors, uvs, attributes);
     //displayVRam();
     
-    if(!checkIfWithin(positions, 3))
-        return;
-    
     // First triangle
     // [2, 3, 0]
+
+    int length[] = { 2, 3, 0 };
+    if(!checkIfWithin(positions, length)) {
+        return;
+    }
+    
     this->positions.set(nVertices, positions[2]);
     if(attributes.usesColor()) this->colors.set(nVertices, colors[2]);
     if(attributes.useTextures()) this->uvs.set(nVertices, uvs[2]);
@@ -326,6 +331,11 @@ void Emulator::Renderer::pushQuad(Emulator::Gpu::Position positions[], Emulator:
     nVertices++;
     
     // [3, 0, 1]
+    int length1[] = { 3, 0, 1 };
+    if(!checkIfWithin(positions, length1)) {
+        return;
+    }
+    
     this->positions.set(nVertices, positions[3]);
     if(attributes.usesColor()) this->colors.set(nVertices, colors[3]);
     if(attributes.useTextures()) this->uvs.set(nVertices, uvs[3]);
@@ -368,12 +378,14 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position positions[], Emul
     
     _rasterizer.drawRectangle(positions, colors, uvs, attributes);
     
-    auto length[] = { 0, 1, 2 };
-    if(!checkIfWithin(positions, length))
-        return;
-    
     // First triangle
     // [0, 1, 2]
+    
+    int length[] = { 0, 1, 2 };
+    if(!checkIfWithin(positions, length)) {
+        return;
+    }
+    
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
     if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
@@ -395,9 +407,10 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position positions[], Emul
     // First triangle
     // [1, 2, 3]
     
-    auto length0[] = { 1, 2, 3 };
-    if(!checkIfWithin(positions, length0))
+    int length0[] = { 1, 2, 3 };
+    if(!checkIfWithin(positions, length0)) {
         return;
+    }
     
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
@@ -420,7 +433,7 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position positions[], Emul
 
 bool Emulator::Renderer::checkIfWithin(Emulator::Gpu::Position positions[], int length[]) {
     for(size_t i = 0; i < 3; i++) {
-        int index = length[i];
+        int index = i;//length[i];
         
         auto v0 = positions[index];
         auto v1 = positions[(index + 1) % 3];
@@ -429,9 +442,17 @@ bool Emulator::Renderer::checkIfWithin(Emulator::Gpu::Position positions[], int 
         float dis1 = abs(v0.y - v1.y);
         
         // Size Restriction: The maximum distance between two vertices is 1023 horizontally, and 511 vertically. 
-        if(dis0 >= 1023 || dis1 >= 511) {
+        if(dis0 >= 1024 || dis1 >= 512) {
             return false;
         }
+        
+        /*auto width = gpu.hres.getResolution();
+        auto height = gpu.vres == VerticalRes::Y240Lines ? 240 : 480;
+        
+        // Check if within screen bounds
+        if(v0.x < 0 || v0.x > 512 || v0.y < 0 || v0.y > 512) {
+            return false;
+        }*/
     }
     
     return true;
@@ -457,6 +478,9 @@ void Emulator::Renderer::setDrawingArea(int16_t right, int16_t bottom) {
     // 839, 479
     //glUniform2i(drawingUni, 640, 480);
     //glUniform2i(drawingUni, 512, 255);
+    
+    drawingArea.x = right;
+    drawingArea.y = bottom;
     
     //glUniform2i(drawingUni, WIDTH, HEIGHT);
     glUniform2i(drawingUni, right, bottom);

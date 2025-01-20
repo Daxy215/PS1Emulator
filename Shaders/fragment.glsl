@@ -40,9 +40,6 @@ const int TEXTURE_DEPTH_MASK = 0x3;
 vec2 calculateTexel() {
     uvec2 texel = uvec2(uint(UVs.x) % 256u, uint(UVs.y) % 256u);
     
-    /*uvec2 mask = uvec2((fragTextureWindow) & 0x1fu, (fragTextureWindow >> 5) & 0x1fu);
-    uvec2 offset = uvec2((fragTextureWindow >> 10) & 0x1fu, (fragTextureWindow >> 15) & 0x1fu);*/
-    
     uvec2 mask = uvec2(textureWindow.x, textureWindow.y);
     uvec2 offset = uvec2(textureWindow.z, textureWindow.w);
     
@@ -164,9 +161,9 @@ void main() {
         
         if(textureMode == 2) {
             vec4 f = vec4(color, 1);
-            vec4 c = mix(samp, f, 0.5f);
+            //vec4 c = mix(samp, f, 0.5f);
             
-            fragColor = vec4(c.r, c.g, c.b, alpha);
+            fragColor = mix(samp, f, 0.5f);//vec4(c.r, c.g, c.b, 1);
         } else {
             // TODO; Check if alpha is needed?
             fragColor = samp;

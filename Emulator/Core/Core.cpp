@@ -550,14 +550,14 @@ int main(int argc, char* argv[]) {
 	 * GP0(48h) - Monochrome Poly-line, opaque
 	 * 
 	 */
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
+	cpu.interconnect._cdrom.swapDisk("ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
 	
 	/**
 	 * Also had controller issues.
 	 * TODO; Missing command:
 	 * GP0(52h) - Shaded line, semi-transparent
 	 */
-	cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
 	
 	// Works but need to skip all cut scenes to see anything(dont have MDEC)
 	// TODO; Uses line rendering but doesn't crash

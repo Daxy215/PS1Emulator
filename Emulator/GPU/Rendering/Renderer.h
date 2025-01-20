@@ -89,6 +89,9 @@ namespace Emulator {
         GLFWwindow* window;
         
     private:
+        glm::vec2 drawingArea;
+        
+    private:
         Emulator::Gpu& gpu;
         
         Rasterizer _rasterizer;

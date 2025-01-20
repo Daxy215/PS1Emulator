@@ -58,6 +58,10 @@ bool Emulator::Gpu::step(uint32_t cycles) {
       * The PSone/PAL video clock is the cpu clock multiplied by 11/7.
       * CPU Clock   =  33.868800MHz (44100Hz*300h)
       * Video Clock =  53.222400MHz (44100Hz*300h*11/7) or 53.690000MHz in Ntsc mode?
+      * 
+      * Frame Rates
+      * PAL:  53.222400MHz/314/3406 = ca. 49.76 Hz (ie. almost 50Hz)
+      * NTSC: 53.222400MHz/263/3413 = ca. 59.29 Hz (ie. almost 60Hz)
       */
     _cycles += (cycles);
     
@@ -112,7 +116,7 @@ uint32_t Emulator::Gpu::status() {
     
     uint32_t status = 0;
     
-    // Bits 0-3: Textu  re page X base (N * 64)
+    // Bits 0-3: Texture page X base (N * 64)
     status |= static_cast<uint32_t>(pageBaseX) << 0;
     
     // Bit 4: Texture page Y base 1 (N * 256)
@@ -790,9 +794,14 @@ void Emulator::Gpu::gp0DrawingAreaBottomRight(uint32_t val) {
     renderer->setDrawingArea(drawingAreaRight - drawingAreaLeft, drawingAreaBottom - drawingAreaTop);
 }
 
+// TODO; Temp
+int16_t pX, pY;
 void Emulator::Gpu::gp0DrawingOffset(uint32_t val) {
     uint16_t x = (static_cast<uint16_t>(val) & 0x7FF);
     uint16_t y = (static_cast<uint16_t>(val >> 11) & 0x7FF);
+    
+    pX = drawingXOffset;
+    pY = drawingYOffset;
     
     // Values are 11bit two's complement-signed values,
     // we need to shift the value to 16 bits,
@@ -800,8 +809,26 @@ void Emulator::Gpu::gp0DrawingOffset(uint32_t val) {
     drawingXOffset = static_cast<int16_t>(x << 5) >> 5;
     drawingYOffset = static_cast<int16_t>(y << 5) >> 5;
     
-    //drawingXOffset = 256;
-    //drawingYOffset = 128;
+    //drawingXOffset -= displayVramXStart;
+    //drawingYOffset -= displayVramYStart;
+    
+    /**
+     * Temporary hack; Can't really figure out,
+     * why the buffers are drawing ontop of,
+     * each other, so this this fixes it,
+     * until I figure out the problem.
+     * 
+     * TODO; Fix this
+     */
+    if(abs(pX - drawingXOffset) > 125) {
+        // Double buffer
+        drawingXOffset = pX;
+    }
+    
+    if(abs(pY - drawingYOffset) > 125) {
+        // Double buffer
+        drawingYOffset = pY;
+    }
     
     // Update rendering offset
     //renderer->setDrawingOffset(drawingXOffset, drawingYOffset);
@@ -1293,6 +1320,20 @@ void Emulator::Gpu::gp1(uint32_t val) {
     case 0x10: {
         readMode = Command;
         
+        /**
+         * On New 208pin GPUs, following values can be selected:
+         * 00h-01h = Returns Nothing (old value in GPUREAD remains unchanged)
+         * 02h     = Read Texture Window setting  ;GP0(E2h) ;20bit/MSBs=Nothing
+         * 03h     = Read Draw area top left      ;GP0(E3h) ;20bit/MSBs=Nothing
+         * 04h     = Read Draw area bottom right  ;GP0(E4h) ;20bit/MSBs=Nothing
+         * 05h     = Read Draw offset             ;GP0(E5h) ;22bit
+         * 06h     = Returns Nothing (old value in GPUREAD remains unchanged)
+         * 07h     = Read GPU Type (usually 2)    ;see "GPU Versions" chapter
+         * 08h     = Unknown (Returns 00000000h) (lightgun on some GPUs?)
+         * 09h-0Fh = Returns Nothing (old value in GPUREAD remains unchanged)
+         * 10h-FFFFFFh = Mirrors of 00h..0Fh
+         */
+        
         switch (val % 8) {
             // Returns nothing
             case 0:
@@ -1314,7 +1355,7 @@ void Emulator::Gpu::gp1(uint32_t val) {
                 break;
             }
             case 5: {
-                _read = ((static_cast<uint32_t>(drawingYOffset) & 0x7FF) << 11) | (static_cast<uint32_t>(drawingXOffset) & 0x7FF);
+                _read = (((drawingYOffset) & 0x7FF) << 11) | ((drawingXOffset) & 0x7FF);
                 
                 break;
             }
@@ -1448,16 +1489,16 @@ void Emulator::Gpu::gp1DmaDirection(uint32_t val) {
 }
 
 void Emulator::Gpu::gp1DisplayVramStart(uint32_t val) {
-    displayVramXStart = static_cast<int16_t>(val & /*0x3FE*/0x3FFF);
-    displayVramYStart = static_cast<int16_t>((val >> 10)/* & 0x1FF*/);
+    displayVramXStart = static_cast<int16_t>(val & /*0x3FE*/0x3FF);
+    displayVramYStart = static_cast<int16_t>((val >> 10) & 0x1FF);
     
     //assert(displayVramXStart == 0);
     //assert(displayVramYStart == 0);
 }
 
 void Emulator::Gpu::gp1DisplayHorizontalRange(uint32_t val) {
-    displayHorizStart = static_cast<uint16_t>(val & 0xFFF);
-    displayHorizEnd = static_cast<uint16_t>((val >> 12) & 0xFFF);
+    displayHorizStart = static_cast<uint16_t>(val & 0x3FF);
+    displayHorizEnd = static_cast<uint16_t>((val >> 12) & 0x3FF);
 }
 
 void Emulator::Gpu::gp1DisplayVerticalRange(uint32_t val) {

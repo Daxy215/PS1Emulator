@@ -56,10 +56,10 @@ namespace Emulator {
         
         uint32_t getResolution() const {
             if (hr2 == 1) return 368;
-            /*if (hr1 == 0) return 256;
+            if (hr1 == 0) return 256;
             if (hr1 == 1) return 320;
             if (hr1 == 2) return 512;
-            if (hr1 == 3) return 640;*/
+            if (hr1 == 3) return 640;
             return hr1;
         }
     };
@@ -194,7 +194,7 @@ namespace Emulator {
                  */
                 // TODO; Copy other parameters
                 int depth = ((page & 0x180) >> 7);
-                //gpu.setTextureDepth(static_cast<Emulator::TextureDepth>(depth));
+                gpu.setTextureDepth(static_cast<Emulator::TextureDepth>(depth));
                 
                 gpu.curAttribute.textureDepth = depth;
                 
@@ -253,7 +253,7 @@ namespace Emulator {
                 GLint isSemiTransparent : 1;
                 GLint blendTexture      : 1; // TODO; Unimplemented
                 TextureMode textureMode : 3;
-                GLint textureDepth      : 2;   
+                GLint textureDepth      : 2;
             };
             
             Attributes() = default;

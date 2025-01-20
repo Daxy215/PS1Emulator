@@ -232,6 +232,9 @@
   <ItemGroup>
     <Content Include="Emulator\CPU\COP\Stolen\gte\Readme.txt" />
     <Content Include="Emulator\SPU\Stolen\Readme.txt" />
+    <Content Include="Shaders\fragment.glsl" />
+    <Content Include="Shaders\vertex - Copy.glsl" />
+    <Content Include="Shaders\vertex.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
