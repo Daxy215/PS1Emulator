@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include <vector>
+#include <cstdint>
+#include <cstring>
 
 class Ram {
 public:
@@ -29,10 +31,6 @@ public:
         
         uint8_t* ptr = data.data() + offset;
         *reinterpret_cast<T*>(ptr) = val;
-        
-        /*for (size_t i = 0; i < sizeof(T); i++) {
-            data[offset + i] = static_cast<uint8_t>((val >> (i * 8)));
-        }*/
     }
     
 public:

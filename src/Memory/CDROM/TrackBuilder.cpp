@@ -9,10 +9,10 @@ std::vector<Track> TrackBuilder::parseFile(const std::string& filePath) {
 	
 	std::string extension = path.extension().string();
 	
-	if(extension._Equal(".cue")) {
+	if(extension == (".cue")) {
 		std::cerr << "Building a cue file\n";
 		return parseCueFile(filePath);
-	} else if(extension._Equal(".bin")) {
+	} else if(extension == (".bin")) {
 		std::cerr << "Building a bin file\n";
 	} else {
 		throw std::runtime_error("Unsupported disk type");
@@ -23,9 +23,22 @@ std::vector<Track> TrackBuilder::parseFile(const std::string& filePath) {
 
 std::vector<Track> TrackBuilder::parseCueFile(const std::string& path) {
 	std::filesystem::path filePath = path;
-	
+
 	std::ifstream cueFile(path);
     std::vector<Track> tracks;  // NOLINT(clang-diagnostic-shadow)
+
+	if(!cueFile) {
+		std::cerr << "Error; Couldn't find disk with the path of: " << path << "\n";
+
+		// Print current directory for debugging
+		std::filesystem::path current_path = std::filesystem::current_path();
+
+		std::cerr << "Current path: " << current_path << std::endl;
+		
+		throw std::runtime_error("Couldn't find disk through the provided path.");
+
+		return {};
+	}
     
     std::string line;
     while (std::getline(cueFile, line)) {

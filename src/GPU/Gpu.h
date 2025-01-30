@@ -9,7 +9,7 @@
 #include <string>
 #include <GL/glew.h>
 
-#include "vram.h"
+#include "VRAM.h"
 
 // TODO; Please redo this shitty code WTF IS THIS ;-;
 

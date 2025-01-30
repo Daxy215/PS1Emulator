@@ -1,10 +1,12 @@
 ﻿#pragma once
 
+#include <stdio.h>
+
 /**
  * C++ being the biggest bitch in existence rn
  */
-#include "D:/libs/glm/glm/vec3.hpp"
-#include "D:/libs/glm/glm/mat3x3.hpp"
+#include "glm/vec3.hpp"
+#include "glm/mat3x3.hpp"
 
 class COP2 {
 public:

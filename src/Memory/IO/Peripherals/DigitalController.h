@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <queue>
+#include <cstdint>
 
 // TODO; I suppose make this as a master class?
 // Controller types: https://psx-spx.consoledev.net/controllersandmemorycards/#controller-id-halfword-number-0

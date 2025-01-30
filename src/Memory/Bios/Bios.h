@@ -1,8 +1,10 @@
 ﻿#pragma once
 
+#include <cstring>
 #include <fstream>
 #include <unordered_map>
 #include <vector>
+#include <cstdint>
 
 class Bios {
 public:

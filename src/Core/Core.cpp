@@ -8,7 +8,7 @@
 #include "../Memory/Bios/Bios.h"
 
 #include "../Utils/FileSystem/FileManager.h"
-#include "../GPU/Rendering/renderer.h"
+#include "../GPU/Rendering/Renderer.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -26,7 +26,7 @@
 #include <iostream>
 
 // To avoid, "gl.h included before "glew.h"
-#include <GL/wglew.h>
+#include <GL/glew.h>
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // ! Please note most of the stuff here isn't really written by me,    !

@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "D:/libs/glm/glm/gtc/type_ptr.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 Emulator::Rasterizer::Rasterizer(Gpu& gpu) : gpu(gpu) {
 	

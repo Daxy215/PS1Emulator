@@ -2,8 +2,8 @@
 
 #include <cassert>
 
-#include "Rendering/renderer.h"
-#include "vram.h"
+#include "Rendering/Renderer.h"
+#include "VRAM.h"
 
 #include <ios>
 #include <iostream>
