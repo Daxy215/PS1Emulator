@@ -481,10 +481,17 @@ void handleLoadExe(CPU& cpu) {
 void runFrame(CPU& cpu) {
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			if (cpu.pc != 0x80030000 || 1) {
+			if (cpu.pc != 0x80030000) {
 				cpu.executeNextInstruction();
 			} else {
-				handleLoadExe(cpu);
+				if(true) {
+					// Skip bios logo
+					printf("Skipping bootrom\n");
+					cpu.pc = cpu.reg(31);
+					cpu.nextpc = cpu.pc + 4;
+				} else {
+					handleLoadExe(cpu);
+				}
 			}
 		}
 		
@@ -504,7 +511,8 @@ int main(int argc, char* argv[]) {
 	
     Ram ram;
     Bios bios = Bios("BIOS/ps-22a.bin");
-	
+	//Bios bios = Bios("BIOS/openbios.bin");
+
 	// TODO; Implement more channels
 	Dma dma;
 	

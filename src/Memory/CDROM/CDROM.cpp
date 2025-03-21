@@ -76,7 +76,7 @@ void CDROM::handleSector() {
 	addResponse(_stats._reg);
 	
 	if (memcmp(_readSector.data(), sync.data(), sync.size()) != 0) {
-		assert(false);
+		//assert(false);
 		return;
 	}
 	
@@ -446,8 +446,6 @@ void CDROM::decodeAndExecute(uint8_t command) {
 				addResponse(toBcd(diskSize.minutes));
 				addResponse(toBcd(diskSize.seconds));
 			} else if (track <= _disk.tracks.size()) {  // Start of n track
-				//assert(false);
-				
 				auto start = _disk.getTrackStart(track - 1);
 				
 				INT(3);

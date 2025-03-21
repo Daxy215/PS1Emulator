@@ -7,4 +7,3 @@ build/**
 libs/**
 .vscode/**
 x64/**
-*.txt
