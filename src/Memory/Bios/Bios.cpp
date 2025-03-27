@@ -1,6 +1,7 @@
 ﻿#include "Bios.h"
 
 #include <vector>
+#include <iostream>
 
 Bios::Bios(const std::string& path)  {
     std::ifstream file(path, std::ios::binary);
@@ -18,6 +19,7 @@ Bios::Bios(const std::string& path)  {
     
     if (size < 0) {
         throw std::runtime_error("Failed to determine file size");
+        return;
     }
     
     // I'm actually speachless..
@@ -26,6 +28,7 @@ Bios::Bios(const std::string& path)  {
     data.resize(size);
     
     if (!file.read(reinterpret_cast<char*>(content.data()), size)) {
+        std::cerr << "no file content/\n";
         throw std::runtime_error("Failed to read file content");
     }
     
@@ -61,6 +64,8 @@ Bios::Bios(const std::string& path)  {
     if (data.size() != BIOS_SIZE) {
         throw std::runtime_error("Invalid BIOS size");
     }
+
+    std::cerr << "size is gud\n";
 }
 
 /*uint32_t Bios::getLittleEndian(std::ifstream& file) {

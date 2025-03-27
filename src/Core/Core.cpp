@@ -481,7 +481,8 @@ void handleLoadExe(CPU& cpu) {
 void runFrame(CPU& cpu) {
 	while(true) {
 		for(int i = 0; i < 100; i++) {
-			if (cpu.pc != 0x80030000) {
+			//if (cpu.pc != 0x80030000) {
+			if (true) {
 				cpu.executeNextInstruction();
 			} else {
 				if(true) {
@@ -544,7 +545,7 @@ int main(int argc, char* argv[]) {
     CPU cpu = CPU(Interconnect(ram, bios, dma, gpu));
 	
 	// TODO; For now, manually load in disc
-	//cpu.interconnect._cdrom.swapDisk("ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");
+	cpu.interconnect._cdrom.swapDisk("ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");
 	
 	//cpu.interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
 	//cpu.interconnect._cdrom.swapDisk("ROMS/Battle Arena Toshinden (Europe)/Battle Arena Toshinden (Europe).cue");
@@ -558,7 +559,7 @@ int main(int argc, char* argv[]) {
 	 * GP0(48h) - Monochrome Poly-line, opaque
 	 * 
 	 */
-	cpu.interconnect._cdrom.swapDisk("ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
+	//cpu.interconnect._cdrom.swapDisk("ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
 	
 	/**
 	 * Also had controller issues.
