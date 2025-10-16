@@ -2,8 +2,13 @@
 *.idb
 
 BIOS/**
-ROMS/**
+ROMS/
 build/**
 libs/**
 .vscode/**
 x64/**
+PSXEmulators/
+libplacebo-7.349.0/
+Tests/
+x64/
+*.ipch

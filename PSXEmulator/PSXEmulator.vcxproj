@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="CCompile.props" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\libs\imgui-1.91.9b\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="..\libs\imgui-1.91.9b\backends\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="..\libs\imgui-1.91.9b\imgui.cpp" />
+    <ClCompile Include="..\libs\imgui-1.91.9b\imgui_demo.cpp" />
+    <ClCompile Include="..\libs\imgui-1.91.9b\imgui_draw.cpp" />
+    <ClCompile Include="..\libs\imgui-1.91.9b\imgui_tables.cpp" />
+    <ClCompile Include="..\libs\imgui-1.91.9b\imgui_widgets.cpp" />
+    <ClCompile Include="src\Core\Core.cpp" />
+    <ClCompile Include="src\CPU\COP\COP0.cpp" />
+    <ClCompile Include="src\CPU\COP\COP2.cpp" />
+    <ClCompile Include="src\CPU\COP\Stolen\gte\gte.cpp" />
+    <ClCompile Include="src\CPU\COP\Stolen\gte\math.cpp" />
+    <ClCompile Include="src\CPU\COP\Stolen\gte\opcodes.cpp" />
+    <ClCompile Include="src\CPU\CPU.cpp" />
+    <ClCompile Include="src\CPU\Instruction.cpp" />
+    <ClCompile Include="src\DMA\Channel.cpp" />
+    <ClCompile Include="src\DMA\Dma.cpp" />
+    <ClCompile Include="src\GPU\Gpu.cpp" />
+    <ClCompile Include="src\GPU\Rendering\Buffer.cpp" />
+    <ClCompile Include="src\GPU\Rendering\Rasterizer.cpp" />
+    <ClCompile Include="src\GPU\Rendering\Renderer.cpp" />
+    <ClCompile Include="src\GPU\VRAM.cpp" />
+    <ClCompile Include="src\Memory\Bios\Bios.cpp" />
+    <ClCompile Include="src\Memory\CDROM\CDROM.cpp" />
+    <ClCompile Include="src\Memory\CDROM\Disk.cpp" />
+    <ClCompile Include="src\Memory\CDROM\Sector.cpp" />
+    <ClCompile Include="src\Memory\CDROM\TrackBuilder.cpp" />
+    <ClCompile Include="src\Memory\interconnect.cpp" />
+    <ClCompile Include="src\Memory\IO\Peripherals\DigitalController.cpp" />
+    <ClCompile Include="src\Memory\IO\Peripherals\MemoryCard.cpp" />
+    <ClCompile Include="src\Memory\IO\SIO.cpp" />
+    <ClCompile Include="src\Memory\Memories\Ram.cpp" />
+    <ClCompile Include="src\Memory\Memories\ScratchPad.cpp" />
+    <ClCompile Include="src\Memory\Timers\Timer.cpp" />
+    <ClCompile Include="src\Memory\Timers\Timers.cpp" />
+    <ClCompile Include="src\SPU\SPU.cpp" />
+    <ClCompile Include="src\SPU\Stolen\adsr.cpp" />
+    <ClCompile Include="src\SPU\Stolen\interpolation.cpp" />
+    <ClCompile Include="src\SPU\Stolen\noise.cpp" />
+    <ClCompile Include="src\SPU\Stolen\reverb.cpp" />
+    <ClCompile Include="src\SPU\Stolen\spu.cpp" />
+    <ClCompile Include="src\SPU\Stolen\voice.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\libs\imgui-1.91.9b\backends\imgui_impl_glfw.h" />
+    <ClInclude Include="..\libs\imgui-1.91.9b\backends\imgui_impl_opengl3.h" />
+    <ClInclude Include="..\libs\imgui-1.91.9b\imconfig.h" />
+    <ClInclude Include="..\libs\imgui-1.91.9b\imgui.h" />
+    <ClInclude Include="..\libs\imgui-1.91.9b\imgui_internal.h" />
+    <ClInclude Include="..\libs\imgui-1.91.9b\imstb_rectpack.h" />
+    <ClInclude Include="..\libs\imgui-1.91.9b\imstb_textedit.h" />
+    <ClInclude Include="..\libs\imgui-1.91.9b\imstb_truetype.h" />
+    <ClInclude Include="Shaders\ffx_cas.h" />
+    <ClInclude Include="Shaders\ffx_fsr1.h" />
+    <ClInclude Include="src\CPU\COP\COP0.h" />
+    <ClInclude Include="src\CPU\COP\COP2.h" />
+    <ClInclude Include="src\CPU\COP\Stolen\gte\command.h" />
+    <ClInclude Include="src\CPU\COP\Stolen\gte\gte.h" />
+    <ClInclude Include="src\CPU\COP\Stolen\gte\math.h" />
+    <ClInclude Include="src\CPU\CPU.h" />
+    <ClInclude Include="src\CPU\Instruction.h" />
+    <ClInclude Include="src\DMA\Attributes.h" />
+    <ClInclude Include="src\DMA\Channel.h" />
+    <ClInclude Include="src\DMA\Dma.h" />
+    <ClInclude Include="src\GPU\Gpu.h" />
+    <ClInclude Include="src\GPU\Rendering\Buffer.h" />
+    <ClInclude Include="src\GPU\Rendering\Rasterizer.h" />
+    <ClInclude Include="src\GPU\Rendering\Renderer.h" />
+    <ClInclude Include="src\GPU\VRAM.h" />
+    <ClInclude Include="src\Memory\Bios\Bios.h" />
+    <ClInclude Include="src\Memory\CDROM\CDROM.h" />
+    <ClInclude Include="src\Memory\CDROM\Disk.h" />
+    <ClInclude Include="src\Memory\CDROM\fifo.h" />
+    <ClInclude Include="src\Memory\CDROM\Location.h" />
+    <ClInclude Include="src\Memory\CDROM\Sector.h" />
+    <ClInclude Include="src\Memory\CDROM\TrackBuilder.h" />
+    <ClInclude Include="src\Memory\interconnect.h" />
+    <ClInclude Include="src\Memory\IO\Peripherals\DigitalController.h" />
+    <ClInclude Include="src\Memory\IO\Peripherals\MemoryCard.h" />
+    <ClInclude Include="src\Memory\IO\SIO.h" />
+    <ClInclude Include="src\Memory\IRQ.h" />
+    <ClInclude Include="src\Memory\Memories\Ram.h" />
+    <ClInclude Include="src\Memory\Memories\ScratchPad.h" />
+    <ClInclude Include="src\Memory\Range.h" />
+    <ClInclude Include="src\Memory\Timers\Timer.h" />
+    <ClInclude Include="src\Memory\Timers\Timers.h" />
+    <ClInclude Include="src\SPU\SPU.h" />
+    <ClInclude Include="src\SPU\Stolen\adsr.h" />
+    <ClInclude Include="src\SPU\Stolen\interpolation.h" />
+    <ClInclude Include="src\SPU\Stolen\noise.h" />
+    <ClInclude Include="src\SPU\Stolen\regs.h" />
+    <ClInclude Include="src\SPU\Stolen\reverb.h" />
+    <ClInclude Include="src\SPU\Stolen\sample.h" />
+    <ClInclude Include="src\SPU\Stolen\spu.h" />
+    <ClInclude Include="src\SPU\Stolen\voice.h" />
+    <ClInclude Include="src\Utils\Bitwise.h" />
+    <ClInclude Include="src\Utils\FileSystem\FileManager.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Shaders\bloomFragment.glsl" />
+    <Content Include="Shaders\bloomVertex.glsl" />
+    <Content Include="Shaders\bloom_blur.frag" />
+    <Content Include="Shaders\bloom_threshold.frag" />
+    <Content Include="Shaders\fragment.glsl" />
+    <Content Include="Shaders\vertex.glsl" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{91b4b9eb-faa3-4950-b8a1-0e019d8f43df}</ProjectGuid>
+    <RootNamespace>PSXEmulator</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>..\libs\imgui-1.91.9b\backends;..\libs\imgui-1.91.9b\;..\libs\glm\;..\libs\glfw-3.4.bin.WIN64\include;..\libs\glew-2.2.0\include\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\libs\glfw-3.4.bin.WIN64\lib-vc2022;..\libs\glew-2.2.0\lib;..\libs\imgui-1.91.9b</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;glfw3dll.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>..\libs\imgui-1.91.9b\backends;..\libs\imgui-1.91.9b\;..\libs\glm\;..\libs\glfw-3.4.bin.WIN64\include;..\libs\glew-2.2.0\include\;</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\libs\glfw-3.4.bin.WIN64\lib-vc2022;..\libs\glew-2.2.0\lib;..\libs\imgui-1.91.9b</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;glfw3dll.lib;opengl32.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
