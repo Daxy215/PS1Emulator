@@ -7,7 +7,6 @@
 #include "../../Utils/Bitwise.h"
 
 DigitalController Emulator::IO::SIO::_controllers[] = {};
-std::pmr::map<uint32_t, bool> Emulator::IO::SIO::pressedInput = {};
 
 void Emulator::IO::SIO::step(uint32_t cycles) {
 	if(timer > 0) {

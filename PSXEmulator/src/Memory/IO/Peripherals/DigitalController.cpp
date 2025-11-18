@@ -53,47 +53,6 @@ uint16_t DigitalController::load(uint32_t val) {
             if (val == 0x42) {
                 interrupt = true;
                 
-                // TODO; UHHHHHHHHHHHHHHH Move ts away please XD
-                for (auto &[key, val]: Emulator::IO::SIO::pressedInput) {
-                    bool isPressed = val;
-                    
-                    switch (key) {
-                        case GLFW_KEY_ENTER: input.Start = isPressed;
-                            break;
-                        case GLFW_KEY_BACKSPACE: input.Select = isPressed;
-                            break;
-                        case GLFW_KEY_UP: input.Up = isPressed;
-                            break;
-                        case GLFW_KEY_RIGHT: input.Right = isPressed;
-                            break;
-                        case GLFW_KEY_DOWN: input.Down = isPressed;
-                            break;
-                        case GLFW_KEY_LEFT: input.Left = isPressed;
-                            break;
-                        case GLFW_KEY_Z: input.Cross = isPressed;
-                            break;
-                        case GLFW_KEY_X: input.Circle = isPressed;
-                            break;
-                        case GLFW_KEY_A: input.Square = isPressed;
-                            break;
-                        case GLFW_KEY_S: input.Triangle = isPressed;
-                            break;
-                        case GLFW_KEY_Q: input.L1 = isPressed;
-                            break;
-                        case GLFW_KEY_E: input.R1 = isPressed;
-                            break;
-                        case GLFW_KEY_1: input.L2 = isPressed;
-                            break;
-                        case GLFW_KEY_2: input.R2 = isPressed;
-                            break;
-                        case GLFW_KEY_LEFT_SHIFT: input.L3 = isPressed;
-                            break;
-                        case GLFW_KEY_RIGHT_SHIFT: input.R3 = isPressed;
-                            break;
-                        default: break;
-                    }
-                }
-                
                 uint8_t b0 = TYPE & 0xFF;
                 uint8_t b1 = (TYPE >> 8) & 0xFF;
                 uint8_t b2 = (~input._byte[0]) & 0xFF;

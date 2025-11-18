@@ -63,37 +63,32 @@ namespace Emulator {
 				
 				void setCtrl(uint32_t val);
 				
-				// TODO; REMOVE
-				static std::pmr::map<uint32_t, bool> pressedInput;
-				
 				static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 					if (action == GLFW_PRESS || action == GLFW_RELEASE) {
 						bool isPressed = (action == GLFW_PRESS);
 						
-						SIO::pressedInput[key] = isPressed;
-						
 						// TODO; Handle 2nd controller input
-						/*auto& controller = _controllers[0];
+						auto& controller = _controllers[0];
 						
 						switch (key) {
-							case GLFW_KEY_ENTER:       controller._input.Start    = isPressed; break;
-							case GLFW_KEY_BACKSPACE:   controller._input.Select   = isPressed; break;
-							case GLFW_KEY_UP:          controller._input.Up       = isPressed; break;
-							case GLFW_KEY_RIGHT:       controller._input.Right    = isPressed; break;
-							case GLFW_KEY_DOWN:        controller._input.Down     = isPressed; break;
-							case GLFW_KEY_LEFT:        controller._input.Left     = isPressed; break;
-							case GLFW_KEY_Z:           controller._input.Cross    = isPressed; break;
-							case GLFW_KEY_X:           controller._input.Circle   = isPressed; break;
-							case GLFW_KEY_A:           controller._input.Square   = isPressed; break;
-							case GLFW_KEY_S:           controller._input.Triangle = isPressed; break;
-							case GLFW_KEY_Q:           controller._input.L1       = isPressed; break;
-							case GLFW_KEY_E:           controller._input.R1       = isPressed; break;
-							case GLFW_KEY_1:           controller._input.L2       = isPressed; break;
-							case GLFW_KEY_2:           controller._input.R2       = isPressed; break;
-							case GLFW_KEY_LEFT_SHIFT:  controller._input.L3       = isPressed; break;
-							case GLFW_KEY_RIGHT_SHIFT: controller._input.R3       = isPressed; break;
+							case GLFW_KEY_ENTER:       controller.input.Start    = isPressed; break;
+							case GLFW_KEY_BACKSPACE:   controller.input.Select   = isPressed; break;
+							case GLFW_KEY_UP:          controller.input.Up       = isPressed; break;
+							case GLFW_KEY_RIGHT:       controller.input.Right    = isPressed; break;
+							case GLFW_KEY_DOWN:        controller.input.Down     = isPressed; break;
+							case GLFW_KEY_LEFT:        controller.input.Left     = isPressed; break;
+							case GLFW_KEY_Z:           controller.input.Cross    = isPressed; break;
+							case GLFW_KEY_X:           controller.input.Circle   = isPressed; break;
+							case GLFW_KEY_A:           controller.input.Square   = isPressed; break;
+							case GLFW_KEY_S:           controller.input.Triangle = isPressed; break;
+							case GLFW_KEY_Q:           controller.input.L1       = isPressed; break;
+							case GLFW_KEY_E:           controller.input.R1       = isPressed; break;
+							case GLFW_KEY_1:           controller.input.L2       = isPressed; break;
+							case GLFW_KEY_2:           controller.input.R2       = isPressed; break;
+							case GLFW_KEY_LEFT_SHIFT:  controller.input.L3       = isPressed; break;
+							case GLFW_KEY_RIGHT_SHIFT: controller.input.R3       = isPressed; break;
 							default: break;
-						}*/
+						}
 					}
 				}
 				
