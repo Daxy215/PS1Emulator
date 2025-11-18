@@ -6,7 +6,7 @@ set(LIBS_DIR "${CMAKE_SOURCE_DIR}/../libs")
 
 # Check if it exists
 if (EXISTS "${LIBS_DIR}")
-    message(STATUS "✅ Found libs folder at: ${LIBS_DIR}")
+    message(STATUS "Found libs folder at: ${LIBS_DIR}")
 else()
     message(FATAL_ERROR "'libs' folder not found at: ${LIBS_DIR}\n"
             "Expected structure:\n"

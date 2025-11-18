@@ -43,7 +43,7 @@ public:
         uint16_t _reg;
         uint8_t _byte[2];
         
-        ControllerInput(uint16_t reg) : _reg(reg) {};
+        explicit ControllerInput(uint16_t reg) : _reg(reg) {};
     };
     
 public:
@@ -54,6 +54,9 @@ public:
     
     uint16_t load(uint32_t val);
     void reset();
+
+public:
+    uint8_t getNextByte();
     
 private:
     // TODO; Temp
@@ -63,13 +66,13 @@ private:
     //uint16_t _buttons = 0xFFFF;
     
 public:
-    bool _interrupt = false;
+    bool interrupt = false;
     
 public:
-    Mode _mode = Idle;
+    Mode mode = Idle;
     
 public:
-    ControllerInput _input;
+    ControllerInput input;
     
 private:
     std::queue<uint8_t> data;

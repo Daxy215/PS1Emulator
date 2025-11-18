@@ -6,17 +6,16 @@
 #include "../IRQ.h"
 #include "../../Utils/Bitwise.h"
 
-#include "GLFW/glfw3.h"
-
 DigitalController Emulator::IO::SIO::_controllers[] = {};
+std::pmr::map<uint32_t, bool> Emulator::IO::SIO::pressedInput = {};
 
 void Emulator::IO::SIO::step(uint32_t cycles) {
 	if(timer > 0) {
 		timer -= 1;
 		
 		if(timer == 0) {
-			dsrInputLevel = false;
-			interrupt = true;
+			stat.DSR_INPUT_LEVEL = false;
+			stat.INTERRUPT_REQUEST = true;
 			
 			IRQ::trigger(IRQ::PadMemCard);
 			
@@ -45,12 +44,11 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		 * is read using a 16/32-bit memory access,
 		 * so it should only be accessed as an 8-bit register.
 		 */
-		//assert(isRXFull);
 		
-		if(!isRXFull)
+		if(!stat.RX_FIFO_NOT_EMPTY)
 			return 0xFF;
 		
-		isRXFull = false;
+		stat.RX_FIFO_NOT_EMPTY = false;
 		
 		return rxData;
  	} else if(addr == 0x1F801044) {
@@ -71,23 +69,27 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
          * 11-31 Baudrate Timer         (15-21 bit timer, decrementing at 33MHz)
 		 */
 		
+ 		bool pr = stat.DSR_INPUT_LEVEL;
+ 		const uint32_t prvStat = stat.reg;
+ 		
 		// Reset the stat register
-		stat = 0;
+		//stat.reg = 0;
+ 		
+		//stat.BAUDRATE_TIMER = (baudTimer);
+ 		
+ 		// bit 2 is set after sending all bits including the stop bit if any.???????
+ 		// wtf is a stop bit
+ 		stat.TX_IDLE = 1;
 		
-		stat |= baudTimer << 11;
-		//stat |= (interrupt) << 9;
-		stat |= (dsrInputLevel) << 7;
+ 		stat.DSR_INPUT_LEVEL = !pr;
 		
-		// Bit 3: RX Parity Error (0=No, 1=Error; Wrong Parity, when enabled)
-		// TODO;
-		//stat |= (0) << 3;
-		stat |= (txIdle) << 2;
-		stat |= (isRXFull) << 1;
-		stat |= (txReady) << 0;
-		
- 		dsrInputLevel = false;
-		
-		return stat;
+ 		// Bits 4-6 and 8 are always zero.
+ 		assert(stat.SIO1_RX_FIFO_OVERRUN == 0);
+ 		assert(stat.SIO1_RX_BAD_STOP_BIT == 0);
+ 		assert(stat.SIO1_RX_INPUT_LEVEL == 0);
+ 		assert(stat.SIO1_CTS_INPUT_LEVEL == 0);
+ 		
+		return prvStat;
 	} else if(addr == 0x1F801048) {
 		return mode;
 	} else if(addr == 0x1F80104A) {
@@ -135,6 +137,8 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		return baudTimerRate;
 	}
 	
+	assert(false);
+	
 	return 0xFF;
 }
 
@@ -147,13 +151,12 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		 * 8-32 - Not used
 		 */
 		
-		//auto f = (val & 0x7F) >> 21;
 		txData = static_cast<uint8_t>(val);
 		rxData = 0xFF;
-		isRXFull = true;
 		
-		txReady = true;
-		txIdle = false;
+		stat.RX_FIFO_NOT_EMPTY = true;
+		stat.TX_FIFO_NOT_FULL = true;
+		stat.TX_IDLE = false;
 		
 		// If TXEN was set and is currently cleaned,
 		// then it should still start a transfer
@@ -174,34 +177,34 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		
 		// Bit 1 of CTRL
 		if(dtrOutput) {
-			txIdle = true;
-			txReady = true;
+			stat.TX_IDLE = true;
+			stat.TX_FIFO_NOT_FULL = true;
 			
 			if(_connectedDevice == Controller) {
 				rxData = _controllers[sio0Selected].load(txData);
-				dsrInputLevel = _controllers[sio0Selected]._interrupt;
+				stat.DSR_INPUT_LEVEL = _controllers[sio0Selected].interrupt;
 				
-				if(dsrInputLevel) {
+				if(stat.DSR_INPUT_LEVEL) {
 					timer = 5;
 				}
 			} else if(_connectedDevice == MemoryCard) {
 				// TODO; Temp - Handle 2nd port
 				if(sio0Selected) {
 					rxData = 0xFF;
-					dsrInputLevel = false;
+					stat.DSR_INPUT_LEVEL = false;
 				} else {
 					rxData = _memoryCard.handle(txData);
-					dsrInputLevel = _memoryCard._interrupt;
+					stat.DSR_INPUT_LEVEL = _memoryCard._interrupt;
 				}
 				
-				if(dsrInputLevel) {
+				if(stat.DSR_INPUT_LEVEL) {
 					timer = 3;
 				}
 			} else {
-				dsrInputLevel = false;
+				stat.DSR_INPUT_LEVEL = false;
 			}
 			
-			if(!dsrInputLevel) {
+			if(!stat.DSR_INPUT_LEVEL) {
 				_connectedDevice = None;	
 			}
 		} else {
@@ -212,7 +215,7 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 			// TODO; Not sure if I should reset both controllers?
 			_controllers[sio0Selected].reset();
 			
-			dsrInputLevel = false;
+			stat.DSR_INPUT_LEVEL = false;
 		}
 	} else if(addr == 0x1F801048) {
 		/**
@@ -287,19 +290,23 @@ void Emulator::IO::SIO::setCtrl(uint32_t val) {
 	sio0Selected = Utils::Bitwise::getBit(ctrl, 13);
 	
 	if (ack) {
-		interrupt = false;
+		//  1=Reset SIO_STAT.Bits 3,4,5,9
+		stat.RX_PARITY_ERROR  = false;
+		stat.SIO1_RX_FIFO_OVERRUN = false;
+		stat.SIO1_RX_BAD_STOP_BIT = false;
+		stat.INTERRUPT_REQUEST = false;
 		ack = false;
 	}
 	
 	// Rest
 	if (reset) {
-		isRXFull = false;
+		stat.RX_FIFO_NOT_EMPTY = false;
 		
 		rxData = 0xFF;
 		txData = 0xFF;
 		
-		txReady = true;
-		txIdle = true;
+		stat.TX_FIFO_NOT_FULL = true;
+		stat.TX_IDLE = true;
 		
 		baudTimerRate = 0;
 		
