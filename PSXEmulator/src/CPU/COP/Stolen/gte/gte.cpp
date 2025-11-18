@@ -1,5 +1,7 @@
 #include "gte.h"
 
+int32_t GTE::of[2] = {0, 0};
+
 GTE::GTE() : unrTable(generateUnrTable()) {
     //busToken = bus.listen<Event::Config::Gte>([&](auto) { reload(); });
     reload();

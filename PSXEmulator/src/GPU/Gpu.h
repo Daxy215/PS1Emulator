@@ -248,7 +248,7 @@ namespace Emulator {
          * and pass the "offset" variables, as well as the,
          * textureDepth to fix the flickering issue(I hope so)
          */
-        enum TextureMode : GLint { ColorOnly = 0, TextureOnly = 1, TextureColor = 2, TestVRAM = 3 };
+        enum TextureMode : GLint { ColorOnly = 0, TextureOnly = 1, TextureColor = 2 };
         
         union Attributes {
             struct {
@@ -297,7 +297,7 @@ namespace Emulator {
         void gp0DrawingAreaBottomRight(uint32_t val);
         
         // GP0(0xE5): Set Drawing Offset
-        void gp0DrawingOffset(uint32_t val);
+        void gp0DrawingOffset(uint32_t val) const;
         
         // GP0(0xE2): Set Texture Window
         void gp0TextureWindow(uint32_t val);
@@ -335,7 +335,10 @@ namespace Emulator {
         void gp0QuadTexturedShadedOpaque(uint32_t val);
         
         // GP0(48h): Monochrome Poly-line, opaque
-        void gp0PolyLineMonoOpaque(uint32_t val);
+        void gp0PolyLineMono(uint32_t val);
+        
+        // GP0(52h) - Shaded line, semi-transparent
+        void gp0ShadedLine(uint32_t val);
         
         // Helper function
         void renderRectangle(Position position, Color color, UV uv, uint16_t width, uint16_t height);

@@ -5,13 +5,10 @@
 #include "command.h"
 #include "math.h"
 
-namespace gui::debug {
-class GTE;
-}
 
 class GTE {
     template <size_t from, size_t to>
-static bool or_range(uint32_t v) {
+    static bool or_range(uint32_t v) {
         static_assert(from >= 0 && from < 32, "from out of range");
         static_assert(to >= 0 && to < 32, "to out of range");
 
@@ -110,8 +107,6 @@ static bool or_range(uint32_t v) {
         }
     };
 
-    friend gui::debug::GTE;
-
     const std::array<uint8_t, 0x101> unrTable;
     int busToken;
     bool widescreenHack;
@@ -137,14 +132,18 @@ static bool or_range(uint32_t v) {
     gte::Vector<int32_t> backgroundColor;
     gte::Matrix color;
     gte::Vector<int32_t> farColor;
-    int32_t of[2] = {0};
+    
+public:
+    static int32_t of[2];
+    
+private:
     uint16_t h = 0;
     int16_t dqa = 0;
     int32_t dqb = 0;
     int16_t zsf3 = 0;
     int16_t zsf4 = 0;
     Flag flag;
-
+    
     constexpr std::array<uint8_t, 0x101> generateUnrTable();
     void reload();
 

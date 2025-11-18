@@ -20,7 +20,7 @@
  * HalfWord - 16 bits or 2 bytes
  * Word - 32 bits or 4 bytes.
  */
-int CPU::executeNextInstruction(bool print) {
+int CPU::executeNextInstruction() {
     /**
      * First amazing error, here I got "0x1300083c" which means..
      * I was reading the data in big-edian format amazingly..
@@ -54,10 +54,10 @@ int CPU::executeNextInstruction(bool print) {
     delayJumpSlot = jumpSlot;
     jumpSlot = false;
     
-    Instruction instruction = Instruction(interconnect.loadInstruction(pc));
+    auto instruction = Instruction(interconnect.loadInstruction(pc));
     
     if(handleInterrupts(instruction)) {
-        // An exception occured, update instruction based on new PC
+        // An exception occurred, update instruction based on new PC
         instruction = Instruction(interconnect.loadInstruction(pc));
     }
     
@@ -66,7 +66,7 @@ int CPU::executeNextInstruction(bool print) {
     nextpc += 4;
     
     // Executes the instruction
-    int cycles = decodeAndExecute(instruction);
+    const int cycles = decodeAndExecute(instruction);
     
     // Shift load registers
     if(loads[0].index != 32)

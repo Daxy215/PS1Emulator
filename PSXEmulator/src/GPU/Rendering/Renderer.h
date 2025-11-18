@@ -19,7 +19,6 @@ namespace Emulator {
         Renderer(Emulator::Gpu& gpu);
         
         void display();
-        void displayVRam();
         void clear();
         
     private:
@@ -36,16 +35,17 @@ namespace Emulator {
         
     public:
         void setDrawingOffset(int16_t x, int16_t y);
-        void setDrawingArea(/*int16_t right, int16_t bottom*/uint16_t left, uint16_t top, uint16_t width, uint16_t heigh);
+        void setDrawingArea(uint16_t left, uint16_t right, uint16_t top, uint16_t bottom) const;
         void setTextureWindow(uint8_t textureWindowXMask, uint8_t textureWindowYMask, uint8_t textureWindowXOffset, uint8_t textureWindowYOffset);
+        void setSemiTransparencyMode(uint8_t semiTransparencyMode) const;
         
         void bindFrameBuffer(GLuint buf);
         
-        GLuint compileShader(const char* source, GLenum shaderType);
+        static GLuint compileShader(const char* source, GLenum shaderType);
         GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
         GLuint getProgramAttrib(GLuint program, const std::string& attr);
         
-        std::string getShaderSource(const std::string& path);
+        static std::string getShaderSource(const std::string& path);
         
         GLuint createFrameBuffer(GLsizei width, GLsizei height, GLuint& textureId);
         
@@ -86,11 +86,13 @@ namespace Emulator {
         GLuint postProcessFragmentShader;
         
         // Uniforms
+        
         GLint offsetUni;
-        GLint drawingOriginUni;
-        GLint drawingUni;
+        GLint drawingMinUni;
+        GLint drawingMaxUni;
         //GLint textureDepthUni;
         GLint textureWindowUni;
+        GLint semiTransparencyModeUni;
         
         // Buffer contains the vertices positions
         Buffer<Gpu::Position> positions;

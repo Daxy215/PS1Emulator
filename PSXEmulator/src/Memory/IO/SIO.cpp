@@ -1,5 +1,6 @@
 ﻿#include "SIO.h"
 
+#include <cassert>
 #include <iostream>
 
 #include "../IRQ.h"
@@ -18,6 +19,11 @@ void Emulator::IO::SIO::step(uint32_t cycles) {
 			interrupt = true;
 			
 			IRQ::trigger(IRQ::PadMemCard);
+			
+			// TODO; Test
+			
+			// Reset input
+			//_controllers[0]._input._reg = 0;
 		}
 	}
 }
@@ -44,13 +50,9 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		if(!isRXFull)
 			return 0xFF;
 		
-		uint32_t data = 0;
-		
 		isRXFull = false;
 		
 		return rxData;
-		
-		return data;
  	} else if(addr == 0x1F801044) {
 		/**
 		 * SIO#_STAT (R)
@@ -72,13 +74,13 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		// Reset the stat register
 		stat = 0;
 		
-		//stat |= budTimer << 11;
+		stat |= baudTimer << 11;
 		//stat |= (interrupt) << 9;
 		stat |= (dsrInputLevel) << 7;
 		
 		// Bit 3: RX Parity Error (0=No, 1=Error; Wrong Parity, when enabled)
 		// TODO;
-		stat |= (0) << 3;
+		//stat |= (0) << 3;
 		stat |= (txIdle) << 2;
 		stat |= (isRXFull) << 1;
 		stat |= (txReady) << 0;
@@ -130,7 +132,7 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		 * SIO#_BAUD (R/W)
 		 */
 		
-		return baudtimerRate;
+		return baudTimerRate;
 	}
 	
 	return 0xFF;
@@ -140,12 +142,12 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 	if(addr == 0x1F801040) {
 		/**
 		 * SIO#_TX_DATA (WRITE-ONLY)
-		 *
+		 * 
 		 * 0-7 - Data to be sent
 		 * 8-32 - Not used
 		 */
 		
-		auto f = (val & 0x7F) >> 21;
+		//auto f = (val & 0x7F) >> 21;
 		txData = static_cast<uint8_t>(val);
 		rxData = 0xFF;
 		isRXFull = true;
@@ -166,13 +168,14 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 				// Memory card
 				_connectedDevice = MemoryCard;
 			} else {
-				printf("");
+				printf("Unhandled controller type %d\n", val);
 			}
 		}
 		
 		// Bit 1 of CTRL
 		if(dtrOutput) {
 			txIdle = true;
+			txReady = true;
 			
 			if(_connectedDevice == Controller) {
 				rxData = _controllers[sio0Selected].load(txData);
@@ -226,7 +229,7 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		
 		mode = static_cast<uint16_t>(val);
 		
-		buadFactor = mode & 0x3;
+		baudFactor = mode & 0x3;
 	} else if(addr == 0x1F80104A) {
 		setCtrl(val);
 	} else if(addr == 0x1F80104E) {
@@ -234,10 +237,11 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 		 * SIO#_BAUD (R/W)
 		 */
 		
-		baudtimerRate = static_cast<uint16_t>(val);
-		budTimer = (baudtimerRate * buadFactor) & ~0x1;
+		baudTimerRate = static_cast<uint16_t>(val);
+		baudTimer = (baudTimerRate * baudFactor) & ~0x1;
 	} else {
-		printf("");
+		printf("Unhandled memory write: %d\n", addr);
+		assert(false);
 	}
 }
 
@@ -297,7 +301,7 @@ void Emulator::IO::SIO::setCtrl(uint32_t val) {
 		txReady = true;
 		txIdle = true;
 		
-		baudtimerRate = 0;
+		baudTimerRate = 0;
 		
 		_connectedDevice = None;
 		

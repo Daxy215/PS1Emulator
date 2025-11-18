@@ -39,7 +39,7 @@ namespace Emulator {
         
     public:
         // Maybe move this to a struct?
-        unsigned int texture16;
+        unsigned int texture16, texImGui;
         
         uint16_t* ptr16;
     };

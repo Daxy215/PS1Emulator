@@ -62,7 +62,12 @@ public:
         _ram = Ram();
         
         // TODO;
-        _bios = Bios("BIOS/ps-22a.bin");
+        _bios = Bios("../BIOS/ps-22a.bin");
+        //_bios = Bios("../BIOS/openbios.bin");
+        //_bios = Bios("../BIOS/openbios2.bin");
+        //_bios = Bios("../BIOS/openbios-fastboot.bin");
+        //_bios = Bios("../BIOS/openbios-unirom.bin");
+        
         _dma = Dma();
     }
     

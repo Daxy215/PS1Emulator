@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <queue>
+#include <glm/ext/scalar_uint_sized.hpp>
 
 #include "Disk.h"
 #include "fifo.h"
@@ -167,6 +168,8 @@ private:
 	
 	int32_t busyFor = 0;
 	uint32_t cycles = 0;
+	
+	uint32_t scexCounter = 0;
 	
 private:
 	/**

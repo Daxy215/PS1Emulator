@@ -493,19 +493,17 @@ void runFrame() {
 		for(int i = 0; i < 100; i++) {
 			//if (cpu->pc != 0x80030000) {
 			if (true) {
-				static int x = 0;
-				
-				cpu->executeNextInstruction(false);
+				cpu->executeNextInstruction();
 				
 				/*if (!cpu->paused) {
-					cpu->executeNextInstruction(f);
+					cpu->executeNextInstruction();
 				} else if (cpu->stepRequested) {
-					cpu->executeNextInstruction(f);
+					cpu->executeNextInstruction();
 					cpu->stepRequested = false;
 				} else if (cpu->stepUntilBranchTakenRequested) {
 					auto pc = cpu->pc;
 					
-					cpu->executeNextInstruction(f);
+					cpu->executeNextInstruction();
 					
 					if (pc + 4 != cpu->pc) {
 						cpu->stepUntilBranchTakenRequested = false;
@@ -513,14 +511,12 @@ void runFrame() {
 				} else if (cpu->stepUntilBranchNotTakenRequested) {
 					auto pc = cpu->pc;
 					
-					cpu->executeNextInstruction(f);
+					cpu->executeNextInstruction();
 					
 					if (pc + 4 == cpu->pc) {
 						cpu->stepUntilBranchNotTakenRequested = false;
 					}
 				}*/
-				
-				//x++;
 			} else {
 				if(false) {
 					// Skip bios logo
@@ -541,8 +537,6 @@ void runFrame() {
 	}
 }
 
-#include <algorithm>
-
 namespace fs = std::filesystem;
 
 struct FileInfo {
@@ -556,27 +550,31 @@ static void ShowFileBrowser(bool* p_open, CPU* cpu) {
     static std::vector<FileInfo> files;
     static std::string selected_file;
     static std::vector<std::string> history;
+	
+	Refresh:
+		files.clear();
+    		
+		try {
+			for (const auto& entry : fs::directory_iterator(current_dir)) {
+				files.push_back({
+					entry.path().filename().string(),
+					entry.path().string(),
+					entry.is_directory()
+				});
+			}
+
+			std::sort(files.begin(), files.end(), [](const FileInfo& a, const FileInfo& b) {
+				if (a.is_directory != b.is_directory) 
+					return a.is_directory > b.is_directory;
+				return a.name < b.name;
+			});
+		} catch (...) {
+				
+		}
     
     // Refresh directory contents
     if (ImGui::Button("Refresh")) {
-        files.clear();
-    	
-        try {
-            for (const auto& entry : fs::directory_iterator(current_dir)) {
-                files.push_back({
-                    entry.path().filename().string(),
-                    entry.path().string(),
-                    entry.is_directory()
-                });
-            }
-            std::sort(files.begin(), files.end(), [](const FileInfo& a, const FileInfo& b) {
-                if (a.is_directory != b.is_directory) 
-                    return a.is_directory > b.is_directory;
-                return a.name < b.name;
-            });
-        } catch (...) {
-            // Handle permission errors
-        }
+        goto Refresh;
     }
     
     // Navigation buttons
@@ -584,12 +582,16 @@ static void ShowFileBrowser(bool* p_open, CPU* cpu) {
     if (ImGui::Button("Up") && current_dir != fs::path(current_dir).root_path()) {
         history.push_back(current_dir);
         current_dir = fs::path(current_dir).parent_path().string();
+		
+        goto Refresh;
     }
     
     ImGui::SameLine();
     if (ImGui::Button("Home")) {
         history.push_back(current_dir);
         current_dir = fs::path(fs::current_path().root_path()).string();
+		
+        goto Refresh;
     }
 
     // Current directory path
@@ -603,9 +605,12 @@ static void ShowFileBrowser(bool* p_open, CPU* cpu) {
             
             if (ImGui::Selectable(file.name.c_str(), is_selected)) {
                 selected_file = file.path;
+            	
                 if (file.is_directory) {
                     history.push_back(current_dir);
                     current_dir = file.path;
+					
+					goto Refresh;
                 }
             }
             
@@ -690,42 +695,44 @@ int main(int argc, char* argv[]) {
 	psx_disc_open(cpu->interconnect._cdrom->disc, "ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");*/
 	
 	// TODO; For now, manually load in disc
-	cpu->interconnect._cdrom.swapDisk("ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");
 	
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
+	cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
 	//cpu->interconnect._cdrom.swapDisk("ROMS/Battle Arena Toshinden (Europe)/Battle Arena Toshinden (Europe).cue");
 	//cpu->interconnect._cdrom.swapDisk("ROMS/Sonic Wings Special (Europe)/Sonic Wings Special (Europe)/Sonic Wings Special (Europe).cue");
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Tetris X/Tetris X (Japan).cue");
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Ridge Racer (Europe)/Ridge Racer (Europe).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Tetris X/Tetris X (Japan).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Ridge Racer (Europe)/Ridge Racer (Europe).cue");
+	
+	// Uhh works somehow idek how BUT obviously GPU bug but I think it's actually GTE
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Tekken 3 (USA)/Tekken 3 (USA).cue");
 	
 	/**
 	 * Had an issue with the controller but now it's fixed,
 	 * TODO; Missing some GP0 commands
 	 * GP0(48h) - Monochrome Poly-line, opaque
-	 * 
 	 */
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
 	
 	/**
 	 * Also had controller issues.
-	 * TODO; Missing command:
-	 * GP0(52h) - Shaded line, semi-transparent
 	 */
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
 	
 	// Works but need to skip all cut scenes to see anything(dont have MDEC)
 	// TODO; Uses line rendering but doesn't crash
 	// TODO; Uses CDROM (0x14 and 0x13)
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Pepsiman (Japan)/Pepsiman (Japan).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Pepsiman (Japan)/Pepsiman (Japan).cue");
 	
 	// Games that are broken
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; Missing CDROM(0x20/0x1E/0x16) SUB(0x04)
-	//cpu->interconnect._cdrom.swapDisk("ROMS/This Is Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue"); // TODO; Just a black screen
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; Missing CDROM(0x20/0x1E/0x16) SUB(0x04)
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/This Is Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
 	
-	// TODO; CPU issue? Keeps getting "LoadAddressError" exception through "lw"
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Twisted Metal 4 (USA) (Rev 1)/Twisted Metal 4 (USA) (Rev 1).cue");
+	// Works but with some GPU bugs
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue");
+	
+	// TODO; Works completely fine BUT with so many GPU bugs XD
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Twisted Metal 4 (USA) (Rev 1)/Twisted Metal 4 (USA) (Rev 1).cue");
 	
 	/*namespace fs = std::filesystem;
 	
@@ -755,7 +762,7 @@ int main(int argc, char* argv[]) {
 	std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
 	double passedTime = 0;
 	double unprocessedTime = 0;
-	const double UPDATE_CAP = 1.0/120.0;
+	const double UPDATE_CAP = 1.0/600.0;
 	
 	bool render = false;
 	
@@ -766,6 +773,8 @@ int main(int argc, char* argv[]) {
 	
 	while(!glfwWindowShouldClose(gpu->renderer->window)) {
 		render = false;
+		
+		glfwPollEvents();
 		
 		firstTime = std::chrono::steady_clock::now();
 		passedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(firstTime - lastTime).count() / 1000000000.0;//firstTime - lastTime;
@@ -788,7 +797,6 @@ int main(int argc, char* argv[]) {
 			}
  		}
 		
-		glfwPollEvents();
 		if (glfwGetWindowAttrib(gpu->renderer->window, GLFW_ICONIFIED)) {
 			//ImGui_ImplGlfw_Sleep(10);
 			continue;
@@ -802,15 +810,7 @@ int main(int argc, char* argv[]) {
 		if (render) {
 			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			
-			if (glfwGetKey(gpu->renderer->window, GLFW_KEY_G) == GLFW_PRESS) {
-				gpu->renderer->displayVRam();
-			} else {
-				runFrame();
-				//glfwSwapBuffers(gpu->renderer->window);
-				//gpu->renderer->display();
-				//gpu->vram->endTransfer();
-			}
-			
+			runFrame();
 			/*if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_PRESS && loadNextTest) {
 				loadNextTest = false;
 				
@@ -827,13 +827,34 @@ int main(int argc, char* argv[]) {
 			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_RELEASE) {
 				loadNextTest = true;
 			}*/
-			
 			int width, height;
 			glfwGetFramebufferSize(gpu->renderer->window, &width, &height);
 			glViewport(0, 0, width, height);
 		}
 		
 		//cpu->showDisassembler();
+		
+		/*if (ImGui::Begin("VRAM")) {
+			ImGui::Image((ImTextureID)(intptr_t)gpu->vram->texImGui, ImVec2(1024, 512));
+			ImGui::End();
+		}*/
+		
+		int winW, winH;
+		glfwGetFramebufferSize(gpu->renderer->window, &winW, &winH);
+		
+		float x1 = (gpu->drawingAreaLeft   / 1024.0f) * winW;
+		float y1 = (gpu->drawingAreaTop    / 512.0f)  * winH;
+		float x2 = (gpu->drawingAreaRight  / 1024.0f) * winW;
+		float y2 = (gpu->drawingAreaBottom / 512.0f)  * winH;
+		
+		ImGui::GetForegroundDrawList()->AddRect(
+			ImVec2(x1, y1),
+			ImVec2(x2, y2),
+			IM_COL32(255, 0, 0, 255),
+			0.0f,
+			0,
+			3.0f
+		);
 		
 		/*if (ImGui::Begin("Post-Processing Settings")) {
 			ImGui::SeparatorText("Bloom Settings");
@@ -887,6 +908,7 @@ int main(int argc, char* argv[]) {
 		if (render) {
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 			glfwSwapBuffers(gpu->renderer->window);
+			
 			frames++;
 		} else {
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));

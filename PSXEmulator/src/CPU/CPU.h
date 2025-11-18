@@ -68,7 +68,7 @@ public:
         
     }
     
-    int executeNextInstruction(bool print);
+    int executeNextInstruction();
     int decodeAndExecute(Instruction& instruction);
     int decodeAndExecuteSubFunctions(Instruction& instruction);
     

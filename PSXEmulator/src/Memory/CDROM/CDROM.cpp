@@ -25,36 +25,14 @@ void CDROM::step(uint32_t cycles) {
 	triggerInterrupt();*/
 	
 	if(!interrupts.is_empty()) {
-		auto& r = interrupts.ref();
-		r.delay -= cycles;
+		interrupts.ref().delay -= cycles;
 		
-		auto p = interrupts.peek(); 
-		if(p.delay <= 0) {
+		if(interrupts.peek().delay <= 0) {
 			transmittingCommand = false;
 			
 			if((IE & 7) & (interrupts.peek()._interrupt & 7)) {
 				IRQ::trigger(IRQ::Interrupt::CDROM);
 			}
-		}
-	}
-	
-	/*for (size_t i = 0; i < interrupts.size();) {
-		auto& intr = interrupts.ref(i);
-		intr.delay -= cycles;
-        
-		if (intr.delay <= 0) {
-			// Move to front if ready
-			if (i > 0) std::swap(interrupts.ref(0), intr);
-			break;
-		} else {
-			i++;
-		}
-	}*/
-    
-	// Trigger IRQ if any ready
-	if (!interrupts.is_empty() && interrupts.ref(0).delay <= 0) {
-		if (IE & (1 << (interrupts.ref(0)._interrupt))) {
-			IRQ::trigger(IRQ::Interrupt::CDROM);
 		}
 	}
 	
@@ -93,18 +71,6 @@ void CDROM::handleSector() {
 	
 	Location pos = Location::fromLBA(readLocation);
 	_readSector.set(_disk.read(pos));
-	
-	/*std::cerr << "Reading at: " << std::to_string(readLocation) << "\n";
-	
-	auto data = static_cast<uint8_t const*>(_readSector.data());
-	
-	std::cerr << "Sector " << readLocation << " Data: ";
-	for (int i = 0; i < 16; i++) {
-		std::cerr << std::hex << std::uppercase << std::setw(2) << std::setfill('0')
-				  << static_cast<int>(data[i]) << " ";
-	}
-	
-	std::cerr << std::dec << "\n";*/
 	
 	readLocation++;
 	
@@ -381,6 +347,10 @@ void CDROM::swapDisk(const std::string& path) {
 void CDROM::decodeAndExecute(uint8_t command) {
 	//while(!interrupts.empty())
 	//	interrupts.pop();
+	
+	//bool pending = !interrupts.is_empty();
+	//assert(!pending);
+	
 	interrupts.clear();
 	
 	//printf("CMD: %x\n", command);
@@ -392,7 +362,10 @@ void CDROM::decodeAndExecute(uint8_t command) {
 	} else if(command == 0x02) {
 		// Setloc - Command 02h,amm,ass,asect --> INT3(stat)
 		SetLoc();
-	} else if(command == 0x06) {
+	} else if (command == 0x04) {
+		// Forward - Command 04h --> INT3(stat) --> optional INT1(report bytes)
+		INT3();
+	}  else if(command == 0x06) {
 		// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
 		ReadN();
 	} else if(command == 0x08) {
@@ -419,8 +392,7 @@ void CDROM::decodeAndExecute(uint8_t command) {
 	} else if(command == 0x1B) {
 		// ReadS - Command 1Bh --> INT3(stat) --> INT1(stat) --> datablock
 		ReadS();
-	} else {
-		if(command == 0x03) {
+	} else if (command == 0x03) {
 			// Too many args
 			if (parameters.size() > 1) {
 				INT(5);
@@ -429,24 +401,24 @@ void CDROM::decodeAndExecute(uint8_t command) {
 				assert(false);
 				return;
 			}
-			
+
 			auto toBinary = [](uint8_t b) -> uint8_t {
 				int hi = (b >> 4) & 0xF;
 				int lo = b & 0xF;
-				
-				return hi * 10 + lo; 
+
+				return hi * 10 + lo;
 			};
-			
+
 			int trackNo = 0;
 			if (parameters.size() == 1) {
 				trackNo = toBinary(getParamater());
 			}
-			
+
 			Location pos = Location::fromLBA(readLocation);
-			
+
 			// Start playing track n
 			if (trackNo > 0) {
-				int track = std::min(trackNo - 1, (int)_disk.tracks.size() - 1);
+				int track = std::min(trackNo - 1, (int) _disk.tracks.size() - 1);
 				pos = _disk.getTrackStart(track);
 			} else {
 				if (readLocation != 0) {
@@ -457,82 +429,104 @@ void CDROM::decodeAndExecute(uint8_t command) {
 			
 			readLocation = pos.toLba();
 			_stats.setMode(Stats::Mode::Playing);
-			
+		
 			INT(3);
 			addResponse(_stats._reg);
-		} else if(command == 0x11) {
-			INT(3, 1000);
-			addResponse(0); // track
-			addResponse(1); // index
-			addResponse(0); // minute (track)
-			addResponse(0); // second (track)
-			addResponse(0); // sector (track)
-			addResponse(0); // minute (disc)
-			addResponse(0); // second (disc)
-			addResponse(0); // sector (disc)
-			
-			// TODO;
-			//assert(false);
-		} else if(command == 0x13) {
-			auto toBcd = [](uint8_t b) -> uint8_t {
-				return ((b / 10) << 4) | (b % 10); 
-			};
-			
-			INT3();
-			addResponse(toBcd(0x01));
-			addResponse(toBcd(_disk.tracks.size()));
-		} else if(command == 0x14) {
-			// GetTD - Command 14h,track --> INT3(stat,mm,ss) ;BCD
-			auto toBinary = [](uint8_t b) -> uint8_t {
-				int hi = (b >> 4) & 0xF;
-				int lo = b & 0xF;
-				
-				return hi * 10 + lo; 
-			};
-			
-			auto toBcd = [](uint8_t b) -> uint8_t {
-				return ((b / 10) << 4) | (b % 10); 
-			};
-			
-			auto track = toBinary(getParamater());
-			
-			if (track == 0) {  // end of last track
-				auto diskSize = _disk.getSize();
-				
-				INT(3);
-				addResponse(_stats._reg);
-				addResponse(toBcd(diskSize.minutes));
-				addResponse(toBcd(diskSize.seconds));
-			} else if (track <= _disk.tracks.size()) {  // Start of n track
-				auto start = _disk.getTrackStart(track - 1);
-				
-				INT(3);
-				addResponse(_stats._reg);
-				addResponse(toBcd(start.minutes));
-				addResponse(toBcd(start.seconds));
-			} else {  // error
-				INT(5);
-				addResponse(0x10);
-				
-				return;
-			}
-		} else if(command == 0x0C) {
-			// Demute - Command 0Ch --> INT3(stat)
-			INT3();
-		} else if(command == 0x50 || command == 0x51 || command == 0x52 || command == 0x53 || command == 0x54 || command == 0x55 || command == 0x56 || command == 0x57) {
-			INT(5);
-			addResponse(0x13);
-			addResponse(0x40);
+	} else if (command == 0x11) {
+		INT(3, 1000);
+		addResponse(0); // track
+		addResponse(1); // index
+		addResponse(0); // minute (track)
+		addResponse(0); // second (track)
+		addResponse(0); // sector (track)
+		addResponse(0); // minute (disc)
+		addResponse(0); // second (disc)
+		addResponse(0); // sector (disc)
+		
+		// TODO;
+		//assert(false);
+	} else if (command == 0x13) {
+		auto toBcd = [](uint8_t b) -> uint8_t {
+			return ((b / 10) << 4) | (b % 10);
+		};
+
+		INT3();
+		addResponse(toBcd(0x01));
+		addResponse(toBcd(_disk.tracks.size()));
+	} else if (command == 0x14) {
+		// GetTD - Command 14h,track --> INT3(stat,mm,ss) ;BCD
+		auto toBinary = [](uint8_t b) -> uint8_t {
+			int hi = (b >> 4) & 0xF;
+			int lo = b & 0xF;
+
+			return hi * 10 + lo;
+		};
+
+		auto toBcd = [](uint8_t b) -> uint8_t {
+			return ((b / 10) << 4) | (b % 10);
+		};
+
+		auto track = toBinary(getParamater());
+
+		if (track == 0) {
+			// end of last track
+			auto diskSize = _disk.getSize();
+
+			INT(3);
+			addResponse(_stats._reg);
+			addResponse(toBcd(diskSize.minutes));
+			addResponse(toBcd(diskSize.seconds));
+		} else if (track <= _disk.tracks.size()) {
+			// Start of n track
+			auto start = _disk.getTrackStart(track - 1);
+
+			INT(3);
+			addResponse(_stats._reg);
+			addResponse(toBcd(start.minutes));
+			addResponse(toBcd(start.seconds));
 		} else {
-			INT3();
-			//assert(false);
-			if(command != 0x0C && command != 0x0B) {
-				// ReadTOC - Command 1Eh --> INT3(stat) --> INT2(stat)
-				// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
-				// Mute - Command 0Bh --> INT3(stat)
-				
-				//printf("");
-			}
+			// error
+			INT(5);
+			addResponse(0x10);
+
+			return;
+		}
+	} else if (command == 0x16) {
+		// SeekP - Command 16h --> INT3(stat) --> INT2(stat)
+		readLocation = seekLocation;
+		seekLocation = 0;
+		
+		auto prevStat = _stats._reg;
+		
+		_stats.setMode(Stats::Mode::None);
+		INT3();
+		
+		_stats._reg = prevStat;
+		INT(2, 500000);
+		addResponse(_stats._reg);
+		_stats.setMode(Stats::Mode::None);
+	} else if (command == 0x1E) {
+		// ReadTOC - Command 1Eh --> INT3(stat) --> INT2(stat)
+		INT3();
+		INT2();
+	} else if (command == 0x0C) {
+		// Demute - Command 0Ch --> INT3(stat)
+		INT3();
+	} else if (command == 0x50 || command == 0x51 || command == 0x52 || command == 0x53 || command == 0x54 ||
+	           command == 0x55 || command == 0x56 || command == 0x57) {
+		INT(5);
+		addResponse(0x13);
+		addResponse(0x40);
+	} else {
+		INT3();
+		
+		//assert(false);
+		if (command != 0x0C && command != 0x0B) {
+			// ReadTOC - Command 1Eh --> INT3(stat) --> INT2(stat)
+			// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
+			// Mute - Command 0Bh --> INT3(stat)
+			
+			printf("Unhandled command %x\n", command);
 		}
 	}
 	
@@ -554,14 +548,29 @@ void CDROM::decodeAndExecute(uint8_t command) {
 
 void CDROM::decodeAndExecuteSub() {
 	if(parameters.empty()) {
-		printf("");
+		printf("NAWWWWWWWWWWWWW");
 		return;
 	}
 	
 	uint8_t command = parameters.front();
 	parameters.pop();
 	
-	if(command == 0x20) {
+	//printf("Sup command: %x\n", command);
+	
+	if (command == 0x04) {
+		//   04h      -   INT3(stat)         ;Start SCEx reading and reset counters
+		_stats.motor = 1;
+		INT3();
+		
+		if (readLocation < 1024) {
+			scexCounter++;
+		}
+	} else if (command == 0x05) {
+		//   05h      -   INT3(total,success);Stop SCEx reading and get counters
+		INT(3);
+		addResponse(scexCounter);
+		addResponse(scexCounter);
+	} else if(command == 0x20) {
 		//   20h      -   INT3(yy,mm,dd,ver) ;Get cdrom BIOS date/version (yy,mm,dd,ver)
 		
 		//interrupts.push(3);
@@ -723,6 +732,14 @@ void CDROM::SetMode() {
 
 void CDROM::Init() {
 	// Init - Command 0Ah --> INT3(stat) --> INT2(stat)
+
+	/**
+	 * Timings for most other commands should be similar as above.
+	 * One exception is the Init command,
+	 * which is doing some initialization before sending the 1st response:
+	 * 
+	 * Init                   0013cceh  000f820h..00xxxxxh
+	 */
 	INT(3, 0x13CE);
 	addResponse(_stats._reg);
 	

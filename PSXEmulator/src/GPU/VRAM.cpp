@@ -6,8 +6,8 @@
 #include "Rendering/Renderer.h"
 
 Emulator::VRAM::VRAM(Gpu& gpu) : gpu(gpu) {
-	ptr16 = new uint16_t[1024 * 512];
-	std::fill(ptr16, ptr16 + (1024 * 512), 0);
+	ptr16 = new uint16_t[MAX_WIDTH * MAX_HEIGHT];
+	std::fill(ptr16, ptr16 + (MAX_WIDTH * MAX_HEIGHT), 0);
 	
 	glGenTextures(1, &texture16);
 	glActiveTexture(GL_TEXTURE0);
@@ -79,20 +79,22 @@ void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
 uint16_t Emulator::VRAM::getPixel(uint32_t x, uint32_t y) const {
 	/*x %= MAX_WIDTH;
 	y %= MAX_HEIGHT;*/
-	
-	size_t index = y * MAX_WIDTH + x;
+
+	const size_t index = y * MAX_WIDTH + x;
 	return ptr16[index];
 }
 
 uint16_t Emulator::VRAM::getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY) {
 	uint16_t texel = getPixel(pageX + x / 4, pageY + y);
 	uint32_t index = (texel >> (x % 4) * 4) & 0xF;
+	
 	return getPixel(clutX + index, clutY);
 }
 
 uint16_t Emulator::VRAM::getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY) {
 	uint16_t texel = getPixel(pageX + x / 2, pageY + y);
 	uint32_t index = (texel >> (x % 2) * 8) & 0xFF;
+	
 	return getPixel(clutX + index, clutY);
 }
 

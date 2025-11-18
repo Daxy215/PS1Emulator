@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <cstdio>
 #include <stdint.h>
 #include <GLFW/glfw3.h>
 
@@ -24,13 +25,13 @@ namespace Emulator {
 			
 			void setCtrl(uint32_t val);
 			
-			static void __cdecl keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+			static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 				if (action == GLFW_PRESS || action == GLFW_RELEASE) {
-					bool isPressed = (action == GLFW_PRESS);
-		
+					bool isPressed = true;//(action == GLFW_PRESS);
+					
 					// TODO; Handle 2nd controller input
 					auto& controller = _controllers[0];
-		
+					
 					switch (key) {
 						case GLFW_KEY_ENTER:       controller._input.Start    = isPressed; break;
 						case GLFW_KEY_BACKSPACE:   controller._input.Select   = isPressed; break;
@@ -62,10 +63,10 @@ namespace Emulator {
 			
 			bool isRXFull = false;
 			
-			uint16_t baudtimerRate = 0;
-			uint16_t buadFactor = 0;
-			uint32_t budTimer = 0;
-
+			uint16_t baudTimerRate = 0;
+			uint16_t baudFactor = 0;
+			uint32_t baudTimer = 0;
+			
 			/* SIO#_CTRL (R/W)
 			* 0     TX Enable (TXEN)      (0=Disable, 1=Enable)
 			* 1     DTR Output Level      (0=Off, 1=On)

@@ -26,11 +26,11 @@ void Bios::reset(const std::string& path) {
 		return;
 	}
     
-	// I'm actually speachless..
+	// I'm actually speechless..
 	// I was loading the bios in a wrong format.. ;-;
 	content.resize(size);
 	data.resize(size);
-	cache.reserve(size);
+	cache.reserve(size / sizeof(uint32_t));
     
 	if (!file.read(reinterpret_cast<char*>(content.data()), size)) {
 		std::cerr << "no file content/\n";

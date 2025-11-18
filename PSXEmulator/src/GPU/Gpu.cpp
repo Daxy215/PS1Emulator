@@ -11,6 +11,7 @@
 #include <string>
 #include <thread>
 
+#include "gte.h"
 #include "../Memory/IRQ.h"
 
 Emulator::Gpu::Gpu()
@@ -490,8 +491,26 @@ void Emulator::Gpu::gp0(uint32_t val) {
             curAttribute = {0, 0, TextureMode::ColorOnly};
             
             gp0CommandRemaining = 1;
-            Gp0CommandMethod = &Gpu::gp0PolyLineMonoOpaque;
+            Gp0CommandMethod = &Gpu::gp0PolyLineMono;
             gp0Mode = PolyLine;
+            
+            break;
+        }
+        case 0x4A: {
+            // GP0(4Ah) - Monochrome Poly-line, semi-transparent
+            
+            curAttribute = {1, 0, TextureMode::ColorOnly};
+            
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0PolyLineMono;
+            gp0Mode = PolyLine;
+        }
+        case 0x52: {
+            //  GP0(52h) - Shaded line, semi-transparent
+            curAttribute = {1, 0, TextureMode::ColorOnly};
+
+            gp0CommandRemaining = 4;
+            Gp0CommandMethod = &Gpu::gp0ShadedLine;
             
             break;
         }
@@ -832,23 +851,24 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
     semiTransparency = static_cast<uint8_t>((val >> 5) & 3);
     
     switch ((val >> 7) & 3) {
-    case 0:
-        textureDepth = TextureDepth::T4Bit;
-        break;
-    case 1:
-        textureDepth = TextureDepth::T8Bit;
-        break;
-    case 2: case 3:
-        // Texture page colors setting 3 (reserved) is same as setting 2 (15bit).
-        textureDepth = TextureDepth::T15Bit;
-        break;
-    default:
-        throw std::runtime_error("Unhandled texture depth " + std::to_string((val >> 7) & 3));
+        case 0:
+            textureDepth = TextureDepth::T4Bit;
+            break;
+        case 1:
+            textureDepth = TextureDepth::T8Bit;
+            break;
+        case 2: case 3:
+            // Texture page colors setting 3 (reserved) is same as setting 2 (15bit).
+            textureDepth = TextureDepth::T15Bit;
+            break;
+        default:
+            throw std::runtime_error("Unhandled texture depth " + std::to_string((val >> 7) & 3));
     }
     
     // Upload texture depth to GPU
     /*renderer->setTextureDepth(static_cast<int>(textureDepth));*/
     setTextureDepth(textureDepth);
+    renderer->setSemiTransparencyMode(semiTransparency);
     
     // Dither 24bit to 15bit (0=Off/strip LSBs, 1=Dither Enabled) ;GPUSTAT.9
     dithering = ((val >> 9) & 1) != 0;
@@ -866,39 +886,49 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
 void Emulator::Gpu::gp0DrawingAreaTopLeft(uint32_t val) {
     drawingAreaTop  = static_cast<int16_t>((val >> 10) & 0x3FF); // Y: bits 10-19
     drawingAreaLeft = static_cast<int16_t>(val & 0x3FF);         // X: bits 0-9
+    
+    renderer->setDrawingArea(drawingAreaTop, drawingAreaLeft, drawingAreaRight, drawingAreaBottom);
 }
 
 void Emulator::Gpu::gp0DrawingAreaBottomRight(uint32_t val) {
     drawingAreaBottom = static_cast<uint16_t>((val >> 10) & 0x3FF); // Y: bits 10-19
     drawingAreaRight  = static_cast<uint16_t>(val & 0x3FF);         // X: bits 0-9
     
-    uint16_t width  = std::max(drawingAreaLeft, drawingAreaRight) - std::min(drawingAreaLeft, drawingAreaRight) + 1;
-    uint16_t height = std::max(drawingAreaTop, drawingAreaBottom) - std::min(drawingAreaTop, drawingAreaBottom) + 1;
+    //uint16_t width  = std::max(drawingAreaLeft, drawingAreaRight) - std::min(drawingAreaLeft, drawingAreaRight) + 1;
+    //uint16_t height = std::max(drawingAreaTop, drawingAreaBottom) - std::min(drawingAreaTop, drawingAreaBottom) + 1;
+    
+    //printf("So; %d - %d =? %d\n", drawingAreaRight, drawingAreaBottom, width);
     
     // TODO;
-    renderer->setDrawingArea(0, 0, width, height);
+    //renderer->setDrawingArea(0, 0, width, height);
+    renderer->setDrawingArea(drawingAreaLeft, drawingAreaRight, drawingAreaTop, drawingAreaBottom);
+    //renderer->setDrawingArea(0, 0, 1024, 512);
 }
 
-// TODO; Temp
-int16_t pX, pY;
-void Emulator::Gpu::gp0DrawingOffset(uint32_t val) {
-    /*uint16_t x = (static_cast<uint16_t>(val) & 0x7FF);
-    uint16_t y = (static_cast<uint16_t>(val >> 11) & 0x7FF);
+void Emulator::Gpu::gp0DrawingOffset(const uint32_t val) const {
+    // bits 0..10  = X offset (11-bit signed)
+    // bits 11..21 = Y offset (11-bit signed)
+    /*auto signExtend11 = [](uint32_t v) -> int32_t {
+        v &= 0x7FFu;                // keep 11 bits
+        
+        if (v & 0x400u) {           // sign bit (bit 10)
+            return int32_t(v | ~0x7FFu); // set upper bits to 1
+        }
+        
+        return int32_t(v);
+    };
     
-    // Values are 11bit two's complement-signed values,
-    // we need to shift the value to 16 bits,
-    // to force a sign extension
-    drawingXOffset = static_cast<int16_t>(x << 5) >> 5;
-    drawingYOffset = static_cast<int16_t>(y << 5) >> 5;*/
+    int32_t x = signExtend11(val >> 0);
+    int32_t y = signExtend11(val >> 11);
     
-    //drawingXOffset = static_cast<int16_t>((val & 0x7FF) << 5) >> 5;
-    //drawingYOffset = static_cast<int16_t>(((val >> 11) & 0x7FF) << 5) >> 5;
+    drawingXOffset = x << 16;
+    drawingYOffset = y << 16;*/
+    
+    //GTE::of[0] += (int64_t)drawingXOffset;
+    //GTE::of[1] += (int64_t)drawingYOffset;
     
     uint16_t x = val & 0x7FF;               // bits 0–10 (11 bits)
     uint16_t y = (val >> 11) & 0x7FF;       // bits 11–21 (11 bits)
-    
-    pX = drawingXOffset;
-    pY = drawingYOffset;
     
     // Values are 11bit two's complement-signed values,
     // we need to shift the value to 16 bits,
@@ -906,31 +936,10 @@ void Emulator::Gpu::gp0DrawingOffset(uint32_t val) {
     drawingXOffset = static_cast<int16_t>(x << 5) >> 5;
     drawingYOffset = static_cast<int16_t>(y << 5) >> 5;
     
-    //drawingXOffset -= displayVramXStart;
-    //drawingYOffset -= displayVramYStart;
-    
-    /**
-     * Temporary hack; Can't really figure out,
-     * why the buffers are drawing ontop of,
-     * each other, so this this fixes it,
-     * until I figure out the problem.
-     * 
-     * TODO; Fix this
-     */
-    
-    // 125
-    if(abs(pX - drawingXOffset) > 256) {
-        // Double buffer
-        drawingXOffset = pX;
-    }
-    
-    if(abs(pY - drawingYOffset) > 200) {
-        // Double buffer
-        drawingYOffset = pY;
-    }
+    //printf("So; %d - %d from: {%u}\n", drawingXOffset, drawingYOffset, val);
     
     // Update rendering offset
-    renderer->setDrawingOffset(drawingXOffset, drawingYOffset);
+    //renderer->setDrawingOffset(drawingXOffset, drawingYOffset);
 }
 
 void Emulator::Gpu::gp0TextureWindow(uint32_t val) {
@@ -1058,7 +1067,7 @@ void Emulator::Gpu::gp0QuadTexturedShadedOpaque(uint32_t val) {
     renderer->pushQuad(positions, colors, uvs, curAttribute);
 }
 
-void Emulator::Gpu::gp0PolyLineMonoOpaque(uint32_t val) {
+void Emulator::Gpu::gp0PolyLineMono(uint32_t val) {
     currentLineColor = Color::fromGp0(gp0Command.index(0));
     
     for (size_t i = 1; i < gp0Command.len; i++) {
@@ -1077,6 +1086,20 @@ void Emulator::Gpu::gp0PolyLineMonoOpaque(uint32_t val) {
             lineStart = current;
         }
     }
+}
+
+void Emulator::Gpu::gp0ShadedLine(uint32_t val) {
+    Position positions[] = {
+        Position::fromGp0(gp0Command.index(1)),
+        Position::fromGp0(gp0Command.index(3)),
+    };
+    
+    Color colors[] = {
+        Color::fromGp0(gp0Command.index(0)),
+        Color::fromGp0(gp0Command.index(2)),
+    };
+    
+    renderer->pushLine(positions, colors, {}, curAttribute);
 }
 
 void Emulator::Gpu::renderRectangle(Position position, Color color, UV uv, uint16_t width, uint16_t height) {

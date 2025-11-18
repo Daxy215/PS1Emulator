@@ -2,6 +2,18 @@
 include_directories(${CMAKE_SOURCE_DIR}/src)
 include_directories(${OPENGL_INCLUDE_DIRS})
 
+set(LIBS_DIR "${CMAKE_SOURCE_DIR}/../libs")
+
+# Check if it exists
+if (EXISTS "${LIBS_DIR}")
+    message(STATUS "✅ Found libs folder at: ${LIBS_DIR}")
+else()
+    message(FATAL_ERROR "'libs' folder not found at: ${LIBS_DIR}\n"
+            "Expected structure:\n"
+            "  ${CMAKE_SOURCE_DIR}/../libs/\n"
+            "Make sure your project root contains 'libs/'.")
+endif()
+
 # Files to be included
 file(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/src/Core/*.cpp
@@ -24,37 +36,48 @@ file(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/src/SPU/Utils/FileSystem/*.cpp
     
     # ImGui sources
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imconfig.h
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imgui.cpp
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imgui_demo.cpp
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imgui_draw.cpp
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imgui_internal.h
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imgui_tables.cpp
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imgui_widgets.cpp
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imstb_rectpack.cpp
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imstb_textedit.cpp
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/imstb_truetype.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imconfig.h
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imgui.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imgui_demo.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imgui_draw.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imgui_internal.h
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imgui_tables.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imgui_widgets.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imstb_rectpack.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imstb_textedit.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/imstb_truetype.cpp 
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/backends/imgui_impl_glfw.cpp
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/backends/imgui_impl_opengl3.cpp
     
     # GLM sources
-    ${CMAKE_SOURCE_DIR}/libs/glm/glm/*.cpp
+    # ${CMAKE_SOURCE_DIR}/../libs/glm/glm/*.cpp
     
     # Glew sources
-    ${CMAKE_SOURCE_DIR}/libs/glew-2.2.0/include/GL/glew.h
-    ${CMAKE_SOURCE_DIR}/libs/glew-2.2.0/src/glew.c
+    ${CMAKE_SOURCE_DIR}/../libs/glew-2.2.0/include/GL/glew.h
+    ${CMAKE_SOURCE_DIR}/../libs/glew-2.2.0/src/glew.c
 )
 
 # Executable definition
 add_executable(PS1Emulator ${SOURCES})
 
 # Link OpenGL, glfw, and glew
-target_link_libraries(PS1Emulator OpenGL glfw ${GLEW_LIBRARIES})
+find_package(OpenGL REQUIRED)
+
+target_link_libraries(PS1Emulator
+        ${OPENGL_LIBRARIES}
+        glfw
+        GLEW
+        X11
+        dl
+        pthread
+)
 
 # Add include directories for ImGui, GLM, Glew, and other sources
 target_include_directories(PS1Emulator PRIVATE
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/
-    ${CMAKE_SOURCE_DIR}/libs/imgui-1.91.3/backends
-    ${CMAKE_SOURCE_DIR}/libs/glm
-    ${CMAKE_SOURCE_DIR}/libs/glew-2.2.0/include
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/
+    ${CMAKE_SOURCE_DIR}/../libs/imgui-1.91.9b/backends
+    ${CMAKE_SOURCE_DIR}/../libs/glm
+    ${CMAKE_SOURCE_DIR}/../libs/glew-2.2.0/include
     ${CMAKE_SOURCE_DIR}/src/Core/
     ${CMAKE_SOURCE_DIR}/src/CPU
     ${CMAKE_SOURCE_DIR}/src/CPU/COP

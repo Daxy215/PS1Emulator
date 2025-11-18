@@ -2,6 +2,11 @@
 
 in vec3 color;
 
+// TODO; Rename to drawingAreaTop
+uniform ivec2 drawingAreaMin;
+uniform ivec2 drawingAreaMax;
+in vec2 VRAMPos;
+
 /*
  * Because I'm too lazy,
  * I decided to add clut position,
@@ -29,6 +34,7 @@ uniform sampler2D texture_sample4;
 
 //uniform int texture_depth;
 uniform vec4 textureWindow;
+uniform int semiTransparencyMode;
 
 const int IS_SEMITRANSPARENT_MASK = 0x1;
 const int BLEND_TEXTURE_MASK = 0x2;
@@ -39,13 +45,13 @@ const int TEXTURE_DEPTH_MASK = 0x3;
 
 vec2 calculateTexel() {
     uvec2 texel = uvec2(uint(UVs.x) % 256u, uint(UVs.y) % 256u);
-    
+
     uvec2 mask = uvec2(textureWindow.x, textureWindow.y);
     uvec2 offset = uvec2(textureWindow.z, textureWindow.w);
-    
+
     texel.x = (texel.x & ~(mask.x * 8u)) | ((offset.x & mask.x) * 8u);
     texel.y = (texel.y & ~(mask.y * 8u)) | ((offset.y & mask.y) * 8u);
-    
+
     return vec2(texel);
 }
 
@@ -54,7 +60,7 @@ uint internalToPsxColor(vec4 c) {
     uint r = uint(floor(c.r * 31.0 + 0.5));
     uint g = uint(floor(c.g * 31.0 + 0.5));
     uint b = uint(floor(c.b * 31.0 + 0.5));
-    
+
     return (a << 15) | (b << 10) | (g << 5) | r;
 }
 
@@ -65,20 +71,20 @@ vec4 read(int x, int y) {
 vec4 clut4bit(vec2 coords, ivec2 clut, ivec2 page) {
     int texX = int(coords.x / 4.0) + page.x;
     int texY = int(coords.y)       + page.y;
-    
+
     uint index = internalToPsxColor(read(texX, texY));
     uint which = (index >> ((uint(coords.x) & 3u) * 4u)) & 0xfu;
-    
+
     return read(clut.x + int(which), clut.y);
 }
 
 vec4 clut8bit(vec2 coords, ivec2 clut, ivec2 page) {
     int texX =  int(coords.x / 2.0) + page.x;
     int texY =  int(coords.y)       + page.y;
-    
+
     uint index = internalToPsxColor(read(texX, texY));
     uint which = (index >> ((uint(coords.x) & 1u) * 8u)) & 0xffu;
-    
+
     return read(int(which) + clut.x, clut.y);
 }
 
@@ -92,7 +98,7 @@ vec4 sample_texel(int textureDepth) {
      */
     float clutX = int(UVs.z) >> 16;
     float clutY = int(UVs.w) >> 16;
-    
+
     float pageX = int(UVs.z) & 0xFFFF;
     float pageY = int(UVs.w) & 0xFFFF;
     /*
@@ -110,9 +116,9 @@ vec4 sample_texel(int textureDepth) {
     vec4 clutColor = texture(texture_sample4, vec2(clutEntryX, clutEntryY));
     
     return clutColor;*/
-    
+
     vec2 texel = calculateTexel();
-    
+
     /**
      * T4Bit = 0,
      * T8Bit = 1,
@@ -125,48 +131,85 @@ vec4 sample_texel(int textureDepth) {
     } else if(textureDepth == 2) {
         return clut16bit(texel, ivec2(pageX, pageY));
     }
-    
+
     return vec4(1, 0, 0, 1);
 }
 
 void main() {
+    // Crop
+    if (any(lessThan(VRAMPos, drawingAreaMin)) ||
+        any(greaterThanEqual(VRAMPos, drawingAreaMax))) {
+        discard;
+    }
+    
+    /**
+     * 0 = isSemiTransparent
+     * 1 = blendTexture
+     * 2 = textureMode ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
+     */
     int isSemiTransparent = int(attr) & IS_SEMITRANSPARENT_MASK;
     int blendTexture = (int(attr) & BLEND_TEXTURE_MASK) >> 1;
     int textureMode = (int(attr) & TEXTURE_MODE_MASK) >> TEXTURE_MODE_SHIFT;
     
     // Apply transparency
-    // TODO; Apply different level of transparency
-    float alpha = (isSemiTransparent == 1) ? 0.5 : 1.0;
-    
-    // TODO; Implement texture blend?
-    
-    // This is for testing
-    if(textureMode == 3) {
-        vec4 c = texture(texture_sample4, UVs.xy);
-        fragColor = c;
-        
-        return;
-    }
-    
-    if (textureMode == 0) {
-        fragColor = vec4(color, alpha);
-    } else if(textureMode == 1 || textureMode == 2) {
+    vec4 outColor, samp, F;
+
+    // textureMode ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
+    if(textureMode == 1 || textureMode == 2) {
         int textureDepth = (attr >> TEXTURE_DEPTH_SHIFT) & TEXTURE_DEPTH_MASK;
+        samp = sample_texel(textureDepth);
         
-        vec4 samp = sample_texel(textureDepth);
-        
+        // If black just ignore
         if(internalToPsxColor(samp) == 0u) {
             discard;
         }
-        
-        if(textureMode == 2) {
-            vec4 f = vec4(color, 1);
-            //vec4 c = mix(samp, f, 0.5f);
-            
-            fragColor = mix(samp, f, 0.5f);//vec4(c.r, c.g, c.b, 1);
-        } else {
-            // TODO; Check if alpha is needed?
-            fragColor = samp;
-        }
     }
+    
+    // textureMode ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
+    if (textureMode == 0) {
+        // untextured
+        F = vec4(color, 1.0);
+    } else if (textureMode == 1) {
+        // texture only
+        F = samp;
+    } else if (textureMode == 2) {
+        // texture * vertex color
+        F = samp * vec4(color, 1.0);
+    }
+    
+    /*
+     * B=Back  (the old pixel read from the image in the frame buffer)
+     * F=Front (the new halftransparent pixel)
+     * 0.5 x B + 0.5 x F    ;aka B/2+F/2
+     * 1.0 x B + 1.0 x F    ;aka B+F
+     * 1.0 x B - 1.0 x F    ;aka B-F
+     * 1.0 x B +0.25 x F    ;aka B+F/4
+     */
+    if(isSemiTransparent == 1) {
+        vec4 B = texelFetch(texture_sample4, ivec2(VRAMPos), 0);
+        
+        // (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
+        if(semiTransparencyMode == 0) {
+            // 0.5 x B + 0.5 x F    ;aka B/2+F/2
+            outColor = (0.5 * B) + (0.5 * F);
+        } else if(semiTransparencyMode == 1) {
+            // 1.0 x B + 1.0 x F    ;aka B+F
+            outColor = B + F;
+        }  else if(semiTransparencyMode == 2) {
+            // 1.0 x B - 1.0 x F    ;aka B-F
+            outColor = B - F;
+        }  else if(semiTransparencyMode == 3) {
+            // 1.0 x B +0.25 x F    ;aka B+F/4
+            outColor = B + (0.25 * F);
+        }
+        
+        outColor = clamp(outColor, 0.0, 1.0);
+    } else {
+        // No transparency
+        outColor = F;
+    }
+    
+    // TODO; Implement texture blend?
+    
+    fragColor = vec4(outColor.rgb, 1.0);
 }

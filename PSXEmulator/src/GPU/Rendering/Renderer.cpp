@@ -21,10 +21,12 @@ enum {
 
 GLuint Emulator::Renderer::program = 0;
 
-std::string readFile(const std::string& filePath) {
+/*std::string readFile(const std::string& filePath) {
     std::ifstream fileStream(filePath);
     std::stringstream buffer;
+    
     buffer << fileStream.rdbuf();
+    
     return buffer.str();
 }
 
@@ -49,7 +51,7 @@ std::string preprocessShader(const std::string& shaderCode, const std::string& d
     }
     
     return processedCode.str();
-}
+}*/
 
 Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     if(!glfwInit()) {
@@ -77,87 +79,90 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     glfwMakeContextCurrent(window);
     
     // Init glew
-    GLenum err = glewInit();
-    
-    if(err != GLEW_OK) {
+    if(GLenum err = glewInit(); err != GLEW_OK) {
         std::cerr << "Error: " << glewGetErrorString(err) << '\n';
         glfwTerminate();
+        
         return;
     }
     
     // Load and bind shaders
     {
-        std::string vertexSource   = getShaderSource("Shaders/vertex.glsl");
-        std::string fragmentSource = getShaderSource("Shaders/fragment.glsl");
-    
+        std::string vertexSource   = getShaderSource("../../Shaders/vertex.glsl");
+        std::string fragmentSource = getShaderSource("../../Shaders/fragment.glsl");
+        
         vertexShader = compileShader(vertexSource.c_str(), GL_VERTEX_SHADER);
         fragmentShader = compileShader(fragmentSource.c_str(), GL_FRAGMENT_SHADER);
-    
+        
         program = linkProgram(vertexShader, fragmentShader);
         glUseProgram(program);
-    
+        
         // Generate buffers & arrays
         glGenVertexArrays(1, &VAO);
         glBindVertexArray(VAO);
-    
+        
         // Position buffer
         positions.create();
-    
+        
         GLuint index = getProgramAttrib(program, "vertexPosition");
-    
+        
         // Enable the attrib
         glEnableVertexAttribArray(index);
-    
+        
         // Link the buffer and the given index.
         glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Gpu::Position), nullptr);
-    
+        
         // Color buffer
         colors.create();
-    
+        
         index = getProgramAttrib(program, "vertexColor");
-    
+        
         // Enable the attrib
         glEnableVertexAttribArray(index);
-    
+        
         // Link the buffer and the given index.
         glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
-    
+        
         // UV Buffer
         uvs.create();
-    
+        
         index = getProgramAttrib(program, "texCoords");
-    
+        
         // Enable the attributes in the shader
         glEnableVertexAttribArray(index);
-    
+        
         // Link the buffer and the given index.
         glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, sizeof(Gpu::UV), nullptr);
-    
+        
         // Attributes buffer
         attributes.create();
-    
+        
         index = getProgramAttrib(program, "attributes");
-    
+        
         // Enable the attributes in the shader
         glEnableVertexAttribArray(index);
-    
+        
         glVertexAttribIPointer(index, 1, GL_INT, 0, nullptr);
-    
+        
         // Uniforms
         offsetUni = glGetUniformLocation(program, "offset");
         setDrawingOffset(0, 0);
-    
-        drawingOriginUni = glGetUniformLocation(program, "drawingOrigin");
-        glUniform2i(drawingOriginUni, 1024, 512);
-    
-        drawingUni = glGetUniformLocation(program, "drawingArea");
-        glUniform2i(drawingUni, 1024, 512);
-    
+        
+        drawingMinUni = glGetUniformLocation(program, "drawingAreaMin");
+        glUniform2i(drawingMinUni, 1024, 512);
+        
+        drawingMaxUni = glGetUniformLocation(program, "drawingAreaMax");
+        glUniform2i(drawingMaxUni, 1024, 512);
+        
         textureWindowUni = glGetUniformLocation(program, "textureWindow");
         setTextureWindow(0, 0, 0, 0);
+        
+        semiTransparencyModeUni = glGetUniformLocation(program, "semiTransparencyMode");
+        setSemiTransparencyMode(0);
     }
     
-    glDisable(GL_BLEND);
+    glEnable(GL_BLEND);
+    //glDisable(GL_BLEND);
     
     sceneFBO = createFrameBuffer(WIDTH, HEIGHT, sceneTexture);
     
@@ -175,11 +180,14 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     
     // Compile vertex shader first as,
     // it's used with other shaders
-    std::string postVertexSource   = preprocessShader(readFile("Shaders/bloomVertex.glsl"), "Shader");
+    //std::string postVertexSource   = preprocessShader(readFile("Shaders/bloomVertex.glsl"), "Shader");
+    std::string postVertexSource   = getShaderSource("../Shaders/bloomVertex.glsl");
     postProcessVertexShader = compileShader(postVertexSource.c_str(), GL_VERTEX_SHADER);
     
-    std::string thresholdSource = preprocessShader(readFile("Shaders/bloom_threshold.frag"), "Shaders");
-    std::string blurSource = preprocessShader(readFile("Shaders/bloom_blur.frag"), "Shaders");
+    //std::string thresholdSource = preprocessShader(readFile("Shaders/bloom_threshold.frag"), "Shaders");
+    std::string thresholdSource = getShaderSource("../Shaders/bloom_threshold.frag");
+    //std::string blurSource = preprocessShader(readFile("Shaders/bloom_blur.frag"), "Shaders");
+    std::string blurSource = getShaderSource("../Shaders/bloom_blur.frag");
     
     bloomThresholdProgram = compileShader(thresholdSource.c_str(), GL_FRAGMENT_SHADER);
     blurProgram = compileShader(blurSource.c_str(), GL_FRAGMENT_SHADER);
@@ -187,7 +195,8 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     bloomThresholdProgram = linkProgram(postProcessVertexShader, bloomThresholdProgram);
     blurProgram = linkProgram(postProcessVertexShader, blurProgram);
     
-    std::string postFragmentSource = preprocessShader(readFile("Shaders/bloomFragment.glsl"), "Shader");
+    //std::string postFragmentSource = preprocessShader(readFile("Shaders/bloomFragment.glsl"), "Shader");
+    std::string postFragmentSource = getShaderSource("../Shaders/bloomFragment.glsl");
     
     postProcessFragmentShader = compileShader(postFragmentSource.c_str(), GL_FRAGMENT_SHADER);
     postProcessProgram = linkProgram(postProcessVertexShader, postProcessFragmentShader);
@@ -211,6 +220,8 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
 }
 
 static bool isRendering = false;
+static bool clearV = false;
+static bool useShaders = false;
 
 void Emulator::Renderer::display() {
     if(isRendering)
@@ -218,12 +229,25 @@ void Emulator::Renderer::display() {
     
     isRendering = true;
     
-    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
-    glViewport(0, 0, WIDTH, HEIGHT);
+    if (useShaders)
+        glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+    
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glViewport(0, 0, WIDTH, HEIGHT);
+    int winWidth = WIDTH, winHeight = HEIGHT;
+    glfwGetFramebufferSize(window, &winWidth, &winHeight);
+    
+    // Render scene
+    glViewport(0, 0, winWidth, winHeight);
     
     glEnable(GL_BLEND);
     draw();
     glDisable(GL_BLEND);
+    
+    if (!useShaders) {
+        isRendering = false;
+        return;
+    }
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
@@ -278,7 +302,7 @@ void Emulator::Renderer::display() {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
-    int winWidth = WIDTH, winHeight = HEIGHT;
+    //int winWidth = WIDTH, winHeight = HEIGHT;
     glfwGetFramebufferSize(window, &winWidth, &winHeight);
     
     // Render scene
@@ -343,7 +367,11 @@ void Emulator::Renderer::display() {
 void Emulator::Renderer::draw() {
     if(nVertices == 0) return;
     
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (clearV)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable( GL_BLEND );
     
     glUseProgram(program);
     glBindVertexArray(VAO);
@@ -356,90 +384,16 @@ void Emulator::Renderer::draw() {
     glBindVertexArray(0);
     glUseProgram(0);
     
-    nVertices = 0;
-}
-
-void Emulator::Renderer::displayVRam() {
-    Gpu::Position positions[] = {
-        Gpu::Position(0.0f, 0),   // Bottom left
-        Gpu::Position(640.0f, 0), // Bottom right
-        Gpu::Position(0.0f, 481.0f),   // Top left 
-        Gpu::Position(640.0f, 481.0f), // Top right
-    };
+    //if (clearV)
+        nVertices = 0;
     
-    Gpu::Color colors[] = {
-        Gpu::Color(0x80, 0x80, 0x80),
-        Gpu::Color(0x80, 0x80, 0x80),
-        Gpu::Color(0x80, 0x80, 0x80),
-        Gpu::Color(0x80, 0x80, 0x80),
-    };
-    
-    Gpu::UV uvs[] = {
-        Gpu::UV(0.0f, 0.0f), // Bottom-left
-        Gpu::UV(1.0f, 0.0f), // Bottom-right
-        Gpu::UV(0.0f, 1.0f), // Top-left
-        Gpu::UV(1.0f, 1.0f), // Top-right
-    };
-    
-    nVertices = 0;
-    
-    // reset drawing offset
-    /*GLint value[2];
-    glGetUniformiv(program, drawingUni, value);
-    
-    setDrawingArea(0, 0);*/
-    //pushQuad(positions, colors, uvs, { 0, 1, Emulator::Gpu::TextureMode::TestVRAM });
-    
-    Gpu::Attributes attributes = { 0, 1, Emulator::Gpu::TextureMode::TestVRAM };
-    
-    // First triangle
-    // [2, 3, 0]
-    this->positions.set(nVertices, positions[2]);
-    if(attributes.usesColor()) this->colors.set(nVertices, colors[2]);
-    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[2]);
-    this->attributes.set(nVertices, attributes);
-    nVertices++;
-    
-    this->positions.set(nVertices, positions[3]);
-    if(attributes.usesColor()) this->colors.set(nVertices, colors[3]);
-    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[3]);
-    this->attributes.set(nVertices, attributes);
-    nVertices++;
-    
-    this->positions.set(nVertices, positions[0]);
-    if(attributes.usesColor()) this->colors.set(nVertices, colors[0]);
-    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
-    this->attributes.set(nVertices, attributes);
-    nVertices++;
-    
-    // [3, 0, 1]
-    this->positions.set(nVertices, positions[3]);
-    if(attributes.usesColor()) this->colors.set(nVertices, colors[3]);
-    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[3]);
-    this->attributes.set(nVertices, attributes);
-    nVertices++;
-    
-    this->positions.set(nVertices, positions[0]);
-    if(attributes.usesColor()) this->colors.set(nVertices, colors[0]);
-    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
-    this->attributes.set(nVertices, attributes);
-    nVertices++;
-    
-    this->positions.set(nVertices, positions[1]);
-    if(attributes.usesColor()) this->colors.set(nVertices, colors[1]);
-    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[1]);
-    this->attributes.set(nVertices, attributes);
-    nVertices++;
-    
-    display();
-    glfwPollEvents();
-    
-    //setDrawingArea(value[0], value[1]);
+    clearV = false;
 }
 
 void Emulator::Renderer::clear() {
     //nVertices = 0;
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    clearV = true;
 }
 
 void Emulator::Renderer::pushLine(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Gpu::Attributes attributes) {
@@ -667,6 +621,7 @@ void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
     //int16_t f = 256;
     //int16_t d = 128;
     
+    //glUniform2f(offsetUni, x, y);
     glUniform2f(offsetUni, 0, 0);
     //lUniform2i(offsetUni, 0, 256);
     //glUniform2i(offsetUni, 0, 0); // GEX
@@ -675,19 +630,11 @@ void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
     //glUniform2f(offsetUni, f, d); // Crash Bandicoot
 }
 
-void Emulator::Renderer::setDrawingArea(/*int16_t right, int16_t bottom*/uint16_t left, uint16_t top, uint16_t width, uint16_t height) {
-    // 839, 479
-    //glUniform2i(drawingUni, 640, 480);
-    //glUniform2i(drawingUni, 512, 255);
-    
+void Emulator::Renderer::setDrawingArea(const uint16_t left, const uint16_t right, const uint16_t top, const uint16_t bottom) const {
     glUseProgram(program);
     
-    //drawingArea.x = right;
-    //drawingArea.y = bottom;
-    
-    //glUniform2i(drawingUni, WIDTH, HEIGHT);
-    glUniform2i(drawingOriginUni, left, top);
-    glUniform2i(drawingUni, width, height);
+    glUniform2i(drawingMinUni, left, top);
+    glUniform2i(drawingMaxUni, right, bottom);
 }
 
 void Emulator::Renderer::setTextureWindow(uint8_t textureWindowXMask, uint8_t textureWindowYMask, uint8_t textureWindowXOffset, uint8_t textureWindowYOffset) {
@@ -696,14 +643,21 @@ void Emulator::Renderer::setTextureWindow(uint8_t textureWindowXMask, uint8_t te
     glUniform4f(textureWindowUni, textureWindowXMask, textureWindowYMask, textureWindowXOffset, textureWindowYOffset);
 }
 
+void Emulator::Renderer::setSemiTransparencyMode(uint8_t semiTransparencyMode) const {
+    glUseProgram(program);
+    
+    //printf("Got; %d\n", semiTransparencyMode);
+    glUniform1i(semiTransparencyModeUni, semiTransparencyMode);
+}
+
 void Emulator::Renderer::bindFrameBuffer(GLuint buf) {
     glBindFramebuffer(GL_FRAMEBUFFER, buf);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-GLuint Emulator::Renderer::compileShader(const char* source, GLenum shaderType) {
-    GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &source, NULL);
+GLuint Emulator::Renderer::compileShader(const char* source, const GLenum shaderType) {
+    const GLuint shader = glCreateShader(shaderType);
+    glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
     
     GLint success;
@@ -711,7 +665,7 @@ GLuint Emulator::Renderer::compileShader(const char* source, GLenum shaderType) 
     
     if (!success) {
         GLchar infoLog[512];
-        glGetShaderInfoLog(shader, 512, NULL, infoLog);
+        glGetShaderInfoLog(shader, 512, nullptr, infoLog);
         
         std::cerr << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << '\n';
     }
@@ -749,10 +703,13 @@ GLuint Emulator::Renderer::getProgramAttrib(GLuint program, const std::string& a
 }
 
 std::string Emulator::Renderer::getShaderSource(const std::string& path) {
+    // Convert to absolute path
+    std::filesystem::path absPath = std::filesystem::absolute(path);
+    
     // Open the file in binary mode
-    std::ifstream file(path, std::ios::in | std::ios::binary);
+    std::ifstream file(absPath/*, std::ios::in | std::ios::binary*/);
     if (!file.is_open()) {
-        std::cerr << "Error: Could not open the file." << '\n';
+        std::cerr << "Error: Could not open the file at path: " << absPath << '\n';
         return {};
     }
     
@@ -761,6 +718,9 @@ std::string Emulator::Renderer::getShaderSource(const std::string& path) {
     
     // Close the file
     file.close();
+    
+    // Print loaded file full path
+    std::cout << "Loaded shader from: " << absPath << '\n';
     
     return content;
 }
