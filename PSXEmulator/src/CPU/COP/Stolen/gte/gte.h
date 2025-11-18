@@ -1,0 +1,264 @@
+#pragma once
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+#include "command.h"
+#include "math.h"
+
+
+class GTE {
+    template <size_t from, size_t to>
+    static bool or_range(uint32_t v) {
+        static_assert(from >= 0 && from < 32, "from out of range");
+        static_assert(to >= 0 && to < 32, "to out of range");
+
+        const size_t max = std::max(from, to);
+        const size_t min = std::min(from, to);
+
+        bool result = false;
+        for (size_t i = min; i <= max; ++i) {
+            result |= (v & (1 << i)) != 0;
+        }
+        return result;
+    }
+    
+    union Flag {
+        enum {
+            IR0_SATURATED = 1 << 12,
+            SY2_SATURATED = 1 << 13,
+            SX2_SATURATED = 1 << 14,
+            MAC0_OVERFLOW_NEGATIVE = 1 << 15,
+            MAC0_OVERFLOW_POSITIVE = 1 << 16,
+            DIVIDE_OVERFLOW = 1 << 17,
+            SZ3_OTZ_SATURATED = 1 << 18,
+            COLOR_B_SATURATED = 1 << 19,
+            COLOR_G_SATURATED = 1 << 20,
+            COLOR_R_SATURATED = 1 << 21,
+            IR3_SATURATED = 1 << 22,
+            IR2_SATURATED = 1 << 23,
+            IR1_SATURATED = 1 << 24,
+            MAC3_OVERFLOW_NEGATIVE = 1 << 25,
+            MAC2_OVERFLOW_NEGATIVE = 1 << 26,
+            MAC1_OVERFLOW_NEGATIVE = 1 << 27,
+            MAC3_OVERFLOW_POSITIVE = 1 << 28,
+            MAC2_OVERFLOW_POSITIVE = 1 << 29,
+            MAC1_OVERFLOW_POSITIVE = 1 << 30,
+            FLAG = 1 << 31
+        };
+        struct {
+            uint32_t : 12;  // Not used (0)
+            uint32_t ir0_saturated : 1;
+            uint32_t sy2_saturated : 1;
+            uint32_t sx2_saturated : 1;
+            uint32_t mac0_overflow_negative : 1;
+            uint32_t mac0_overflow_positive : 1;
+            uint32_t divide_overflow : 1;
+            uint32_t sz3_otz_saturated : 1;
+            uint32_t color_b_saturated : 1;
+            uint32_t color_g_saturated : 1;
+            uint32_t color_r_saturated : 1;
+            uint32_t ir3_saturated : 1;
+            uint32_t ir2_saturated : 1;
+            uint32_t ir1_saturated : 1;
+            uint32_t mac3_overflow_negative : 1;
+            uint32_t mac2_overflow_negative : 1;
+            uint32_t mac1_overflow_negative : 1;
+            uint32_t mac3_overflow_positive : 1;
+            uint32_t mac2_overflow_positive : 1;
+            uint32_t mac1_overflow_positive : 1;
+            uint32_t flag : 1;  // 30..23 + 18..13 bits ORed
+        };
+        uint32_t reg = 0;
+
+        void calculate() { flag = or_range<30, 23>(reg) | or_range<18, 13>(reg); }
+    };
+
+    
+    union Reg32 {
+        uint32_t _reg;
+        uint8_t _byte[4];
+
+        Reg32() : _reg(0) {}
+
+        void write(int n, uint8_t v) {
+            if (n >= 4) return;
+            _byte[n] = v;
+        }
+
+        uint8_t read(int n) const {
+            if (n >= 4) return 0;
+            return _byte[n];
+        }
+
+        void setBit(int n, bool v) {
+            if (n >= 32) return;
+            _reg &= ~(1 << n);
+            _reg |= (v << n);
+        }
+
+        bool getBit(int n) {
+            if (n >= 32) return false;
+            return (_reg & (1 << n)) != 0;
+        }
+
+        template <class Archive>
+        void serialize(Archive& ar) {
+            ar(_reg);
+        }
+    };
+
+    const std::array<uint8_t, 0x101> unrTable;
+    int busToken;
+    bool widescreenHack;
+    bool logging;
+    bool sf;  // Used for setMac and setIr functions
+    bool lm;  // saved as fields to prevent passing them to every function
+
+    // GTE registers 0-63
+    gte::Vector<int16_t> v[3];
+    Reg32 rgbc;
+    uint16_t otz = 0;
+    int16_t ir[4] = {0};
+    gte::Vector<int16_t, int16_t, uint16_t> s[4];
+    Reg32 rgb[3];
+    uint32_t res1 = 0;     // prohibited
+    int32_t mac[4] = {0};  // Sum of products
+    int32_t lzcs = 0;
+    int32_t lzcr = 0;
+
+    gte::Matrix rotation;
+    gte::Vector<int32_t> translation;
+    gte::Matrix light;
+    gte::Vector<int32_t> backgroundColor;
+    gte::Matrix color;
+    gte::Vector<int32_t> farColor;
+    
+public:
+    static int32_t of[2];
+    
+private:
+    uint16_t h = 0;
+    int16_t dqa = 0;
+    int32_t dqb = 0;
+    int16_t zsf3 = 0;
+    int16_t zsf4 = 0;
+    Flag flag;
+    
+    constexpr std::array<uint8_t, 0x101> generateUnrTable();
+    void reload();
+
+    // Internal operations and helpers
+    void multiplyVectors(gte::Vector<int16_t> v1, gte::Vector<int16_t> v2, gte::Vector<int16_t> tr = gte::Vector<int16_t>(0));
+    void multiplyMatrixByVector(gte::Matrix m, gte::Vector<int16_t> v, gte::Vector<int32_t> tr = gte::Vector<int32_t>(0));
+    int64_t multiplyMatrixByVectorRTP(gte::Matrix m, gte::Vector<int16_t> v, gte::Vector<int32_t> tr);
+
+    int countLeadingZeroes(uint32_t n);
+    size_t countLeadingZeroes16(uint16_t n);
+    int32_t clip(int32_t value, int32_t max, int32_t min, uint32_t flags = 0);
+
+    template <int bit_size>
+    void checkOverflow(int64_t value, uint32_t overflowBits, uint32_t underflowFlags);
+
+    template <int i>
+    int64_t checkMacOverflowAndExtend(int64_t value);
+
+    template <int i>
+    int64_t setMac(int64_t value);
+
+    template <int i>
+    void setIr(int32_t value, bool lm = false);
+
+    template <int i>
+    void setMacAndIr(int64_t value, bool lm = false);
+
+    void setOtz(int64_t value);
+    void pushScreenXY(int32_t x, int32_t y);
+    void pushScreenZ(int32_t z);
+    void pushColor();
+    void pushColor(uint32_t r, uint32_t g, uint32_t b);
+
+    uint32_t recip(uint16_t divisor);
+    uint32_t divideUNR(uint32_t a, uint32_t b);
+    uint32_t divide(uint16_t h, uint16_t sz3);
+    
+    // Opcodes
+    void nclip();
+    void ncds(int n = 0);
+    void ncs(int n = 0);
+    void nct();
+    void nccs(int n = 0);
+    void cc();
+    void cdp();
+    void ncdt();
+    void ncct();
+    void dpct();
+    void dpcs(bool useRGB0 = false);
+    void dcpl();
+    void intpl();
+    void rtps(int n = 0, bool setMAC0 = true);
+    void rtpt();
+    void avsz3();
+    void avsz4();
+    void mvmva(int mx, int vx, int tx);
+    void gpf();
+    void gpl();
+    void sqr();
+    void op();
+    
+   public:
+    struct GTE_ENTRY {
+        enum class MODE { read, write, func } mode;
+
+        uint32_t n;
+        uint32_t data;
+    };
+    std::vector<GTE_ENTRY> log;
+
+    GTE();
+    ~GTE();
+
+    uint32_t read(uint8_t n);
+    void write(uint8_t n, uint32_t d);
+    int command(gte::Command& cmd);
+    
+    void reset() {
+        // Reset vector registers
+        for (auto& vec : v) vec = gte::Vector<int16_t>();
+        
+        rgbc = {};
+        otz = 0;
+        std::fill(std::begin(ir), std::end(ir), 0);
+        for (auto& vec : s) vec = {};
+        for (auto& r : rgb) r = {};
+        
+        res1 = 0;
+        std::fill(std::begin(mac), std::end(mac), 0);
+        lzcs = 0;
+        lzcr = 0;
+        
+        rotation = {};
+        translation = {};
+        light = {};
+        backgroundColor = {};
+        color = {};
+        farColor = {};
+        of[0] = of[1] = 0;
+        h = 0;
+        dqa = 0;
+        dqb = 0;
+        zsf3 = 0;
+        zsf4 = 0;
+        
+        flag.reg = 0;
+        
+        // Reset internal flags
+        busToken = 0;
+        widescreenHack = false;
+        logging = false;
+        sf = false;
+        lm = false;
+        
+        // Clear operation log
+        log.clear();
+    }
+};
