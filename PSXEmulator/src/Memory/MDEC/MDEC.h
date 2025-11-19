@@ -99,8 +99,8 @@ class MDEC {
         uint32_t load(uint32_t addr);
         void store(uint32_t addr, uint32_t val);
 
-        bool dataInRequest () const { return status.DataInRequest  &&  output.empty(); };
-        bool dataOutRequest() const { return status.DataOutRequest && !output.empty(); };
+        [[nodiscard]] bool dataInRequest () const { return status.DataInRequest  &&  output.empty(); };
+        [[nodiscard]] bool dataOutRequest() const { return status.DataOutRequest && !output.empty(); };
         
     private:
         void handleCommand();
