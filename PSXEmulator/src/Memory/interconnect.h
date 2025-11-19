@@ -17,6 +17,7 @@
 #include "../Memory/Memories/ScratchPad.h"
 #include "../Memory/Timers/Timers.h"
 #include "../SPU/Stolen/spu.h"
+#include "MDEC/MDEC.h"
 
 //#include "CDROM/cdrom.h"
 //#include "../SPU/SPU.h"
@@ -164,9 +165,9 @@ public:
             //return psx_cdrom_read8(_cdrom, offset);
         }
         
-        if (auto _ = map::MDEC.contains(abs_addr, offset)) {
+        if (map::MDEC.contains(abs_addr, offset)) {
             //throw std::runtime_error("Unhandled MDEC load at address 0x" + to_hex(addr));
-            return 0;
+            return mdec.load(abs_addr);
         }
         
         if (map::SPU.contains(abs_addr, offset)) {
@@ -306,8 +307,9 @@ public:
         }
         
         if (map::MDEC.contains(abs_addr, offset)) {
+            mdec.store(addr, val);
+            
             return;
-            //throw std::runtime_error("Unhandled write to MDEC 0x" + to_hex(offset));
         }
         
         if (map::SPU.contains(abs_addr, offset)) {
@@ -445,6 +447,7 @@ public:
     Bios _bios;
     Dma _dma;
     Emulator::Gpu* _gpu;
+    MDEC mdec;
     spu::SPU* _spu;
     //Emulator::SPU spu;
 };

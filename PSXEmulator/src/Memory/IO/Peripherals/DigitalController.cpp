@@ -26,9 +26,9 @@ uint16_t DigitalController::load(uint32_t val) {
      ** --- transfer stops here for nonstandard devices (steering/twist/paddle) ---
      * 
      */
-
+    
     // TODO; https://psx-spx.consoledev.net/controllersandmemorycards/#controller-and-memory-card-multitap-adaptor
-
+    
     switch (mode) {
         case Idle: {
             if (val == 0x01) {

@@ -334,6 +334,10 @@ namespace Emulator {
         // GP0(0x3C): Shaded Texture Opaque Quad
         void gp0QuadTexturedShadedOpaque(uint32_t val);
         
+        //  GP0(40h) - Monochrome line, opaque
+        //  GP0(42h) - Monochrome line, semi-transparent
+        void gp0MonoLine(uint32_t val);
+        
         // GP0(48h): Monochrome Poly-line, opaque
         void gp0PolyLineMono(uint32_t val);
         

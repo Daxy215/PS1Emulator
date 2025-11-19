@@ -112,7 +112,7 @@ std::optional<uint32_t> Channel::transferSize() {
 void Channel::done(Dma& dma, Port port) {
 	enable = false;
 	trigger = false;
-
+	
 	if (dma.channelIrqEn & (1 << static_cast<size_t>(port))) {
 		dma.channelIrqFlags |= (1 << static_cast<size_t>(port));
 		dma.interruptPending = true;

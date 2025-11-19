@@ -39,45 +39,7 @@ Emulator::Gpu::Gpu()
 }
 
 bool Emulator::Gpu::step(uint32_t cycles) {
-    /*_cycles += cycles;
-    
-    dot = dotCycles[hres.hr2 << 2 | hres.hr1];
-    
-    const uint32_t htiming = (vmode == VMode::Pal) ? 3406 : 3413;
-    const uint32_t vtiming = (vmode == VMode::Pal) ? 314 : 263;
-    
-    const uint32_t newLines = _cycles / htiming;
-    if (newLines == 0) return false;
-    
-    _cycles %= htiming;
-    _scanLine += newLines;
-    
-    if (_scanLine >= vtiming) {
-        _scanLine %= vtiming;
-        frames++;
-        
-        return true;
-    }
-    
-    const uint32_t currentHStart = displayHorizStart % htiming;
-    const uint32_t currentHEnd = displayHorizEnd % htiming;
-    
-    isInHBlank = (_cycles < currentHStart) || (_cycles >= currentHEnd);
-    
-    const uint32_t currentVStart = displayLineStart % vtiming;
-    const uint32_t currentVEnd = displayLineEnd % vtiming;
-    
-    isInVBlank = (_scanLine < currentVStart) || (_scanLine >= currentVEnd);
-    
-    if (interlaced && vres == VerticalRes::Y480Lines) {
-        isOddLine = (frames % 2);
-    } else {
-        isOddLine = (_scanLine % 2);
-    }
-    
-    return false;*/
-    
-    /***
+    /**
      * Dots per scanline are, depending on horizontal resolution, and on PAL/NTSC:
      * 256pix/PAL: 3406/10 = 340.6 dots      256pix/NTSC: 3413/10 = 341.3 dots
      * 320pix/PAL: 3406/8  = 425.75 dots     320pix/NTSC: 3413/8  = 426.625 dots
@@ -103,12 +65,6 @@ bool Emulator::Gpu::step(uint32_t cycles) {
     uint32_t hblankEnd = displayHorizStart;
     isInHBlank = (_cycles >= hblankStart) && (_cycles < hblankEnd);
     
-    if(!isInHBlank) {
-        printf("");
-    } else {
-        printf("");
-    }
-    
     //isInHBlank = _cycles < displayHorizStart || _cycles >= displayHorizEnd;
     isInVBlank = _scanLine < displayLineStart || _scanLine >= displayLineEnd;
     dot = dotCycles[hres.hr2 << 2 | hres.hr1];
@@ -120,6 +76,12 @@ bool Emulator::Gpu::step(uint32_t cycles) {
      */
     uint32_t htiming = ((vmode == VMode::Pal) ? 3406 : 3413);
     
+    uint32_t newLines = _cycles / htiming;
+    if(newLines == 0) return false;
+    
+    _cycles %= htiming;
+    _scanLine += newLines;
+    
     /**
     * Vertical Timings
     * PAL:  314 scanlines per frame (13Ah)
@@ -127,13 +89,10 @@ bool Emulator::Gpu::step(uint32_t cycles) {
     */
     uint32_t vtiming = ((vmode == VMode::Pal) ? 314 : 263);
     
-    uint32_t newLines = _cycles / htiming;
-    if(newLines == 0) return false;
-    
-    _cycles %= htiming;
-    _scanLine += newLines;
-    
     if(_scanLine < vtiming - 20 - 1) {
+        // Bit31 In 480-lines mode, bit31 changes per frame.
+        // And in 240-lines mode, the bit changes per scanline.
+        // The bit is always zero during Vblank (vertical retrace and upper/lower screen border).
         if(interlaced && vres == VerticalRes::Y480Lines) {
             isOddLine = (frames % 2) != 0;
         } else {
@@ -144,7 +103,7 @@ bool Emulator::Gpu::step(uint32_t cycles) {
     }
     
     if(_scanLine >= vtiming - 1) {
-        // VBlank occured
+        // VBlank occurred
         _scanLine = 0;
         frames++;
         
@@ -187,11 +146,12 @@ uint32_t Emulator::Gpu::status() {
     status |= static_cast<uint32_t>(preserveMaskedPixels) << 12;
     
     // Bit 13: Interlace Field (0 = Top, 1 = Bottom)
-    //status |= static_cast<int>(field) << 13;
-    status |= 1 << 13;
+    // (or, always 1 when GP1(08h).5=0)
+    //status |= (interlaced ? 1 : static_cast<uint8_t>(field)) << 13;
+    status |= (static_cast<uint8_t>(field)) << 13;
     
     // Bit 14:  Flip screen horizontally (0=Off, 1=On, v1 only)
-    status |= 0 << 14;
+    status |= (rectangleTextureFlipX) << 14;
     
     status |= static_cast<uint32_t>(textureDisable) << 15;
     status |= hres.intoStatus();
@@ -214,12 +174,29 @@ uint32_t Emulator::Gpu::status() {
     status |= static_cast<uint32_t>(interrupt) << 24;
     
     // Bit 26: Ready to receive command word (0=No, 1=Ready)
+    // Bit26: Gets set when the GPU wants to receive a command.
+    // If the bit is cleared, then the GPU does either want to receive data,
+    // or it is busy with a command execution (and doesn't want to receive anything).
     status |= (gp0CommandRemaining == 0 ? 1 : 0) << 26;
     
     // Bit 27: Ready to send VRAM to CPU (0=No, 1=Ready)
+    /**
+     * Bit27: Gets set after sending GP0(C0h) and its parameters,
+     * and stays set until all data words are received; used as DMA request in DMA Mode 3.
+     */
     status |= /*(readMode == VRam)*/1 << 27;
     
     // Bit 28: Ready to receive DMA block (0=No, 1=Ready)
+    /**
+     * Bit28: Normally, this bit gets cleared when the command execution is busy
+     * (ie. once when the command and all of its parameters are received),
+     * however, for Polygon and Line Rendering commands,
+     * the bit gets cleared immediately after receiving the command word
+     * (ie. before receiving the vertex parameters).
+     * The bit is used as DMA request in DMA Mode 2, accordingly,
+     * the DMA would probably hang if the Polygon/Line parameters,
+     * are transferred in a separate DMA block (ie. the DMA probably starts ONLY on command words).
+     */
     status |= 1 << 28;
     
     // Bits 29-30: DMA Direction (0=Off, 1=?, 2=CPUtoGP0, 3=GPUREADtoCPU)
@@ -265,6 +242,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
             //   GP0(1Fh)                 - Interrupt Request (IRQ1)
             
             interrupt = true;
+            //IRQ::trigger(IRQ::GPU);
+            //assert(false);
             
             break;
         case 0x02:
@@ -485,6 +464,26 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         }
+        case 0x40: {
+            //  GP0(40h) - Monochrome line, opaque
+            
+            curAttribute = {0, 0, TextureMode::ColorOnly};
+            
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp0MonoLine;
+            
+            break;
+        }
+        case 0x42: {
+            //  GP0(42h) - Monochrome line, semi-transparent
+            
+            curAttribute = {1, 1, TextureMode::ColorOnly};
+            
+            gp0CommandRemaining = 3;
+            Gp0CommandMethod = &Gpu::gp0MonoLine;
+            
+            break;
+        }
         case 0x48: {
             // GP0(48h) - Monochrome Poly-line, opaque
             
@@ -504,11 +503,22 @@ void Emulator::Gpu::gp0(uint32_t val) {
             gp0CommandRemaining = 1;
             Gp0CommandMethod = &Gpu::gp0PolyLineMono;
             gp0Mode = PolyLine;
+            
+            break;
+        }
+        case 0x50: {
+            //  GP0(50h) - Shaded line, opaque
+            curAttribute = {0, 0, TextureMode::ColorOnly};
+            
+            gp0CommandRemaining = 4;
+            Gp0CommandMethod = &Gpu::gp0ShadedLine;
+            
+            break;
         }
         case 0x52: {
             //  GP0(52h) - Shaded line, semi-transparent
             curAttribute = {1, 0, TextureMode::ColorOnly};
-
+            
             gp0CommandRemaining = 4;
             Gp0CommandMethod = &Gpu::gp0ShadedLine;
             
@@ -762,7 +772,6 @@ void Emulator::Gpu::gp0(uint32_t val) {
             break;
         default:
             printf("Unhandled GP0 command %x\n", opcode);
-            std::cerr << "";
             
             return;
         }
@@ -817,7 +826,16 @@ void Emulator::Gpu::gp0(uint32_t val) {
         }
         
         case PolyLine: {
+            /*
+             * Termination Codes for Poly-Lines (aka Linestrips)
+             * The termination code should be usually 55555555h, however,
+             * Wild Arms 2 uses 50005000h (unknown which exact bits/values are relevant there).
+             */
             if((val & 0xf000f000) == 0x50005000) {
+                // Set texture depth of the vertices that are going,
+                // to be sent to the GPU
+                curAttribute.textureDepth = static_cast<int>(this->textureDepth);
+                
                 // Termination code
                 Gp0CommandMethod(*this, val);
                 
@@ -1065,6 +1083,20 @@ void Emulator::Gpu::gp0QuadTexturedShadedOpaque(uint32_t val) {
     };
     
     renderer->pushQuad(positions, colors, uvs, curAttribute);
+}
+
+void Emulator::Gpu::gp0MonoLine(uint32_t val) {
+    Position positions[] = {
+        Position::fromGp0(gp0Command.index(1)),
+        Position::fromGp0(gp0Command.index(2)),
+    };
+    
+    Color colors[] = {
+        Color::fromGp0(gp0Command.index(0)),
+        Color::fromGp0(gp0Command.index(0)),
+    };
+    
+    renderer->pushLine(positions, colors, {}, curAttribute);
 }
 
 void Emulator::Gpu::gp0PolyLineMono(uint32_t val) {
@@ -1598,6 +1630,7 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
     displayDepth = (val & 0x10) != 0 ? DisplayDepth::D24Bits : DisplayDepth::D15Bits;
     interlaced = (val & 0x20) != 0;
     
+    // (or, always 1 when GP1(08h).5=0)
     field = static_cast<Field>(interlaced);
     
     // Reverse flag?
@@ -1656,9 +1689,12 @@ void Emulator::Gpu::gp1ResetCommandBuffer(uint32_t val) {
 }
 
 void Emulator::Gpu::gp1AcknowledgeIrq(uint32_t val) {
+    if (!interrupt)
+        return;
+    
     interrupt = false;
     
-    //IRQ::trigger(IRQ::GPU);
+    IRQ::trigger(IRQ::GPU);
 }
 
 uint32_t Emulator::Gpu::read() {

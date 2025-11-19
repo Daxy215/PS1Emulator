@@ -97,6 +97,9 @@ namespace Emulator {
         // Buffer contains the vertices positions
         Buffer<Gpu::Position> positions;
         
+        // Buffer contains the lines positions
+        //Buffer<Gpu::Position> linePositions;
+        
         // Buffer contains the vertices colors
         Buffer<Gpu::Color> colors;
         
@@ -133,8 +136,8 @@ namespace Emulator {
         int sampleRadius = 2;
         
         bool enableAdaptiveSharpening = true;
-        bool enableBloom = true;
-        bool enableUpscaling = true;
+        bool enableBloom = false;
+        bool enableUpscaling = false;
         
     private:
         bool horizontal = true;

@@ -58,7 +58,9 @@ file(GLOB_RECURSE SOURCES
 )
 
 # Executable definition
-add_executable(PS1Emulator ${SOURCES})
+add_executable(PS1Emulator ${SOURCES}
+        Memory/MDEC/MDEC.cpp
+        Memory/MDEC/MDEC.h)
 
 # Link OpenGL, glfw, and glew
 find_package(OpenGL REQUIRED)

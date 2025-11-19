@@ -143,9 +143,9 @@ void Emulator::IO::Timer::syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot
 void Emulator::IO::Timer::handleInterrupt() {
 	bool shouldInterrupt = false;
 	
-	if(target == 10) {
-		printf("");
-	}
+	//if(target == 10) {
+	//	printf("f\n");
+	//}
 	
 	if (!ignoreTargetUntilWrap && counter >= target) {
 		mode.reachedTarget = true;
@@ -200,14 +200,14 @@ void Emulator::IO::Timer::handleInterrupt() {
 	
 	// Trigger interrupt based on timer counter
 	switch (_type) {
-	case TimerType::DotClock:
-		IRQ::trigger(IRQ::Timer0);
-		break;
-	case TimerType::HBlank:
-		IRQ::trigger(IRQ::Timer1);
-		break;
-	case TimerType::SystemClock8:
-		IRQ::trigger(IRQ::Timer2);
+		case TimerType::DotClock:
+			IRQ::trigger(IRQ::Timer0);
+			break;
+		case TimerType::HBlank:
+			IRQ::trigger(IRQ::Timer1);
+			break;
+		case TimerType::SystemClock8:
+			IRQ::trigger(IRQ::Timer2);
 		break;
 	}
 	

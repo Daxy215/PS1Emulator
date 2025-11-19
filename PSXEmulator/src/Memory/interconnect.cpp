@@ -135,22 +135,24 @@ void Interconnect::dmaBlock(Port port) {
                 uint32_t srcWord = _ram.load<uint32_t>(curAddr);
                 
                 switch (port) {
-                case Gpu:
-                    _gpu->gp0(srcWord);
-                    break;
-                case MdecIn:
-                    // TODO; MDEC command
-                    break;
-                case Spu:
-                    _spu->write(0x1a8, srcWord);
-                    _spu->write(0x1a8, (srcWord >> 8));
-                    _spu->write(0x1a8, (srcWord >> 16));
-                    _spu->write(0x1a8, (srcWord >> 24));
-                    
-                    break;    
-                default:
-                    throw std::runtime_error("Unhandled DMA destination port " + std::to_string(static_cast<uint8_t>(port)));
-                    break;
+                    case Gpu:
+                        _gpu->gp0(srcWord);
+                        break;
+                    case MdecIn:
+                        // TODO; Confirm address
+                        mdec.store(0x1f801820, srcWord);
+                        
+                        break;
+                    case Spu:
+                        _spu->write(0x1a8, srcWord);
+                        _spu->write(0x1a8, (srcWord >> 8));
+                        _spu->write(0x1a8, (srcWord >> 16));
+                        _spu->write(0x1a8, (srcWord >> 24));
+                        
+                        break;
+                    default:
+                        throw std::runtime_error("Unhandled DMA destination port " + std::to_string(static_cast<uint8_t>(port)));
+                        break;
                 }
                 
                 break;
@@ -159,55 +161,54 @@ void Interconnect::dmaBlock(Port port) {
                 uint32_t srcWord = 0;
                 
                 switch(port) {
-                case Otc:
-                    // Clear ordering table
-                    if(remsz == 1) {
-                        // Last entry contains the end of the table marker
-                        srcWord = 0xFFFFFF;
-                    } else {
-                        // Pointer to the previous entry
-                        srcWord = (addr - 4) & 0x1FFFFF;
+                    case Otc:
+                        // Clear ordering table
+                        if(remsz == 1) {
+                            // Last entry contains the end of the table marker
+                            srcWord = 0xFFFFFF;
+                        } else {
+                            // Pointer to the previous entry
+                            srcWord = (addr - 4) & 0x1FFFFF;
+                        }
+                        
+                        break;
+                    case Port::Gpu:
+                        // This gets called before the,
+                        // menu pops up after the PS logo
+                        
+                        /**
+                         * This for the menu. It tries to read from VRAM,
+                         * at 640, which seems to be from a quad that it,
+                         * draws using 0x38, but I'm drawing it using OpenGL,
+                         * so I'm unsure how to really do this...
+                         */
+                        srcWord = _gpu->read();
+                        
+                        break;
+                    case Port::CdRom: {
+                        srcWord = 0;
+                        
+                        //srcWord |= psx_cdrom_read8(_cdrom, 2) <<  0;
+                        //srcWord |= psx_cdrom_read8(_cdrom, 2) <<  8;
+                        //srcWord |= psx_cdrom_read8(_cdrom, 2) << 16;
+                        //srcWord |= psx_cdrom_read8(_cdrom, 2) << 24;
+                        
+                        srcWord |= _cdrom.readByte() << 0;
+                        srcWord |= _cdrom.readByte() << 8;
+                        srcWord |= _cdrom.readByte() << 16;
+                        srcWord |= _cdrom.readByte() << 24;
+                        
+                        break;
                     }
                     
-                    break;
-                case Port::Gpu:
-                    // This gets called before the,
-                    // menu pops up after the PS logo
-                    
-                    /**
-                     * This for the menu. It tries to read from VRAM,
-                     * at 640, which seems to be from a quad that it,
-                     * draws using 0x38, but I'm drawing it using OpenGL,
-                     * so I'm unsure how to really do this...
-                     */
-                    srcWord = _gpu->read();
-                    
-                    break;
-                case Port::CdRom: {
-                    srcWord = 0;
-                    
-                    //srcWord |= psx_cdrom_read8(_cdrom, 2) <<  0;
-                    //srcWord |= psx_cdrom_read8(_cdrom, 2) <<  8;
-                    //srcWord |= psx_cdrom_read8(_cdrom, 2) << 16;
-                    //srcWord |= psx_cdrom_read8(_cdrom, 2) << 24;
-                    
-                    srcWord |= _cdrom.readByte() << 0;
-                    srcWord |= _cdrom.readByte() << 8;
-                    srcWord |= _cdrom.readByte() << 16;
-                    srcWord |= _cdrom.readByte() << 24;
-                    
-                    break;
-                }
-                
-                case Port::MdecOut: {
-                    // TODO; MDEC
-                    srcWord = 0;
-                    
-                    break;
-                }
-                default:
-                    throw std::runtime_error("Unhandled DMA source port" + std::to_string(static_cast<uint8_t>(port)));    
-                    break;
+                    case Port::MdecOut: {
+                        srcWord = mdec.load(0x1F801820);
+                        
+                        break;
+                    }
+                    default:
+                        throw std::runtime_error("Unhandled DMA source port" + std::to_string(static_cast<uint8_t>(port)));    
+                        break;
                 }
                 
                 _ram.store<uint32_t>(curAddr, srcWord);

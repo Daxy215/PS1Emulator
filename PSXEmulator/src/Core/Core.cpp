@@ -399,8 +399,8 @@ void handleLoadExe(std::string path) {
 	
 	// Other stuff
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
-	///std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Unsupported format
+	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Unsupported format
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
@@ -409,34 +409,37 @@ void handleLoadExe(std::string path) {
 	
 	// Requires controller
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
-	std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_gpu.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
 	// though, idk where im messing up bc its never checking,
 	// for the controller's inputs. So, I can't really fully test it..
 	// Future me; I was causing the wrong interrupt
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/PSX-master/CUBE/CUBE.exe");
 	
 	// CDROM Tests
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cdrom/getloc/getloc.exe"); // TODO; Failed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cdrom/cdltest.ps-exe");
 	
-	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/cpu->access-time/access-time.exe"); // TODO; All timings return 4
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu->code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/cpu->code-in-io/code-in-io.exe"); // TODO; Too many unimplemented things
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu->cop/cop.exe"); // TODO; Fails some tests?
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu->io-access-bitwidth/io-access-bitwidth.exe"); // TODO; Fails many tests
 	
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/dma/otc-test/otc-test.exe"); // TODO; Fails many tests
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/dma/otc-test/otc-test.exe"); // TODO; Fails many tests
 	
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/animated-triangle/animated-triangle.exe"); // TODO; Needs GTE
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 20000-30000 MB/s lol
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/gpu/animated-triangle/animated-triangle.exe"); // TODO; Needs GTE
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 20000-30000 MB/s lol
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/benchmark/benchmark.exe"); // Just a benchmark.. Not really a test
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/quad/quad.exe"); // Ig pases?
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/version-detect/version-detect.exe"); // Not really a tested but I suppose (0* GPU version 2 [New 208pin GPU (LATE-PU-8 and up)])
-	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Unhandled commands
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../ROMS/Tests/ps1-tests/gpu/rectangles/rectangles.exe"); // TODO; Unhandled commands
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/triangle/triangle.exe");
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../ROMS/Tests/ps1-tests/gpu/lines/lines.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/input/pad/pad.exe");
+	
+	std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/4bit/4bit.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/step-by-step-log/step-by-step-log.exe");
 	
 	/**
 	 * Idk where exactly the cause but,
@@ -456,7 +459,7 @@ void handleLoadExe(std::string path) {
 	 * Okay so I found out that the issue IS actually caused by,
 	 * the timers being wrong or the VBlank interrupt.
 	 */
-	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/timers/timers.exe");
+	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../ROMS/Tests/ps1-tests/timers/timers.exe");
 	
 	Exe exe;
 	memcpy(&exe, data.data(), sizeof(exe));
@@ -488,35 +491,55 @@ void rest(const std::string& biosPath) {
 	cpu->reset();
 }
 
+static int x = 0;
+
 void runFrame() {
 	while(true) {
+		bool cpuStepped = false;
+		
 		for(int i = 0; i < 100; i++) {
-			//if (cpu->pc != 0x80030000) {
-			if (true) {
-				cpu->executeNextInstruction();
+			if (cpu->pc != 0x80030000) {
+			//if (true) {
+				//cpu->executeNextInstruction();
 				
-				/*if (!cpu->paused) {
+				// Crash at; 57907068
+				//if (x == 57907040) {
+				//	cpu->paused = true;
+				//}
+				
+				if (!cpu->paused) {
 					cpu->executeNextInstruction();
+					cpuStepped = true;
 				} else if (cpu->stepRequested) {
 					cpu->executeNextInstruction();
+					cpuStepped = true;
+					
 					cpu->stepRequested = false;
+					printf("X; %d\n", x);
 				} else if (cpu->stepUntilBranchTakenRequested) {
 					auto pc = cpu->pc;
 					
 					cpu->executeNextInstruction();
+					cpuStepped = true;
 					
 					if (pc + 4 != cpu->pc) {
 						cpu->stepUntilBranchTakenRequested = false;
+						printf("X; %d\n", x);
 					}
 				} else if (cpu->stepUntilBranchNotTakenRequested) {
 					auto pc = cpu->pc;
 					
 					cpu->executeNextInstruction();
+					cpuStepped = true;
 					
 					if (pc + 4 == cpu->pc) {
 						cpu->stepUntilBranchNotTakenRequested = false;
+						printf("X; %d\n", x);
 					}
-				}*/
+				}
+				
+				if (cpuStepped)
+					x++;
 			} else {
 				if(false) {
 					// Skip bios logo
@@ -529,11 +552,14 @@ void runFrame() {
 			}
 		}
 		
-		if(cpu->interconnect.step(300)) {
+		if(cpuStepped && cpu->interconnect.step(300)) {
 			IRQ::trigger(IRQ::VBlank);
 			
 			break;
 		}
+		
+		if (!cpuStepped)
+			break;
 	}
 }
 
@@ -697,7 +723,7 @@ int main(int argc, char* argv[]) {
 	// TODO; For now, manually load in disc
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");
 	
-	cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
 	//cpu->interconnect._cdrom.swapDisk("ROMS/Battle Arena Toshinden (Europe)/Battle Arena Toshinden (Europe).cue");
 	//cpu->interconnect._cdrom.swapDisk("ROMS/Sonic Wings Special (Europe)/Sonic Wings Special (Europe)/Sonic Wings Special (Europe).cue");
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Tetris X/Tetris X (Japan).cue");
@@ -808,9 +834,11 @@ int main(int argc, char* argv[]) {
 		ImGui::NewFrame();
 		
 		if (render) {
-			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			if (cpu->paused)
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			
 			runFrame();
+			
 			/*if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_PRESS && loadNextTest) {
 				loadNextTest = false;
 				
@@ -827,6 +855,7 @@ int main(int argc, char* argv[]) {
 			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_RELEASE) {
 				loadNextTest = true;
 			}*/
+
 			int width, height;
 			glfwGetFramebufferSize(gpu->renderer->window, &width, &height);
 			glViewport(0, 0, width, height);
@@ -835,9 +864,9 @@ int main(int argc, char* argv[]) {
 		//cpu->showDisassembler();
 		
 		/*if (ImGui::Begin("VRAM")) {
-			ImGui::Image((ImTextureID)(intptr_t)gpu->vram->texImGui, ImVec2(1024, 512));
-			ImGui::End();
-		}*/
+			ImGui::Image((ImTextureID)(intptr_t)gpu->vram->texture16, ImVec2(1024, 512));
+		}
+		ImGui::End();*/
 		
 		int winW, winH;
 		glfwGetFramebufferSize(gpu->renderer->window, &winW, &winH);

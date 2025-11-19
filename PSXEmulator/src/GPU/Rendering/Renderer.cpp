@@ -60,15 +60,26 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     }
     
     // Set all the required options for GLFW
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Necessary on macOS
     //glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     
     //glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
+
+    int monitorCount;
+    GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
+    printf("monitorCount: %d\n", monitorCount);
+    
+    auto monitor = monitors[2];
+    //const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    
+    int mx, my;
+    glfwGetMonitorPos(monitor, &mx, &my);
     
     window = glfwCreateWindow(WIDTH, HEIGHT, "PSX", nullptr, nullptr);
+    glfwSetWindowPos(window, mx + 100, my + 100);
     
     if(window == nullptr) {
         glfwTerminate();
@@ -178,54 +189,98 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);*/
     }
     
-    // Compile vertex shader first as,
-    // it's used with other shaders
-    //std::string postVertexSource   = preprocessShader(readFile("Shaders/bloomVertex.glsl"), "Shader");
-    std::string postVertexSource   = getShaderSource("../Shaders/bloomVertex.glsl");
-    postProcessVertexShader = compileShader(postVertexSource.c_str(), GL_VERTEX_SHADER);
-    
-    //std::string thresholdSource = preprocessShader(readFile("Shaders/bloom_threshold.frag"), "Shaders");
-    std::string thresholdSource = getShaderSource("../Shaders/bloom_threshold.frag");
-    //std::string blurSource = preprocessShader(readFile("Shaders/bloom_blur.frag"), "Shaders");
-    std::string blurSource = getShaderSource("../Shaders/bloom_blur.frag");
-    
-    bloomThresholdProgram = compileShader(thresholdSource.c_str(), GL_FRAGMENT_SHADER);
-    blurProgram = compileShader(blurSource.c_str(), GL_FRAGMENT_SHADER);
-    
-    bloomThresholdProgram = linkProgram(postProcessVertexShader, bloomThresholdProgram);
-    blurProgram = linkProgram(postProcessVertexShader, blurProgram);
-    
-    //std::string postFragmentSource = preprocessShader(readFile("Shaders/bloomFragment.glsl"), "Shader");
-    std::string postFragmentSource = getShaderSource("../Shaders/bloomFragment.glsl");
-    
-    postProcessFragmentShader = compileShader(postFragmentSource.c_str(), GL_FRAGMENT_SHADER);
-    postProcessProgram = linkProgram(postProcessVertexShader, postProcessFragmentShader);
-    
-    setupScreenQuad();
-    
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
-        if (severity != GL_DEBUG_SEVERITY_NOTIFICATION) {
-             std::cerr << "GL DEBUG [" << id << "] Severity: " << severity << " Type: " << type << "\n" << message << '\n';
+    {
+        // Compile vertex shader first as,
+        // it's used with other shaders
+        //std::string postVertexSource   = preprocessShader(readFile("Shaders/bloomVertex.glsl"), "Shader");
+        std::string postVertexSource   = getShaderSource("../Shaders/bloomVertex.glsl");
+        postProcessVertexShader = compileShader(postVertexSource.c_str(), GL_VERTEX_SHADER);
+        
+        //std::string thresholdSource = preprocessShader(readFile("Shaders/bloom_threshold.frag"), "Shaders");
+        std::string thresholdSource = getShaderSource("../Shaders/bloom_threshold.frag");
+        //std::string blurSource = preprocessShader(readFile("Shaders/bloom_blur.frag"), "Shaders");
+        std::string blurSource = getShaderSource("../Shaders/bloom_blur.frag");
+        
+        bloomThresholdProgram = compileShader(thresholdSource.c_str(), GL_FRAGMENT_SHADER);
+        blurProgram = compileShader(blurSource.c_str(), GL_FRAGMENT_SHADER);
+        
+        bloomThresholdProgram = linkProgram(postProcessVertexShader, bloomThresholdProgram);
+        blurProgram = linkProgram(postProcessVertexShader, blurProgram);
+        
+        //std::string postFragmentSource = preprocessShader(readFile("Shaders/bloomFragment.glsl"), "Shader");
+        std::string postFragmentSource = getShaderSource("../Shaders/bloomFragment.glsl");
+        
+        postProcessFragmentShader = compileShader(postFragmentSource.c_str(), GL_FRAGMENT_SHADER);
+        postProcessProgram = linkProgram(postProcessVertexShader, postProcessFragmentShader);
+        
+        setupScreenQuad();
+        
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
+            if (severity != GL_DEBUG_SEVERITY_NOTIFICATION) {
+                 std::cerr << "GL DEBUG [" << id << "] Severity: " << severity << " Type: " << type << "\n" << message << '\n';
+            }
+        }, nullptr);
+        
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+        
+        GLenum constructorError = glGetError();
+        if(constructorError != GL_NO_ERROR) {
+            std::cerr << "OpenGL Error during Renderer constructor: " << constructorError << '\n';
         }
-    }, nullptr);
-    
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-    
-    GLenum constructorError = glGetError();
-    if(constructorError != GL_NO_ERROR) {
-        std::cerr << "OpenGL Error during Renderer constructor: " << constructorError << '\n';
     }
 }
 
 static bool isRendering = false;
 static bool clearV = false;
-static bool useShaders = false;
+static bool useShaders = true;
 
 void Emulator::Renderer::display() {
-    if(isRendering)
-        return;
+    /*positions.beginFrame();
+    colors.beginFrame();
+    uvs.beginFrame();
+    attributes.beginFrame();
+    
+    glBindVertexArray(VAO);
+    
+    // POSITION
+    {
+        GLuint index = getProgramAttrib(program, "vertexPosition");
+        glBindBuffer(GL_ARRAY_BUFFER, positions.getGLBuffer());
+        glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Gpu::Position), nullptr);
+    }
+    
+    // COLOR
+    {
+        GLuint index = getProgramAttrib(program, "vertexColor");
+        glBindBuffer(GL_ARRAY_BUFFER, colors.getGLBuffer());
+        glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
+    }
+    
+    // UV
+    {
+        GLuint index = getProgramAttrib(program, "texCoords");
+        glBindBuffer(GL_ARRAY_BUFFER, uvs.getGLBuffer());
+        glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, sizeof(Gpu::UV), nullptr);
+    }
+    
+    // ATTRIBUTES
+    {
+        GLuint index = getProgramAttrib(program, "attributes");
+        glBindBuffer(GL_ARRAY_BUFFER, attributes.getGLBuffer());
+        glVertexAttribIPointer(index, 1, GL_INT, 0, nullptr);
+    }
+    
+    glBindVertexArray(VAO);
+    
+    // Rebind current frame's buffer
+    glBindBuffer(GL_ARRAY_BUFFER, positions.getGLBuffer());
+    GLuint idx = getProgramAttrib(program, "vertexPosition");
+    glVertexAttribPointer(idx, 2, GL_FLOAT, GL_FALSE, sizeof(Gpu::Position), nullptr);*/
+        
+   // if(isRendering)
+   //     return;
     
     isRendering = true;
     
@@ -233,12 +288,12 @@ void Emulator::Renderer::display() {
         glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
     
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    //glViewport(0, 0, WIDTH, HEIGHT);
-    int winWidth = WIDTH, winHeight = HEIGHT;
-    glfwGetFramebufferSize(window, &winWidth, &winHeight);
+    glViewport(0, 0, WIDTH, HEIGHT);
+    //int winWidth = WIDTH, winHeight = HEIGHT;
+    //glfwGetFramebufferSize(window, &winWidth, &winHeight);
+    //glViewport(0, 0, winWidth, winHeight);
     
     // Render scene
-    glViewport(0, 0, winWidth, winHeight);
     
     glEnable(GL_BLEND);
     draw();
@@ -302,7 +357,7 @@ void Emulator::Renderer::display() {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
-    //int winWidth = WIDTH, winHeight = HEIGHT;
+    int winWidth = WIDTH, winHeight = HEIGHT;
     glfwGetFramebufferSize(window, &winWidth, &winHeight);
     
     // Render scene
@@ -326,33 +381,35 @@ void Emulator::Renderer::display() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
-    // Set uniforms
-    glUniform1i(glGetUniformLocation(postProcessProgram, "screenTexture"), 0);
-    glUniform1i(glGetUniformLocation(postProcessProgram, "bloomTexture"), 1);
-    glUniform2f(glGetUniformLocation(postProcessProgram, "uTextureSize"), WIDTH, HEIGHT);
-    glUniform2f(glGetUniformLocation(postProcessProgram, "uOutputSize"), 3840.0f, 1920.0f);
-    
-    // Sensible defaults for PS1-style rendering
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uKernelB"), kernelB);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uKernelC"), kernelC);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uSharpness"), sharpness);
-    glUniform1i(glGetUniformLocation(postProcessProgram, "uSampleRadius"), sampleRadius);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uLODBias"), lodBias);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uEdgeThreshold"), edgeThreshold);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uDitherStrength"), ditherStrength);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uNoiseStrength"), noiseStrength);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uContrast"), contrast);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uSaturation"), saturation);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uHalation"), halation);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uTime"), glfwGetTime());
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uEnableAdaptiveSharpening"), enableAdaptiveSharpening);
-    
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uGamma"), gamma);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uScanline"), scanline);
-    glUniform1f(glGetUniformLocation(postProcessProgram, "uBloomIntensity"), bloomIntensity);
-    
-    glUniform1i(glGetUniformLocation(postProcessProgram, "uEnableBloom"),     enableBloom ? 0 : 0);
-    glUniform1i(glGetUniformLocation(postProcessProgram, "uEnableUpscaling"), enableUpscaling ? 0 : 0);
+    {
+        // Set uniforms
+        glUniform1i(glGetUniformLocation(postProcessProgram, "screenTexture"), 0);
+        glUniform1i(glGetUniformLocation(postProcessProgram, "bloomTexture"), 1);
+        glUniform2f(glGetUniformLocation(postProcessProgram, "uTextureSize"), WIDTH, HEIGHT);
+        glUniform2f(glGetUniformLocation(postProcessProgram, "uOutputSize"), 3840.0f, 1920.0f);
+        
+        // Sensible defaults for PS1-style rendering
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uKernelB"), kernelB);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uKernelC"), kernelC);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uSharpness"), sharpness);
+        glUniform1i(glGetUniformLocation(postProcessProgram, "uSampleRadius"), sampleRadius);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uLODBias"), lodBias);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uEdgeThreshold"), edgeThreshold);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uDitherStrength"), ditherStrength);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uNoiseStrength"), noiseStrength);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uContrast"), contrast);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uSaturation"), saturation);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uHalation"), halation);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uTime"), glfwGetTime());
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uEnableAdaptiveSharpening"), enableAdaptiveSharpening);
+        
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uGamma"), gamma);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uScanline"), scanline);
+        glUniform1f(glGetUniformLocation(postProcessProgram, "uBloomIntensity"), bloomIntensity);
+        
+        glUniform1i(glGetUniformLocation(postProcessProgram, "uEnableBloom"),     enableBloom ? 1 : 0);
+        glUniform1i(glGetUniformLocation(postProcessProgram, "uEnableUpscaling"), enableUpscaling ? 1 : 0);
+    }
     
     // Draw final quad
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -362,6 +419,11 @@ void Emulator::Renderer::display() {
     //glfwSwapBuffers(window);
     
     isRendering = false;
+    
+    /*positions.endFrame();
+    colors.endFrame();
+    uvs.endFrame();
+    attributes.endFrame();*/
 }
 
 void Emulator::Renderer::draw() {
@@ -384,7 +446,7 @@ void Emulator::Renderer::draw() {
     glBindVertexArray(0);
     glUseProgram(0);
     
-    //if (clearV)
+    if (clearV)
         nVertices = 0;
     
     clearV = false;
@@ -408,6 +470,9 @@ void Emulator::Renderer::pushLine(Emulator::Gpu::Position positions[], Emulator:
     //    return;
     //}
     
+    //linePositions.map[lineVertexCount + 0] = positions[0];
+    //linePositions.map[lineVertexCount + 1] = positions[1];
+    
     for (int i = 0; i < 2; i++) {
         this->positions.set(nVertices, positions[i]);
         if (attributes.usesColor()) this->colors.set(nVertices, colors[i]);
@@ -415,6 +480,12 @@ void Emulator::Renderer::pushLine(Emulator::Gpu::Position positions[], Emulator:
         this->attributes.set(nVertices, attributes);
         nVertices++;
     }
+    
+    this->positions.set(nVertices, positions[0]);
+    if(attributes.usesColor()) this->colors.set(nVertices, colors[0]);
+    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
+    this->attributes.set(nVertices, attributes);
+    nVertices++;
 }
 
 void Emulator::Renderer::pushTriangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Gpu::Attributes attributes) {
@@ -770,7 +841,7 @@ void Emulator::Renderer::setupScreenQuad() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreenQuad), fullscreenQuad, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
 
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));

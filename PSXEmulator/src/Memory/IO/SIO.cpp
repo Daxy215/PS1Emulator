@@ -71,10 +71,7 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
  		bool pr = stat.DSR_INPUT_LEVEL;
  		const uint32_t prvStat = stat.reg;
  		
-		// Reset the stat register
-		//stat.reg = 0;
- 		
-		//stat.BAUDRATE_TIMER = (baudTimer);
+		stat.BAUDRATE_TIMER = (baudTimer);
  		
  		// bit 2 is set after sending all bits including the stop bit if any.???????
  		// wtf is a stop bit

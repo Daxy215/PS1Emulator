@@ -40,8 +40,6 @@ uint32_t Emulator::SPU::load(uint32_t addr, uint32_t val) {
         // Unknown
     } else if (addr >= 0x1F801E80 && addr <= 0x1F801FFF) {
         // Unused
-    } else {
-        // Handle invalid or unrecognized addresses
     }
     
     #ifdef LOG
@@ -102,8 +100,6 @@ void Emulator::SPU::handleVoiceStore(uint32_t addr, uint32_t val) {
         case 0x1F801C00: {
             // 1F801C00h+N*10h - Voice 0..23 Volume Left
             
-            // TODO; Huh?
-
             uint8_t index = (addr / 0x10);
             
             adsr[index].volLeft = (val * 0x10);
@@ -114,7 +110,6 @@ void Emulator::SPU::handleVoiceStore(uint32_t addr, uint32_t val) {
         case 0x1F801C02: {
             // 1F801C02h+N*10h - Voice 0..23 Volume Right
             
-            // TODO; Huh?
             uint8_t index = (addr / 0x10);
             
             adsr[index].volRight = (val * 0x10);
