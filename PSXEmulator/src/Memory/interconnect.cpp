@@ -139,7 +139,9 @@ void Interconnect::dmaBlock(Port port) {
                         _gpu->gp0(srcWord);
                         break;
                     case MdecIn:
-                        // TODO; Confirm address
+                        if (!mdec.dataInRequest())
+                            continue;
+                        
                         mdec.store(0x1f801820, srcWord);
                         
                         break;
@@ -202,6 +204,9 @@ void Interconnect::dmaBlock(Port port) {
                     }
                     
                     case Port::MdecOut: {
+                        if (!mdec.dataOutRequest())
+                            return;
+                        
                         srcWord = mdec.load(0x1F801820);
                         
                         break;

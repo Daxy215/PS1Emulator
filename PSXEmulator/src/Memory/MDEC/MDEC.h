@@ -98,6 +98,9 @@ class MDEC {
     public:
         uint32_t load(uint32_t addr);
         void store(uint32_t addr, uint32_t val);
+
+        bool dataInRequest () const { return status.DataInRequest  &&  output.empty(); };
+        bool dataOutRequest() const { return status.DataOutRequest && !output.empty(); };
         
     private:
         void handleCommand();
@@ -116,6 +119,7 @@ class MDEC {
         
         void yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy);
         void y_to_mono(DCTBlock &block);
+        
     private:
         bool color = false; // (0=Luminance only, 1=Luminance and Color)
         
