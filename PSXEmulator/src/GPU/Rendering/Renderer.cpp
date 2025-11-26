@@ -75,8 +75,10 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     auto monitor = monitors[2];
     //const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     
-    int mx, my;
-    glfwGetMonitorPos(monitor, &mx, &my);
+    int mx = 0, my = 0;
+    
+    if (monitorCount > 1)
+        glfwGetMonitorPos(monitor, &mx, &my);
     
     window = glfwCreateWindow(WIDTH, HEIGHT, "PSX", nullptr, nullptr);
     glfwSetWindowPos(window, mx + 100, my + 100);

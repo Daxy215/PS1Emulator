@@ -405,6 +405,7 @@ public:
         _scratchPad.reset();
         _irq.reset();
         _timers.reset();
+        mdec.reset();
         
         _cacheControl = (0);
         for(auto& i : icache)

@@ -140,7 +140,7 @@ void Interconnect::dmaBlock(Port port) {
                         break;
                     case MdecIn:
                         if (!mdec.dataInRequest())
-                            continue;
+                            break;
                         
                         mdec.store(0x1f801820, srcWord);
                         
@@ -205,7 +205,7 @@ void Interconnect::dmaBlock(Port port) {
                     
                     case Port::MdecOut: {
                         if (!mdec.dataOutRequest())
-                            return;
+                            break;
                         
                         srcWord = mdec.load(0x1F801820);
                         

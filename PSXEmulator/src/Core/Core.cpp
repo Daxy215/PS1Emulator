@@ -438,8 +438,11 @@ void handleLoadExe(std::string path) {
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/input/pad/pad.exe");
 	
-	std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/4bit/4bit.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/4bit/4bit.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/step-by-step-log/step-by-step-log.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/frame/frame-15bit.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/frame/frame-15bit.exe");
+	std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/movie/movie-24bit.exe");
 	
 	/**
 	 * Idk where exactly the cause but,
@@ -502,10 +505,12 @@ void runFrame() {
 			//if (true) {
 				//cpu->executeNextInstruction();
 				
-				// Crash at; 57907068
-				//if (x == 57907040) {
-				//	cpu->paused = true;
-				//}
+				// Crash at; 57907068 (Freebios)
+				if (x == 3593098) {
+					cpu->paused = true;
+				}
+				
+				//printf("PC; %x - %d\n", cpu->pc, x);
 				
 				if (!cpu->paused) {
 					cpu->executeNextInstruction();
@@ -861,12 +866,12 @@ int main(int argc, char* argv[]) {
 			glViewport(0, 0, width, height);
 		}
 		
-		//cpu->showDisassembler();
+		cpu->showDisassembler();
 		
-		/*if (ImGui::Begin("VRAM")) {
+		if (ImGui::Begin("VRAM")) {
 			ImGui::Image((ImTextureID)(intptr_t)gpu->vram->texture16, ImVec2(1024, 512));
 		}
-		ImGui::End();*/
+		ImGui::End();
 		
 		int winW, winH;
 		glfwGetFramebufferSize(gpu->renderer->window, &winW, &winH);
@@ -885,38 +890,7 @@ int main(int argc, char* argv[]) {
 			3.0f
 		);
 		
-		/*if (ImGui::Begin("Post-Processing Settings")) {
-			ImGui::SeparatorText("Bloom Settings");
-			ImGui::SliderFloat("Bloom Threshold", &gpu->renderer->threshold, -5.0f, 5.0f);
-			ImGui::SliderFloat("Bloom Blur Radius", &gpu->renderer->blurRadius, 0.0f, 10.0f);
-			ImGui::SliderInt("Bloom Passes", &gpu->renderer->bloomPasses, 0, 50);
-			ImGui::SliderFloat("Bloom Intensity", &gpu->renderer->bloomIntensity, 0.0f, 5.0f);
-			ImGui::Checkbox("Enable bloom", &gpu->renderer->enableBloom);
-			
-			ImGui::SeparatorText("Upscaling Quality");
-			ImGui::Checkbox("Enable Upscaling", &gpu->renderer->enableUpscaling);
-			ImGui::SliderInt("Sample Radius", &gpu->renderer->sampleRadius, 1, 16);
-			ImGui::SliderFloat("LOD Bias", &gpu->renderer->lodBias, -1.0f, 1.0f);
-			ImGui::SliderFloat("Kernel B", &gpu->renderer->kernelB, -1.0f, 1.0f);
-			ImGui::SliderFloat("Kernel C", &gpu->renderer->kernelC, -1.0f, 1.0f);
-			ImGui::SliderFloat("Sharpness", &gpu->renderer->sharpness, 0.0f, 5.0f);
-			ImGui::SliderFloat("Edge Threshold", &gpu->renderer->edgeThreshold, 0.0f, 0.5f);
-			ImGui::Checkbox("Adaptive Sharpening", &gpu->renderer->enableAdaptiveSharpening);
-			
-			ImGui::SeparatorText("Color Adjustments");
-			ImGui::SliderFloat("Contrast", &gpu->renderer->contrast, 0.5f, 2.0f);
-			ImGui::SliderFloat("Saturation", &gpu->renderer->saturation, 0.0f, 2.0f);
-			ImGui::SliderFloat("Gamma", &gpu->renderer->gamma, 0.1f, 5.0f);
-			
-			ImGui::SeparatorText("CRT Effects");
-			ImGui::SliderFloat("Scanline", &gpu->renderer->scanline, 0.0f, 1.0f);
-			ImGui::SliderFloat("Halation", &gpu->renderer->halation, 0.0f, 0.3f);
-			ImGui::SliderFloat("Dither Strength", &gpu->renderer->ditherStrength, 0.0f, 0.02f);
-			ImGui::SliderFloat("Film Grain", &gpu->renderer->noiseStrength, 0.0f, 0.1f);
-		}
-		ImGui::End();*/
-		
-		/*if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMainMenuBar()) {
 			if (ImGui::BeginMenu("File")) {
 				if (ImGui::MenuItem("Open...")) {
 					show_file_browser = true;
@@ -925,12 +899,60 @@ int main(int argc, char* argv[]) {
 				ImGui::EndMenu();
 			}
 			
+			if(ImGui::BeginMenu("Post-Processing Settings")) {
+				if (ImGui::BeginMenu("Bloom Settings")) {
+					ImGui::SliderFloat("Bloom Threshold", &gpu->renderer->threshold, -5.0f, 5.0f);
+					ImGui::SliderFloat("Bloom Blur Radius", &gpu->renderer->blurRadius, 0.0f, 10.0f);
+					ImGui::SliderInt("Bloom Passes", &gpu->renderer->bloomPasses, 0, 50);
+					ImGui::SliderFloat("Bloom Intensity", &gpu->renderer->bloomIntensity, 0.0f, 5.0f);
+					ImGui::Checkbox("Enable bloom", &gpu->renderer->enableBloom);
+					
+					ImGui::EndMenu();
+				}
+				
+				if (ImGui::BeginMenu("Upscaling Quality")) {
+					ImGui::Checkbox("Enable Upscaling", &gpu->renderer->enableUpscaling);
+					ImGui::SliderInt("Sample Radius", &gpu->renderer->sampleRadius, 1, 16);
+					ImGui::SliderFloat("LOD Bias", &gpu->renderer->lodBias, -1.0f, 1.0f);
+					ImGui::SliderFloat("Kernel B", &gpu->renderer->kernelB, -1.0f, 1.0f);
+					ImGui::SliderFloat("Kernel C", &gpu->renderer->kernelC, -1.0f, 1.0f);
+					ImGui::SliderFloat("Sharpness", &gpu->renderer->sharpness, 0.0f, 5.0f);
+					ImGui::SliderFloat("Edge Threshold", &gpu->renderer->edgeThreshold, 0.0f, 0.5f);
+					ImGui::Checkbox("Adaptive Sharpening", &gpu->renderer->enableAdaptiveSharpening);
+					
+					ImGui::EndMenu();
+				}
+				
+				if (ImGui::BeginMenu("Color Adjustments")) {
+					ImGui::SliderFloat("Contrast", &gpu->renderer->contrast, 0.5f, 2.0f);
+					ImGui::SliderFloat("Saturation", &gpu->renderer->saturation, 0.0f, 2.0f);
+					ImGui::SliderFloat("Gamma", &gpu->renderer->gamma, 0.1f, 5.0f);
+					
+					ImGui::EndMenu();
+				}
+				
+				if (ImGui::BeginMenu("CRT Effects")) {
+					ImGui::SliderFloat("Scanline", &gpu->renderer->scanline, 0.0f, 1.0f);
+					ImGui::SliderFloat("Halation", &gpu->renderer->halation, 0.0f, 0.3f);
+					ImGui::SliderFloat("Dither Strength", &gpu->renderer->ditherStrength, 0.0f, 0.02f);
+					ImGui::SliderFloat("Film Grain", &gpu->renderer->noiseStrength, 0.0f, 0.1f);
+					
+					ImGui::EndMenu();
+				}
+				
+				ImGui::EndMenu();
+			}
+			
+			if(ImGui::MenuItem("Rest")) {
+				rest("");
+			}
+			
 			ImGui::EndMainMenuBar();
 		}
 		
 		if (show_file_browser) {
 			ShowFileBrowser(&show_file_browser, cpu.get());
-		}*/
+		}
 		
 		ImGui::Render();
 		

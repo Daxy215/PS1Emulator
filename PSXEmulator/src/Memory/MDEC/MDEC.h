@@ -13,8 +13,8 @@ class MDEC {
     private:
         union Status {
             struct {
-                uint32_t ParameterWordsRemaining : 15; // 15-0  Number of Parameter Words remaining minus 1  (FFFFh=None)  ;CMD.Bit0-15
-                uint32_t CurrentBlock            : 4 ; // 18-16 Current Block (0..3=Y1..Y4, 4=Cr, 5=Cb) (or for mono: always 4=Y)
+                uint32_t ParameterWordsRemaining : 16; // 15-0  Number of Parameter Words remaining minus 1  (FFFFh=None)  ;CMD.Bit0-15
+                uint32_t CurrentBlock            : 3 ; // 18-16 Current Block (0..3=Y1..Y4, 4=Cr, 5=Cb) (or for mono: always 4=Y)
                 uint32_t NotUsed                 : 4 ; // 22-19 Not used (seems to be always zero)
                 uint32_t DataOutputBit15         : 1 ; // 23    Data Output Bit15  (0=Clear, 1=Set) (for 15bit depth only) ;CMD.25
                 uint32_t DataOutputSigned        : 1 ; // 24    Data Output Signed (0=Unsigned, 1=Signed)                  ;CMD.26
@@ -34,7 +34,7 @@ class MDEC {
         
         union Control {
             struct {
-                uint32_t Unknown              : 28; // 28-0  Unknown/Not used - usually zero
+                uint32_t Unknown              : 29; // 28-0  Unknown/Not used - usually zero
                 uint32_t EnableDataOutRequest : 1 ; // 29    Enable Data-Out Request (0=Disable, 1=Enable DMA1 and Status.bit27)
                 uint32_t EnableDataInRequest  : 1 ; // 30    Enable Data-In Request  (0=Disable, 1=Enable DMA0 and Status.bit28)
                 uint32_t ResetMDEC            : 1 ; // 31    Reset MDEC (0=No change, 1=Abort any command, and set status=80040000h)
@@ -48,7 +48,7 @@ class MDEC {
         
         union DecodeCommand {
             struct {
-                uint32_t NumberOfParameterWords : 15; // 15-0  Number of Parameter Words (size of compressed data)
+                uint32_t NumberOfParameterWords : 16; // 15-0  Number of Parameter Words (size of compressed data)
                 uint32_t NotUsed                : 9 ; // 24-16 Not used (should be zero)
                 uint32_t DataOutputBit15        : 1 ; // 25    Data Output Bit15  (0=Clear, 1=Set) (for 15bit depth only) ;STAT.23
                 uint32_t DataOutputSigned       : 1 ; // 26    Data Output Signed (0=Unsigned, 1=Signed)                  ;STAT.24
@@ -71,9 +71,9 @@ class MDEC {
             uint16_t reg = 0;
             
             DCT() = default;
-            explicit DCT(const int16_t reg) : reg(reg) {}
+            explicit DCT(const uint16_t reg) : reg(reg) {}
         };
-
+        
         union RLE {
             struct {
                 int16_t  AC  : 10; // 9-0   AC   Relative AC value (10 bits, signed)
@@ -83,13 +83,15 @@ class MDEC {
             uint16_t reg = 0;
             
             RLE() = default;
-            explicit RLE(const int16_t reg) : reg(reg) {}
+            explicit RLE(const uint16_t reg) : reg(reg) {}
         };
         
         struct DCTBlock {
             DCT dct;
             std::array<RLE, 64> data;
             uint16_t EOB; // Fixed to FE00h
+            
+            DCTBlock() = default;
         };
         
     public:
@@ -98,16 +100,15 @@ class MDEC {
     public:
         uint32_t load(uint32_t addr);
         void store(uint32_t addr, uint32_t val);
-
+        
+        void reset();
+        
         [[nodiscard]] bool dataInRequest () const { return status.DataInRequest  &&  output.empty(); };
         [[nodiscard]] bool dataOutRequest() const { return status.DataOutRequest && !output.empty(); };
         
     private:
         void handleCommand();
         void handleCommandProcessing(uint32_t val);
-        
-        void reset();
-        
     private:
         void decodeBlocks();
         DCTBlock decodeMarcoBlocks(uint16_t &src);
@@ -125,6 +126,7 @@ class MDEC {
         
         uint32_t paramCount = 0;
         uint32_t counter = 0;
+        uint32_t outputIndex = 0;
         
     private:
         Status status = Status(0);

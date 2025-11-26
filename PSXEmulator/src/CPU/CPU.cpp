@@ -493,6 +493,8 @@ void CPU::showDisassembler() {
                         disasmState.breakpoints.erase(addr);
                     else
                         disasmState.breakpoints.insert(addr);
+                    
+                    
                 }
                 
                 if (ImGui::MenuItem(disasmState.bookmarks.count(addr) ? "Remove Bookmark" : "Add Bookmark")) {
@@ -500,6 +502,8 @@ void CPU::showDisassembler() {
                         disasmState.bookmarks.erase(addr);
                     else
                         disasmState.bookmarks.insert(addr);
+                    
+                    
                 }
                 
                 ImGui::EndPopup();

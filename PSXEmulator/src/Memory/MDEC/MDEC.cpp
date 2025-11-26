@@ -1,6 +1,7 @@
 #include "MDEC.h"
 
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 
 MDEC::MDEC() {
@@ -22,11 +23,27 @@ MDEC::MDEC() {
 uint32_t MDEC::load(uint32_t addr) {
     if (addr == 0x1F801820) {
         // 1F801824h - MDEC1 - MDEC Status Register (R)
+        
+        // (or Garbage if there's no data available)
+        // Idk what 'garbage' would be but ig a random value
+        // I'm assuming it just returns a random memory address
+        // so this is 100% not needed, but I'm bored
         if (output.empty())
-            return 0;
+            return rand() % INT32_MAX;
         
         // UHH TODO; ;-; Only part left but im so confused
         
+        uint32_t data = 0;
+        
+        // Uhh TODO; Handle different types of bits somehow
+        data = (output[outputIndex] & 0xFFFF) | (output[outputIndex + 1]  & 0xFFFF);
+        outputIndex++;
+        
+        if (outputIndex > output.size()) {
+            output.clear();
+        }
+        
+        return data;
     } else if (addr == 0x1f801824) {
         // 1F801824h - MDEC1 - MDEC Status Register (R)
         
@@ -38,6 +55,7 @@ uint32_t MDEC::load(uint32_t addr) {
         
         // (0=Ready, 1=Busy receiving or processing parameters)
         status.CommandBusy      = !output.empty();
+        printf("RETURND; %x\n", status.reg);
         
         return status.reg;
     }
@@ -49,14 +67,19 @@ void MDEC::store(uint32_t addr, uint32_t val) {
     if (addr == 0x1f801820) {
         // 1F801820h - MDEC0 - MDEC Command/Parameter Register (W)
         if (paramCount != 0) {
+            if (paramCount == 1) {
+                printf("sadg\n");
+            }
+            
             handleCommandProcessing(val);
             
             counter++;
             paramCount--;
-            status.ParameterWordsRemaining = (paramCount - 1);
+            status.ParameterWordsRemaining = (paramCount - 1) & 0xFFFF;
         } else {
             command.reg = val;
             handleCommand();
+            counter = 0;
         }
     } else if (addr == 0x1f801824) {
         /**
@@ -85,7 +108,7 @@ void MDEC::store(uint32_t addr, uint32_t val) {
             status.reg = 0x80040000;
             
             // Abort command
-            counter = 0;
+            outputIndex = 0;
             command.reg = 0;
             paramCount = 0;
         }
@@ -110,7 +133,18 @@ void MDEC::handleCommand() {
      * 15-0  Number of Parameter Words (size of compressed data)
      */
     
-    uint32_t cmd = command.Op;
+    const uint32_t cmd = command.Op;
+    
+    status.CommandBusy = true;
+    
+    // TODO; Unsure for those values????
+    // It says 'reflects' so I'm assuming,
+    // ( Command bits 25-28 are reflected to Status bits 23-26 as usually. ) 'as usually'???
+    // ( Command bits 0-15 are reflected to Status bits 0-15 )
+    // its meant to be copied to 'status'?????
+    //status.DataOutputBit15  = command.DataOutputBit15;
+    //status.DataOutputSigned = command.DataOutputSigned;
+    //status.DataOutputDepth  = command.DataOutputDepth;
     
     switch (cmd) {
         case 0:
@@ -129,12 +163,12 @@ void MDEC::handleCommand() {
         case 1: {
             // MDEC(1) - Decode Macroblock(s)
             
-            paramCount = 0;
+            paramCount = command.NumberOfParameterWords;
             
             input.resize(paramCount * 2);
-            output.clear();
+            output.resize(0);
             
-            status.CommandBusy = true;
+            outputIndex = 0;
             
             break;
         }
@@ -168,8 +202,6 @@ void MDEC::handleCommand() {
                 paramCount = 128 / 4; // 128 uint8_t
             }
             
-            status.CommandBusy = true;
-            
             break;
         }
         
@@ -183,7 +215,6 @@ void MDEC::handleCommand() {
              */
             
             paramCount         = 64 / 4;
-            status.CommandBusy = true;
             
             break;
         }
@@ -193,27 +224,17 @@ void MDEC::handleCommand() {
     }
     
     // Doesn't mention cmd (3) should 'reflect'
-    if (cmd == 3)
-        return;
-    
-    // TODO; Unsure for those values????
-    // It says 'reflects' so I'm assuming,
-    // ( Command bits 25-28 are reflected to Status bits 23-26 as usually. ) 'as usually'???
-    // ( Command bits 0-15 are reflected to Status bits 0-15 )
-    // its meant to be copied to 'status'?????
+    //if (cmd == 3)
+    //    return;
     
     // It only says it should copy,
     // remaining words if cmd = 0 | 1?
     // TODO; confirm this somehow
     
     // (4..7) mirrors of (0)
-    if (cmd != 3 && cmd != 2)
+    //if (cmd != 3 && cmd != 2)
         // Only command (1) has minus 1 effect
-        status.ParameterWordsRemaining = /*command.NumberOfParameterWords*/paramCount - (cmd == 1 ? 1 : 0);
-    
-    status.DataOutputBit15  = command.DataOutputBit15;
-    status.DataOutputSigned = command.DataOutputSigned;
-    status.DataOutputDepth  = command.DataOutputDepth;
+        status.ParameterWordsRemaining = /*command.NumberOfParameterWords*/(paramCount - (cmd == 1 ? 1 : 0)) & 0xFFFF;
 }
 
 void MDEC::handleCommandProcessing(uint32_t val) {
@@ -237,10 +258,10 @@ void MDEC::handleCommandProcessing(uint32_t val) {
             uint8_t base = counter * 4;
             uint8_t* table = luminanceQuantTable.data();
             
-            if (counter < 64 / 4) {
+            /*if (counter < 64 / 4) {
                 // Use Luminance Quant Table
                 
-            } else if (counter < 128 / 4) {
+            } else */if (counter < 128 / 4) {
                 // Use Color Quant Table
                 
                 // It does say if this was set,
@@ -300,6 +321,20 @@ void MDEC::handleCommandProcessing(uint32_t val) {
 
 void MDEC::reset() {
     // TODO;
+    // Reset MDEC (0=No change, 1=Abort any command, and set status=80040000h)
+    status.reg = 0x80040000;
+    control = Control(0);
+    command = DecodeCommand(0);
+    
+    // Abort command
+    outputIndex = 0;
+    command.reg = 0;
+    paramCount = 0;
+    
+    output.clear();
+    input.clear();
+    blocks.fill(DCTBlock());
+    
 }
 
 void MDEC::decodeBlocks() {
@@ -317,7 +352,7 @@ void MDEC::decodeBlocks() {
 MDEC::DCTBlock MDEC::decodeMarcoBlocks(uint16_t &src) {
     DCTBlock block;
     
-    if (status.DataOutputDepth > 1) {
+    if (command.DataOutputDepth > 1) {
         // 15bpp or 24bpp depth
         // decode_colored_macroblock
         rl_decode_block(Crblk.data(), src, iq_uv.data()); // ;Cr (low resolution)
@@ -351,29 +386,32 @@ MDEC::DCTBlock MDEC::decodeMarcoBlocks(uint16_t &src) {
 }
 
 void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
-    uint16_t n = 0, k = 0;
+    uint16_t n, k = 0;
     uint16_t q_scale = 0;
     uint16_t val = 0;
     
+    // First value is DCT
+    
+    skip:
+        // To avoid confusion
+        n = src++;
+        
+        // Skip padding
+        if (n == 0xFE00)
+            goto skip;
+        
+        q_scale = (n >> 10) & 0x3F; // Contains scale value (not 'skip' value)
+        
+        // calc first value (without q_scale/8) (?)
+        // https://fgiesen.wordpress.com/2024/10/23/zero-or-sign-extend/
+        // https://www.geeksforgeeks.org/c/sign-extend-a-nine-bit-number-in-c/
+        val = n & 0x3FF; // 10 bits
+        if (val & 0x200) val |= ~0x3FF; // If signbit sent, extend
+        
+        val = val * qt[k];
+    
+    // TODO; Uhh this is wrong
     for (int i = 0; i < 64; i++) {
-        skip:
-            // To avoid confusion
-            n = src++;
-            
-            // Skip padding
-            if (n == 0xFE00)
-                goto skip;
-            
-            q_scale = (n >> 10) & 0x3F; // Contains scale value (not 'skip' value)
-            
-            // calc first value (without q_scale/8) (?)
-            // https://fgiesen.wordpress.com/2024/10/23/zero-or-sign-extend/
-            // https://www.geeksforgeeks.org/c/sign-extend-a-nine-bit-number-in-c/
-            val = n & 0x3FF; // 10 bits
-            if (val & 0x200) val |= ~0x3FF; // If signbit sent, extend
-            
-            val = val * qt[k];
-            
         lop:
             if (q_scale == 0) {
                 // Breh
@@ -387,7 +425,7 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
             
             // Used for 'fast_idct_core' only
             //val = val * scaleZag[i];
-
+            
             // Store entry normally
             if (q_scale > 0) {
                 blk[zagzig[k]] = val;
@@ -429,7 +467,7 @@ void MDEC::fast_idct_core(uint16_t *blk) {
 }
 
 void MDEC::real_idct_core(uint16_t *blk) {
-    std::array<uint16_t, 64> tmp;
+    std::array<uint16_t, 64> tmp {};
     
     uint16_t* src = blk;
     uint16_t* dst = tmp.data();
@@ -497,7 +535,7 @@ void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy) {
             uint16_t B5 = (b & 0xFF) >> 3;
             
             uint16_t pixel = (R5 << 10) | (G5 << 5) | B5;
-            output[(x + xx) + (y + yy) * 16] = pixel;
+            block.data[(x + xx) + (y + yy) * 16] = RLE(pixel);
         }
     }
 }
@@ -516,6 +554,6 @@ void MDEC::y_to_mono(DCTBlock &block) {
             Y ^= 0x80;
         }
         
-        output[i] = Y;
+        block.data[i] = RLE(Y);
     }
 }

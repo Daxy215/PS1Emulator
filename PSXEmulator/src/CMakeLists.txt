@@ -57,6 +57,10 @@ file(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/../libs/glew-2.2.0/src/glew.c
 )
 
+set(NLOHMANN_PATH ${LIBS_DIR}/nlohmann)
+add_library(nlohmann INTERFACE)
+target_include_directories(nlohmann INTERFACE ${NLOHMANN_PATH})
+
 # Executable definition
 add_executable(PS1Emulator ${SOURCES}
         Memory/MDEC/MDEC.cpp
@@ -72,6 +76,7 @@ target_link_libraries(PS1Emulator
         X11
         dl
         pthread
+        nlohmann
 )
 
 # Add include directories for ImGui, GLM, Glew, and other sources
