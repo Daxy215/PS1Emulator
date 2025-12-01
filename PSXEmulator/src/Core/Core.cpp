@@ -501,14 +501,14 @@ void runFrame() {
 		bool cpuStepped = false;
 		
 		for(int i = 0; i < 100; i++) {
-			if (cpu->pc != 0x80030000) {
-			//if (true) {
+			//if (cpu->pc != 0x80030000) {
+			if (true) {
 				//cpu->executeNextInstruction();
 				
 				// Crash at; 57907068 (Freebios)
-				if (x == 3593098) {
-					cpu->paused = true;
-				}
+				//if (x == 3593098) {
+				//	cpu->paused = true;
+				//}
 				
 				//printf("PC; %x - %d\n", cpu->pc, x);
 				
@@ -747,7 +747,7 @@ int main(int argc, char* argv[]) {
 	/**
 	 * Also had controller issues.
 	 */
-	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
+	cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
 	
 	// Works but need to skip all cut scenes to see anything(dont have MDEC)
 	// TODO; Uses line rendering but doesn't crash
@@ -755,9 +755,12 @@ int main(int argc, char* argv[]) {
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Pepsiman (Japan)/Pepsiman (Japan).cue");
 	
 	// Games that are broken
-	//cpu->interconnect._cdrom.swapDisk("../ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; Missing CDROM(0x20/0x1E/0x16) SUB(0x04)
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; CDROM(0x10) but it works fine
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/This Is Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
+	
+	// TODO; MDEC_in_sync timeout:
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1)/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1).cue");
 	
 	// Works but with some GPU bugs
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue");
@@ -793,7 +796,7 @@ int main(int argc, char* argv[]) {
 	std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
 	double passedTime = 0;
 	double unprocessedTime = 0;
-	const double UPDATE_CAP = 1.0/600.0;
+	const double UPDATE_CAP = 1.0/165.0;
 	
 	bool render = false;
 	
@@ -801,6 +804,8 @@ int main(int argc, char* argv[]) {
 		glfwPollEvents();
 		runFrame();
 	}*/
+	
+	glfwSwapInterval(0);
 	
 	while(!glfwWindowShouldClose(gpu->renderer->window)) {
 		render = false;
@@ -844,6 +849,18 @@ int main(int argc, char* argv[]) {
 			
 			runFrame();
 			
+			static bool f = false;
+			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_PRESS && f) {
+				f = false;
+				
+				gpu->vram->endTransfer();
+				printf("Updated\n");
+			}
+			
+			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_RELEASE) {
+				f = true;
+			}
+			
 			/*if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_PRESS && loadNextTest) {
 				loadNextTest = false;
 				
@@ -860,16 +877,17 @@ int main(int argc, char* argv[]) {
 			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_RELEASE) {
 				loadNextTest = true;
 			}*/
-
+			
 			int width, height;
 			glfwGetFramebufferSize(gpu->renderer->window, &width, &height);
 			glViewport(0, 0, width, height);
 		}
 		
-		cpu->showDisassembler();
+		//cpu->showDisassembler();
 		
-		if (ImGui::Begin("VRAM")) {
-			ImGui::Image((ImTextureID)(intptr_t)gpu->vram->texture16, ImVec2(1024, 512));
+		static bool show = true;
+		if (ImGui::Begin("VRAM", &show)) {
+			ImGui::Image((ImTextureID)(intptr_t)gpu->renderer->sceneTex, ImVec2(1024, 512));
 		}
 		ImGui::End();
 		

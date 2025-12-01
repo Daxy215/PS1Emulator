@@ -429,7 +429,7 @@ void CDROM::decodeAndExecute(uint8_t command) {
 			
 			readLocation = pos.toLba();
 			_stats.setMode(Stats::Mode::Playing);
-		
+			
 			INT(3);
 			addResponse(_stats._reg);
 	} else if (command == 0x11) {

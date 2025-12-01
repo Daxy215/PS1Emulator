@@ -226,7 +226,7 @@ void Interconnect::dmaBlock(Port port) {
         remsz.value() -= 1;
     }
     
-    //channel.done(dma, port);
+    //channel.done(_dma, port);
 }
 
 void Interconnect::dmaLinkedList(Port port) {
@@ -283,6 +283,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     
     uint32_t major = (offset & 0x70) >> 4;
     uint32_t minor = offset & 0xF;
+    
     std::optional<Port> activePort = std::nullopt;
     
     switch (major) {
@@ -313,10 +314,10 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     case 7: {
             switch (minor) {
             case 0:
-                _dma.setControl(val);
+                _dma.setControl(val); // DPCR (0x1F8010F0)
                 break;
             case 4:
-                _dma.setInterrupt(val);
+                _dma.setInterrupt(val); // DICR (0x1F8010F4)
                 break;
             default:
                 throw std::runtime_error("Unhandled DMA write " + std::to_string(offset) + " : " + std::to_string(val));

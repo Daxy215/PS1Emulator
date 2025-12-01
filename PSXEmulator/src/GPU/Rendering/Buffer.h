@@ -1,12 +1,13 @@
 ﻿#pragma once
 
-#include <stdint.h>
+#include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <stdexcept>
 
 #include <GL/glew.h>
 
-constexpr unsigned int VERTEX_BUFFER_LEN = 640 * 1024;
+constexpr unsigned int VERTEX_BUFFER_LEN = 640;
 
 template<typename T>
 struct Buffer {

@@ -40,7 +40,7 @@ namespace map {
     //static const Range SYSCONTROL = {0x1f801000, 36};
     static const Range CACHECONTROL = {0xfffe0130, 4}; // 0xfffe0130
     
-    // Gamepad and memeory card controller
+    // Gamepad and memory card controller
     static const Range PADMEMCARD = {0x1f801040, 32};
     
     // SPU Registers
@@ -48,7 +48,7 @@ namespace map {
     static const Range SPU = {0x1f801c00, 640};
     
     // Direct Memory Access registers
-    // Used to move data back and fourth between RAM & (GPU, CDROM, SPU.. etc..)
+    // Used to move data back and forth between RAM & (GPU, CDROM, SPU.. etc..)
     static const Range DMA = {0x1f801080, 0x80};
     
     static const Range PCSX_REDUX_EXPANSION = {0x1F802080, 8};

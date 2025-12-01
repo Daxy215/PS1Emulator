@@ -115,5 +115,5 @@ uint16_t Emulator::VRAM::RGB555_to_RGB565(uint16_t color) {
 }
 
 void Emulator::VRAM::reset() {
-	std::fill(ptr16, ptr16 + (1024 * 512), 0);
+	//std::fill(ptr16, ptr16 + (1024 * 512), 0);
 }

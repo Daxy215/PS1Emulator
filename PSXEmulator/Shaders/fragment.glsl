@@ -2,9 +2,10 @@
 
 in vec3 color;
 
-// TODO; Rename to drawingAreaTop
-uniform ivec2 drawingAreaMin;
-uniform ivec2 drawingAreaMax;
+//uniform ivec2 drawingAreaMin;
+//uniform ivec2 drawingAreaMax;
+flat in ivec2 drawingAreaMinIn;
+flat in ivec2 drawingAreaMaxIn;
 in vec2 VRAMPos;
 
 /*
@@ -45,13 +46,13 @@ const int TEXTURE_DEPTH_MASK = 0x3;
 
 vec2 calculateTexel() {
     uvec2 texel = uvec2(uint(UVs.x) % 256u, uint(UVs.y) % 256u);
-
+    
     uvec2 mask = uvec2(textureWindow.x, textureWindow.y);
     uvec2 offset = uvec2(textureWindow.z, textureWindow.w);
-
+    
     texel.x = (texel.x & ~(mask.x * 8u)) | ((offset.x & mask.x) * 8u);
     texel.y = (texel.y & ~(mask.y * 8u)) | ((offset.y & mask.y) * 8u);
-
+    
     return vec2(texel);
 }
 
@@ -60,21 +61,23 @@ uint internalToPsxColor(vec4 c) {
     uint r = uint(floor(c.r * 31.0 + 0.5));
     uint g = uint(floor(c.g * 31.0 + 0.5));
     uint b = uint(floor(c.b * 31.0 + 0.5));
-
+    
     return (a << 15) | (b << 10) | (g << 5) | r;
 }
 
 vec4 read(int x, int y) {
+    //y = 512 - 1 - y;
+    
     return texelFetch(texture_sample4, ivec2(x, y), 0);
 }
 
 vec4 clut4bit(vec2 coords, ivec2 clut, ivec2 page) {
     int texX = int(coords.x / 4.0) + page.x;
     int texY = int(coords.y)       + page.y;
-
+    
     uint index = internalToPsxColor(read(texX, texY));
     uint which = (index >> ((uint(coords.x) & 3u) * 4u)) & 0xfu;
-
+    
     return read(clut.x + int(which), clut.y);
 }
 
@@ -98,27 +101,12 @@ vec4 sample_texel(int textureDepth) {
      */
     float clutX = int(UVs.z) >> 16;
     float clutY = int(UVs.w) >> 16;
-
+    
     float pageX = int(UVs.z) & 0xFFFF;
     float pageY = int(UVs.w) & 0xFFFF;
-    /*
-    float index = texture(texture_sample4, vec2(UVs.x, UVs.y)).r;
     
-    // The coordinates of the clut in the texture
-    vec2 coords = vec2((clutX) / 1024.0, clutY / 512.0);
-    
-    // Fetch color based on index
-    float clutEntryWidth = 1.0 / 16.0;
-    
-    float clutEntryX = coords.x + (index / 16.0) * clutEntryWidth;
-    float clutEntryY = coords.y;
-    
-    vec4 clutColor = texture(texture_sample4, vec2(clutEntryX, clutEntryY));
-    
-    return clutColor;*/
-
     vec2 texel = calculateTexel();
-
+    
     /**
      * T4Bit = 0,
      * T8Bit = 1,
@@ -131,14 +119,14 @@ vec4 sample_texel(int textureDepth) {
     } else if(textureDepth == 2) {
         return clut16bit(texel, ivec2(pageX, pageY));
     }
-
+    
     return vec4(1, 0, 0, 1);
 }
 
 void main() {
     // Crop
-    if (any(lessThan(VRAMPos, drawingAreaMin)) ||
-        any(greaterThanEqual(VRAMPos, drawingAreaMax))) {
+    if (any(lessThan(VRAMPos, drawingAreaMinIn)) ||
+        any(greaterThanEqual(VRAMPos, drawingAreaMaxIn))) {
         discard;
     }
     
@@ -153,7 +141,7 @@ void main() {
     
     // Apply transparency
     vec4 outColor, samp, F;
-
+    
     // textureMode ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
     if(textureMode == 1 || textureMode == 2) {
         int textureDepth = (attr >> TEXTURE_DEPTH_SHIFT) & TEXTURE_DEPTH_MASK;
@@ -174,7 +162,20 @@ void main() {
         F = samp;
     } else if (textureMode == 2) {
         // texture * vertex color
-        F = samp * vec4(color, 1.0);
+        //F = samp * vec4(color, 1.0);
+        
+        /*if (blendTexture == 1) {
+            // (Tex * VertexColor) >> 7  where both are 0..255
+            vec3 tex255 = samp.rgb * 255.0;
+            vec3 col255 = color * 255.0;
+            
+            vec3 blended = (tex255 * col255) * (1.0 / 128.0); // >> 7
+            
+            F.rgb = clamp(blended / 255.0, 0.0, 1.0);
+            F.a   = samp.a;
+        } else {*/
+            F = samp * vec4(color, 1.0);
+        //}
     }
     
     /*
@@ -185,31 +186,57 @@ void main() {
      * 1.0 x B - 1.0 x F    ;aka B-F
      * 1.0 x B +0.25 x F    ;aka B+F/4
      */
-    if(isSemiTransparent == 1) {
-        vec4 B = texelFetch(texture_sample4, ivec2(VRAMPos), 0);
-        
-        // (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
-        if(semiTransparencyMode == 0) {
-            // 0.5 x B + 0.5 x F    ;aka B/2+F/2
-            outColor = (0.5 * B) + (0.5 * F);
-        } else if(semiTransparencyMode == 1) {
-            // 1.0 x B + 1.0 x F    ;aka B+F
-            outColor = B + F;
-        }  else if(semiTransparencyMode == 2) {
-            // 1.0 x B - 1.0 x F    ;aka B-F
-            outColor = B - F;
-        }  else if(semiTransparencyMode == 3) {
-            // 1.0 x B +0.25 x F    ;aka B+F/4
-            outColor = B + (0.25 * F);
-        }
-        
-        outColor = clamp(outColor, 0.0, 1.0);
-    } else {
+//    if(isSemiTransparent == 1) {
+//        float gamma = 1.0;
+//        float invGamma = 1.0 / gamma;
+//
+//        vec4 B = read(int(VRAMPos.x), int(VRAMPos.y));
+//        //vec4 B = texelFetch(sceneColor, ivec2(int(VRAMPos.x), int(VRAMPos.y)), 0);
+//
+//        vec3 Blinear = pow(B.rgb, vec3(gamma));
+//        vec3 Flinear = pow(F.rgb, vec3(gamma));
+//
+//        vec3 Bi = floor(Blinear * 31.0 + 0.5);
+//        vec3 Fi = floor(Flinear * 31.0 + 0.5) * 3;
+//
+//        vec3 O;
+//
+//        if (semiTransparencyMode == 0)
+//        O = (Bi + Fi) * 0.5;
+//        else if (semiTransparencyMode == 1)
+//        O = Bi + Fi;
+//        else if (semiTransparencyMode == 2)
+//        O = Bi - Fi;
+//        else
+//        O = Bi + Fi * 0.25;
+//
+//        O = clamp(O, 0.0, 31.0);
+//
+//        // Convert back to display gamma
+//        vec3 final = pow(O / 31.0, vec3(invGamma));
+//        outColor = vec4(final, 1.0);
+//
+//        /*// (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
+//        if(semiTransparencyMode == 0) {
+//            // 0.5 x B + 0.5 x F    ;aka B/2+F/2
+//            outColor = (0.5 * B) + (0.5 * F);
+//        } else if(semiTransparencyMode == 1) {
+//            // 1.0 x B + 1.0 x F    ;aka B+F
+//            outColor = B + F;
+//        }  else if(semiTransparencyMode == 2) {
+//            // 1.0 x B - 1.0 x F    ;aka B-F
+//            outColor = B - F;
+//        }  else if(semiTransparencyMode == 3) {
+//            // 1.0 x B +0.25 x F    ;aka B+F/4
+//            outColor = B + (0.25 * F);
+//        }
+//        
+//        outColor = clamp(outColor, 0.0, 1.0);*/
+//        //outColor = F * 0.5;
+//    } else {
         // No transparency
         outColor = F;
-    }
-    
-    // TODO; Implement texture blend?
+    //}
     
     fragColor = vec4(outColor.rgb, 1.0);
 }

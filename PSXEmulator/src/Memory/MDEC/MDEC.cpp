@@ -1,5 +1,6 @@
 #include "MDEC.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -20,24 +21,23 @@ MDEC::MDEC() {
     }
 }
 
+int part = 0;
 uint32_t MDEC::load(uint32_t addr) {
     if (addr == 0x1F801820) {
         // 1F801824h - MDEC1 - MDEC Status Register (R)
         
-        // (or Garbage if there's no data available)
+        // (or Garbage if there's no data available)c
         // Idk what 'garbage' would be but ig a random value
         // I'm assuming it just returns a random memory address
         // so this is 100% not needed, but I'm bored
         if (output.empty())
-            return rand() % INT32_MAX;
+            return rand() | 0xFFFF0000;
         
         // UHH TODO; ;-; Only part left but im so confused
         
-        uint32_t data = 0;
+        uint16_t data = 0;
         
-        // Uhh TODO; Handle different types of bits somehow
-        data = (output[outputIndex] & 0xFFFF) | (output[outputIndex + 1]  & 0xFFFF);
-        outputIndex++;
+        data = output[outputIndex++];
         
         if (outputIndex > output.size()) {
             output.clear();
@@ -55,19 +55,24 @@ uint32_t MDEC::load(uint32_t addr) {
         
         // (0=Ready, 1=Busy receiving or processing parameters)
         status.CommandBusy      = !output.empty();
-        printf("RETURND; %x\n", status.reg);
+        //printf("RETURND; %x\n", status.reg);
         
         return status.reg;
     }
+    
+    assert(false);
     
     return 0;
 }
 
 void MDEC::store(uint32_t addr, uint32_t val) {
+    //printf("MDEC::store %x - %x\n", addr, val);
+    
     if (addr == 0x1f801820) {
         // 1F801820h - MDEC0 - MDEC Command/Parameter Register (W)
         if (paramCount != 0) {
             if (paramCount == 1) {
+                int jhyg = this->command.Op;
                 printf("sadg\n");
             }
             
@@ -114,9 +119,11 @@ void MDEC::store(uint32_t addr, uint32_t val) {
         }
     } else {
         printf("Unhandled store MDEC %x = %x\n", addr, val);
+        assert(false);
     }
 }
 
+static int lastCmd = 0;
 void MDEC::handleCommand() {
     /**
     * Used to send command word, followed by parameter words to the MDEC
@@ -137,15 +144,7 @@ void MDEC::handleCommand() {
     
     status.CommandBusy = true;
     
-    // TODO; Unsure for those values????
-    // It says 'reflects' so I'm assuming,
-    // ( Command bits 25-28 are reflected to Status bits 23-26 as usually. ) 'as usually'???
-    // ( Command bits 0-15 are reflected to Status bits 0-15 )
-    // its meant to be copied to 'status'?????
-    //status.DataOutputBit15  = command.DataOutputBit15;
-    //status.DataOutputSigned = command.DataOutputSigned;
-    //status.DataOutputDepth  = command.DataOutputDepth;
-    
+    lastCmd = cmd;
     switch (cmd) {
         case 0:
         // Those behave same as cmd (0)
@@ -156,6 +155,7 @@ void MDEC::handleCommand() {
             // No function
             
             paramCount = 0;//command.NumberOfParameterWords;
+            assert(false);
             
             break;
         }
@@ -167,7 +167,7 @@ void MDEC::handleCommand() {
             
             input.resize(paramCount * 2);
             output.resize(0);
-            
+            part = 0;
             outputIndex = 0;
             
             break;
@@ -214,7 +214,7 @@ void MDEC::handleCommand() {
              * (based on the standard JPEG constants, although, MDEC(3) allows to use other values than that constants).
              */
             
-            paramCount         = 64 / 4;
+            paramCount = 64 / 2;
             
             break;
         }
@@ -229,7 +229,17 @@ void MDEC::handleCommand() {
     
     // It only says it should copy,
     // remaining words if cmd = 0 | 1?
-    // TODO; confirm this somehow
+    if (cmd == 0 || cmd == 1) {
+        // TODO; confirm this somehow
+        // TODO; Unsure for those values????
+        // It says 'reflects' so I'm assuming,
+        // ( Command bits 25-28 are reflected to Status bits 23-26 as usually. ) 'as usually'???
+        // ( Command bits 0-15 are reflected to Status bits 0-15 )
+        // its meant to be copied to 'status'?????
+        status.DataOutputBit15  = command.DataOutputBit15;
+        status.DataOutputSigned = command.DataOutputSigned;
+        status.DataOutputDepth  = command.DataOutputDepth;
+    }
     
     // (4..7) mirrors of (0)
     //if (cmd != 3 && cmd != 2)
@@ -241,8 +251,8 @@ void MDEC::handleCommandProcessing(uint32_t val) {
     switch (command.Op) {
         case 1: {
             // MDEC(1) - Decode Macroblock(s)
-            input[counter * 2] = val & 0xffff;
-            input[counter * 2 + 1] = (val >> 16) & 0xffff;
+            input[counter * 2] = val & 0xFFFF;
+            input[counter * 2 + 1] = (val >> 16) & 0xFFFF;
             
             if (paramCount == 1) {
                 decodeBlocks();
@@ -268,7 +278,7 @@ void MDEC::handleCommandProcessing(uint32_t val) {
                 // THEN.. it'll send another 64?
                 // or does it not matter? idk ;-;
                 // OK ig confirmed in their pseudocode;
-                /*
+                /* 
                  * iqtab_core(iq_y,src), src=src+64       ;luminance quant table
                  * if command_word.bit0=1
                  *     iqtab_core(iq_uv,src), src=src+64    ;color quant table (optional)
@@ -306,9 +316,11 @@ void MDEC::handleCommandProcessing(uint32_t val) {
              * 30FB 89BE 7641 CF04 CF04 7641 89BE 30FB
              * 18F8 B8E3 6A6D 8275 7D8A 9592 471C E707
              */
-            for (int i = 0; i < 2; i++) {
+            /*for (int i = 0; i < 2; i++) {
                 scaleTable[counter * 2 + i] = val >> (i * 16);
-            }
+            }*/
+            scaleTable[counter*2 + 0] = (val & 0xFFFF);
+            scaleTable[counter*2 + 1] = (val >> 16);
             
             break;
         }
@@ -334,50 +346,56 @@ void MDEC::reset() {
     output.clear();
     input.clear();
     blocks.fill(DCTBlock());
-    
 }
 
 void MDEC::decodeBlocks() {
-    for (auto src : input) {
+    for (auto src = input.begin(); src != input.end();) {
         // Uhh
-        DCTBlock block = decodeMarcoBlocks(src);
+        std::optional<DCTBlock> block = decodeMarcoBlocks(src);
+        if (!block.has_value())
+            continue;
         
-        //output.insert(output.end(), (block.data).begin(), (block.data).end());
-        for (auto RLE : block.data) {
-            output.push_back(RLE.reg);
-        }
+        /*for (auto rle : block.data) {
+            output.push_back(rle.reg);
+        }*/
+        
+        // Just to look like ik what I'm doing
+        std::transform(block.value().data.begin(), block.value().data.end(),
+                std::back_inserter(output),
+                [](const RLE& r) { return r.reg; });
     }
 }
 
-MDEC::DCTBlock MDEC::decodeMarcoBlocks(uint16_t &src) {
+std::optional<MDEC::DCTBlock> MDEC::decodeMarcoBlocks(std::vector<uint16_t>::iterator &src) {
     DCTBlock block;
     
     if (command.DataOutputDepth > 1) {
         // 15bpp or 24bpp depth
         // decode_colored_macroblock
-        rl_decode_block(Crblk.data(), src, iq_uv.data()); // ;Cr (low resolution)
-        rl_decode_block(Cbblk.data(), src, iq_uv.data()); // ;Cb (low resolution)
+        if (!rl_decode_block(Cbblk, src, colorQuantTable)) return std::nullopt; // ;Cb (low resolution)
+        if (!rl_decode_block(Crblk, src, colorQuantTable)) return std::nullopt; // ;Cr (low resolution)
         
         // ;Y1 (and upper-left  Cr,Cb)
-        rl_decode_block(Yblk .data(), src, iq_y .data());
-        yuv_to_rgb(block, 0, 0);
+        if (!rl_decode_block(Yblk0, src, luminanceQuantTable)) return std::nullopt;
         
         // ;Y2 (and upper-right Cr,Cb)
-        rl_decode_block(Yblk .data(), src, iq_y .data());
-        yuv_to_rgb(block, 0, 8);
+        if (!rl_decode_block(Yblk1, src, luminanceQuantTable)) return std::nullopt;
         
         // ;Y3 (and lower-left  Cr,Cb)
-        rl_decode_block(Yblk .data(), src, iq_y .data());
-        yuv_to_rgb(block, 8, 0);
+        if (!rl_decode_block(Yblk2, src, luminanceQuantTable)) return std::nullopt;
         
         // ;Y4 (and lower-right Cr,Cb)
-        rl_decode_block(Yblk .data(), src, iq_y .data());
-        yuv_to_rgb(block, 8, 8);
+        if (!rl_decode_block(Yblk3, src, luminanceQuantTable)) return std::nullopt;
+        
+        yuv_to_rgb(block, 0, 0, Yblk0);
+        yuv_to_rgb(block, 0, 8, Yblk1);
+        yuv_to_rgb(block, 8, 0, Yblk2);
+        yuv_to_rgb(block, 8, 8, Yblk3);
     } else {
         // 4bpp or 8bpp depth
         // decode_monochrome_macroblock
-        rl_decode_block(Yblk.data(), src, iq_y.data());
-        y_to_mono(block); // ;Y
+        if (!rl_decode_block(Yblk0, src, luminanceQuantTable)) return std::nullopt;
+        y_to_mono(block, Yblk0); // ;Y
         
         assert(false);
     }
@@ -385,16 +403,25 @@ MDEC::DCTBlock MDEC::decodeMarcoBlocks(uint16_t &src) {
     return block;
 }
 
-void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
+bool MDEC::rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt) {
+    blk.fill(0);
+    
     uint16_t n, k = 0;
     uint16_t q_scale = 0;
     uint16_t val = 0;
     
+    auto signext10 = [](uint16_t x) -> int16_t {
+        return (x & 0x200) ? (int16_t)(x | 0xFC00) : (int16_t)(x & 0x03FF);
+    };
+    
     // First value is DCT
     
     skip:
+        if (src == input.end()) return false;
+        
         // To avoid confusion
-        n = src++;
+        n = *src;
+        ++src;
         
         // Skip padding
         if (n == 0xFE00)
@@ -405,10 +432,10 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
         // calc first value (without q_scale/8) (?)
         // https://fgiesen.wordpress.com/2024/10/23/zero-or-sign-extend/
         // https://www.geeksforgeeks.org/c/sign-extend-a-nine-bit-number-in-c/
-        val = n & 0x3FF; // 10 bits
-        if (val & 0x200) val |= ~0x3FF; // If signbit sent, extend
+        DCT dct = DCT(n);
+        val = signext10(dct.DC);
         
-        val = val * qt[k];
+        val = (val * qt[0]) / 8;
     
     // TODO; Uhh this is wrong
     for (int i = 0; i < 64; i++) {
@@ -436,8 +463,9 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
                 blk[k] = val;    
             }
             
-            n = src;
-            src += 2;
+            if (src == input.end()) return false;
+            n = *src;
+            ++src;
             
             // get next entry (or FE00h end code)
             if (n == 0xFE00)
@@ -445,6 +473,9 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
             
             // Breh x2
             k = k + ((n >> 10) & 0x3F) + 1; // Skip zerofilled entries
+            if (k >= 64)
+                break;
+            
             val = n & 0x3FF; // 10 bits
             if (val & 0x200) val |= ~0x3FF; // If signbit sent, extend
             
@@ -456,16 +487,19 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
         }
     }
     
-    real_idct_core(blk);
+    real_idct_core(blk.data());
     
     // return (with "src" address advanced)
-    src++;
+    //src++;
+    
+    return true;
 }
 
 void MDEC::fast_idct_core(uint16_t *blk) {
     
 }
 
+/*
 void MDEC::real_idct_core(uint16_t *blk) {
     std::array<uint16_t, 64> tmp {};
     
@@ -478,7 +512,7 @@ void MDEC::real_idct_core(uint16_t *blk) {
                 int32_t sum = 0;
                 
                 for (int z = 0; z < 8; z++) {
-                    sum += src[y + z*8] * (scaleTable[x + z*8] / 8);
+                    sum += src[y + z*8] * (scaleTable[x + z*8] /#1# 8#1#);
                 }
                 
                 dst[x+y*8] = (sum + 0x0FFF) / 0x2000;
@@ -492,9 +526,35 @@ void MDEC::real_idct_core(uint16_t *blk) {
     if (src != blk) {
         std::memcpy(blk, src, 64 * sizeof(uint16_t));
     }
+}*/
+void MDEC::real_idct_core(uint16_t *blk) {
+    int32_t tmp[64];
+
+    // Pass 1: process columns
+    for (int x = 0; x < 8; x++) {
+        for (int y = 0; y < 8; y++) {
+            int32_t sum = 0;
+            for (int z = 0; z < 8; z++) {
+                sum += blk[z*8 + x] * scaleTable[y*8 + z];
+            }
+            tmp[y*8 + x] = sum;
+        }
+    }
+
+    // Pass 2: process rows
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            int32_t sum = 0;
+            for (int z = 0; z < 8; z++) {
+                sum += tmp[y*8 + z] * scaleTable[x*8 + z];
+            }
+            // PS1 shifts after both passes
+            blk[y*8 + x] = (sum + 0x2000) >> 14;
+        }
+    }
 }
 
-void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy) {
+void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<uint16_t, 64> &blk) {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
             double R = Crblk[(x + xx) / 2 + ((y + yy) / 2) * 8];
@@ -504,7 +564,7 @@ void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy) {
             R = (R * 1.402);
             B = (B * 1.772);
             
-            const uint32_t Y = Yblk[x + y * 8];
+            const uint32_t Y = blk[x + y * 8];
             
             // According to this https://godbolt.org/z/cbfK9E998
             // from the 'sporule' guy:
@@ -535,14 +595,15 @@ void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy) {
             uint16_t B5 = (b & 0xFF) >> 3;
             
             uint16_t pixel = (R5 << 10) | (G5 << 5) | B5;
+            //uint16_t pixel = (B5 << 10) | (G5 << 5) | R5;
             block.data[(x + xx) + (y + yy) * 16] = RLE(pixel);
         }
     }
 }
 
-void MDEC::y_to_mono(DCTBlock &block) {
+void MDEC::y_to_mono(DCTBlock &block, std::array<uint16_t, 64> &blk) {
     for (int i = 0; i < 64; i++) {
-        uint16_t Y = Yblk[i];
+        uint16_t Y = blk[i];
         
         Y = Y & 0x1FF; // Clip to signed 9bit range
         

@@ -1,0 +1,1551 @@
+diff --git a/PSXEmulator/CMakeLists.txt b/PSXEmulator/CMakeLists.txt
+index 327145e..89f4d8c 100644
+--- a/PSXEmulator/CMakeLists.txt
++++ b/PSXEmulator/CMakeLists.txt
+@@ -33,6 +33,9 @@ file(COPY ${CMAKE_SOURCE_DIR}/Shaders    DESTINATION ${CMAKE_BINARY_DIR})
+ 
+ # Enable debugging symbols for Debug builds
+ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
++set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -g -O0")
++set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -g -O0")
++set(CMAKE_STRIP FALSE)
++set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer")
+ 
+-# Include the "src" file
+ add_subdirectory(src)
+diff --git a/PSXEmulator/Shaders/fragment.glsl b/PSXEmulator/Shaders/fragment.glsl
+index dde2f54..16acf4c 100644
+--- a/PSXEmulator/Shaders/fragment.glsl
++++ b/PSXEmulator/Shaders/fragment.glsl
+@@ -31,6 +31,7 @@ flat in int attr;
+ out vec4 fragColor;
+ 
+ uniform sampler2D texture_sample4;
++uniform sampler2D sceneColor;
+ 
+ //uniform int texture_depth;
+ uniform vec4 textureWindow;
+@@ -65,6 +66,7 @@ uint internalToPsxColor(vec4 c) {
+ }
+ 
+ vec4 read(int x, int y) {
++    //y = 512 - 1 - y;
+     return texelFetch(texture_sample4, ivec2(x, y), 0);
+ }
+ 
+@@ -98,9 +100,10 @@ vec4 sample_texel(int textureDepth) {
+      */
+     float clutX = int(UVs.z) >> 16;
+     float clutY = int(UVs.w) >> 16;
+-
++    
+     float pageX = int(UVs.z) & 0xFFFF;
+     float pageY = int(UVs.w) & 0xFFFF;
++    
+     /*
+     float index = texture(texture_sample4, vec2(UVs.x, UVs.y)).r;
+     
+@@ -153,7 +156,7 @@ void main() {
+     
+     // Apply transparency
+     vec4 outColor, samp, F;
+-
++    
+     // textureMode ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
+     if(textureMode == 1 || textureMode == 2) {
+         int textureDepth = (attr >> TEXTURE_DEPTH_SHIFT) & TEXTURE_DEPTH_MASK;
+@@ -186,7 +189,8 @@ void main() {
+      * 1.0 x B +0.25 x F    ;aka B+F/4
+      */
+     if(isSemiTransparent == 1) {
+-        vec4 B = texelFetch(texture_sample4, ivec2(VRAMPos), 0);
++        //vec4 B = texelFetch(texture_sample4, ivec2(VRAMPos), 0);
++        vec4 B = texelFetch(sceneColor, ivec2(VRAMPos), 0);
+         
+         // (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
+         if(semiTransparencyMode == 0) {
+diff --git a/PSXEmulator/src/Core/Core.cpp b/PSXEmulator/src/Core/Core.cpp
+index 3778aa1..4cd5d93 100644
+--- a/PSXEmulator/src/Core/Core.cpp
++++ b/PSXEmulator/src/Core/Core.cpp
+@@ -501,14 +501,14 @@ void runFrame() {
+ 		bool cpuStepped = false;
+ 		
+ 		for(int i = 0; i < 100; i++) {
+-			if (cpu->pc != 0x80030000) {
+-			//if (true) {
++			//if (cpu->pc != 0x80030000) {
++			if (true) {
+ 				//cpu->executeNextInstruction();
+ 				
+ 				// Crash at; 57907068 (Freebios)
+-				if (x == 3593098) {
+-					cpu->paused = true;
+-				}
++				//if (x == 3593098) {
++				//	cpu->paused = true;
++				//}
+ 				
+ 				//printf("PC; %x - %d\n", cpu->pc, x);
+ 				
+@@ -755,15 +755,18 @@ int main(int argc, char* argv[]) {
+ 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Pepsiman (Japan)/Pepsiman (Japan).cue");
+ 	
+ 	// Games that are broken
+-	//cpu->interconnect._cdrom.swapDisk("../ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; Missing CDROM(0x20/0x1E/0x16) SUB(0x04)
++	//cpu->interconnect._cdrom.swapDisk("../ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; CDROM(0x10) but it works fine
+ 	//cpu->interconnect._cdrom.swapDisk("../ROMS/This Is Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
+ 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
+ 	
++	// TODO; MDEC_in_sync timeout:
++	//cpu->interconnect._cdrom.swapDisk("../ROMS/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1)/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1).cue");
++	
+ 	// Works but with some GPU bugs
+ 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue");
+ 	
+ 	// TODO; Works completely fine BUT with so many GPU bugs XD
+-	//cpu->interconnect._cdrom.swapDisk("../ROMS/Twisted Metal 4 (USA) (Rev 1)/Twisted Metal 4 (USA) (Rev 1).cue");
++	cpu->interconnect._cdrom.swapDisk("../ROMS/Twisted Metal 4 (USA) (Rev 1)/Twisted Metal 4 (USA) (Rev 1).cue");
+ 	
+ 	/*namespace fs = std::filesystem;
+ 	
+@@ -793,7 +796,7 @@ int main(int argc, char* argv[]) {
+ 	std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
+ 	double passedTime = 0;
+ 	double unprocessedTime = 0;
+-	const double UPDATE_CAP = 1.0/600.0;
++	const double UPDATE_CAP = 1.0/140.0;
+ 	
+ 	bool render = false;
+ 	
+@@ -860,20 +863,21 @@ int main(int argc, char* argv[]) {
+ 			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_RELEASE) {
+ 				loadNextTest = true;
+ 			}*/
+-
++			
+ 			int width, height;
+ 			glfwGetFramebufferSize(gpu->renderer->window, &width, &height);
+ 			glViewport(0, 0, width, height);
+ 		}
+ 		
+-		cpu->showDisassembler();
++		//cpu->showDisassembler();
+ 		
+-		if (ImGui::Begin("VRAM")) {
++		/*static bool show = true;
++		if (ImGui::Begin("VRAM", &show)) {
+ 			ImGui::Image((ImTextureID)(intptr_t)gpu->vram->texture16, ImVec2(1024, 512));
+ 		}
+-		ImGui::End();
++		ImGui::End();*/
+ 		
+-		int winW, winH;
++		/*int winW, winH;
+ 		glfwGetFramebufferSize(gpu->renderer->window, &winW, &winH);
+ 		
+ 		float x1 = (gpu->drawingAreaLeft   / 1024.0f) * winW;
+@@ -888,9 +892,9 @@ int main(int argc, char* argv[]) {
+ 			0.0f,
+ 			0,
+ 			3.0f
+-		);
++		);*/
+ 		
+-		if (ImGui::BeginMainMenuBar()) {
++		/*if (ImGui::BeginMainMenuBar()) {
+ 			if (ImGui::BeginMenu("File")) {
+ 				if (ImGui::MenuItem("Open...")) {
+ 					show_file_browser = true;
+@@ -952,7 +956,7 @@ int main(int argc, char* argv[]) {
+ 		
+ 		if (show_file_browser) {
+ 			ShowFileBrowser(&show_file_browser, cpu.get());
+-		}
++		}*/
+ 		
+ 		ImGui::Render();
+ 		
+diff --git a/PSXEmulator/src/Core/config.h b/PSXEmulator/src/Core/config.h
+index 2c0f2ce..12a28bc 100644
+--- a/PSXEmulator/src/Core/config.h
++++ b/PSXEmulator/src/Core/config.h
+@@ -1,5 +1,7 @@
+ #pragma once
++#include <cstdint>
+ #include <string>
++#include <vector>
+ 
+ class Config {
+     public:
+@@ -10,8 +12,9 @@ class Config {
+         
+     private:
+         Config() = default;
+-        [[nodiscard]] static std::string GetConfigPath() ;
++        [[nodiscard]] static std::string GetConfigPath();
+         
+     public:
+-        std::vector<>
++        std::vector<uint32_t> breakpoints;
++        std::vector<uint32_t> bookmarks;
+ };
+diff --git a/PSXEmulator/src/DMA/Channel.cpp b/PSXEmulator/src/DMA/Channel.cpp
+index 277de11..3845aa5 100644
+--- a/PSXEmulator/src/DMA/Channel.cpp
++++ b/PSXEmulator/src/DMA/Channel.cpp
+@@ -117,7 +117,8 @@ void Channel::done(Dma& dma, Port port) {
+ 		dma.channelIrqFlags |= (1 << static_cast<size_t>(port));
+ 		dma.interruptPending = true;
+ 	}
+-	//interruptPending = true;
++	
++	interruptPending = true;
+ }
+ 
+ void Channel::reset() {
+@@ -136,4 +137,3 @@ void Channel::reset() {
+ 	step = Increment;
+ 	sync = Manual;
+ }
+-
+diff --git a/PSXEmulator/src/DMA/Dma.cpp b/PSXEmulator/src/DMA/Dma.cpp
+index b1db466..5afc9e5 100644
+--- a/PSXEmulator/src/DMA/Dma.cpp
++++ b/PSXEmulator/src/DMA/Dma.cpp
+@@ -13,15 +13,16 @@ void Dma::step() {
+             
+             auto prvIrq = irq();
+ 	        
+-            auto en = channelIrqEn & (1 << (static_cast<size_t>(i)));
+-	        
+-            /**
+-            * Was updating the wrong flag ;-;
+-            */
+-            channelIrqFlags |= en;
+-	        
+-            if(!prvIrq && irq()) {
+-                interruptPending = true;
++            auto mask = (1 << static_cast<size_t>(i));
++            auto en = channelIrqEn & mask;
++            channelIrqFlags |= en ? mask : 0;
++            
++            bool ir = irq();
++            
++            // Wtf was I doing??????????
++            if(prvIrq/* && irq()*/) {
++                //interruptPending = true;
++                printf("");
+             }
+         }
+     }
+@@ -98,6 +99,11 @@ void Dma::reset() {
+     irqFlag = false;
+     
+     control = 0;
++    /**
++     *  Initial value on reset is 07654321h.
++     *  If two or more channels have the same priority setting,
++     *  then the priority is determined by the channel number (DMA0=Lowest, DMA6=Highest, CPU=higher than DMA6?).
++     */
+     
+     for(auto& channel : channels)
+         channel.reset();
+diff --git a/PSXEmulator/src/GPU/Gpu.cpp b/PSXEmulator/src/GPU/Gpu.cpp
+index 70c90c0..db87911 100644
+--- a/PSXEmulator/src/GPU/Gpu.cpp
++++ b/PSXEmulator/src/GPU/Gpu.cpp
+@@ -32,10 +32,10 @@ Emulator::Gpu::Gpu()
+       interlaced(false),
+       displayEnabled(false),
+       interrupt(false),
+-      dmaDirection(DmaDirection::Off),
+-      renderer(new Renderer(*this)),
+-      vram(new VRAM(*this)) {
+-    
++      dmaDirection(DmaDirection::Off) {
++        renderer = new Renderer(*this);
++        vram = new VRAM(*this);
++        renderer->init();
+ }
+ 
+ bool Emulator::Gpu::step(uint32_t cycles) {
+@@ -48,7 +48,8 @@ bool Emulator::Gpu::step(uint32_t cycles) {
+      * 368pix/PAL: 3406/7  = 486.5714 dots   368pix/NTSC: 3413/7  = 487.5714 dots
+      */
+     
+-    dot = dotCycles[hres.hr2 << 2 | hres.hr1];
++    //auto index = hres.hr2 << 2 | hres.hr1;
++    //dot = dotCycles[index];
+     
+     /**
+       * The PSone/PAL video clock is the cpu clock multiplied by 11/7.
+@@ -67,7 +68,6 @@ bool Emulator::Gpu::step(uint32_t cycles) {
+     
+     //isInHBlank = _cycles < displayHorizStart || _cycles >= displayHorizEnd;
+     isInVBlank = _scanLine < displayLineStart || _scanLine >= displayLineEnd;
+-    dot = dotCycles[hres.hr2 << 2 | hres.hr1];
+     
+     /**
+      * Horizontal Timings
+@@ -204,6 +204,13 @@ uint32_t Emulator::Gpu::status() {
+     
+     // Bit 31: Drawing even/odd lines in interlace mode (0=Even, 1=Odd)
+     status |= isOddLine << 31;
++
++    /**
++    * A(4Eh) - gpu_sync()
++    * If DMA is off (when GPUSTAT.Bit29-30 are zero): Waits until GPUSTAT.Bit28=1 (or until timeout).
++    * If DMA is on: Waits until D2_CHCR.Bit24=0 (or until timeout), and does then wait until GPUSTAT.Bit28=1 (without timeout, ie. may hang forever), and does then turn off DMA via GP1(04h).
++    * Returns 0 (or -1 in case of timeout, however, the timeout values are very big, so it may take a LOT of seconds before it returns).
++    */
+     
+     uint32_t dma = 0;
+     if (dmaDirection == DmaDirection::Off) {
+@@ -252,8 +259,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
+             Gp0CommandMethod = &Gpu::gp0FillVRam;
+             
+             break;
+-        case 0x20:
+-        case 0x21: {
++        case 0x20:/*
++        case 0x21:*/ {
+             // GP0(20h) - Monochrome three-point polygon, opaque
+             
+             gp0CommandRemaining = 4;
+@@ -261,11 +268,11 @@ void Emulator::Gpu::gp0(uint32_t val) {
+             
+             break;
+         }
+-        case 0x22:
+-        case 0x23: {
++        case 0x22:/*
++        case 0x23:*/ {
+             // GP0(22h) - Monochrome three-point polygon, semi-transparent
+             
+-            curAttribute = {1, 0};
++            curAttribute = {1, 0, ColorOnly};
+             
+             gp0CommandRemaining = 4;
+             Gp0CommandMethod = &Gpu::gp0TriangleMonoOpaque;
+@@ -275,7 +282,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
+         case 0x24: {
+             // GP0(24h) - Textured three-point polygon, opaque, texture-blending
+             
+-            curAttribute = {0, 1, TextureMode::TextureColor};
++            curAttribute = {1, 1, TextureMode::TextureColor};
+             
+             gp0CommandRemaining = 7;
+             Gp0CommandMethod = &Gpu::gp0TriangleTexturedOpaque;
+@@ -318,7 +325,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
+             
+             // TODO; This is meant to be "TextureColor",
+             // but setting it to that messes up the texts?
+-            curAttribute = {0, 1, TextureMode::TextureOnly};
++            curAttribute = {0, 1, TextureMode::TextureColor};
+             
+             gp0CommandRemaining = 9;
+             Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
+@@ -361,12 +368,14 @@ void Emulator::Gpu::gp0(uint32_t val) {
+             // GP0(28h) - Monochrome four-point polygon, opaque
+             // Used to draw the background
+             
++            curAttribute = { 0, 0, TextureMode::ColorOnly };
++            
+             gp0CommandRemaining = 5;
+             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
+             
+             break;
+-        case 0x2A:
+-        case 0x2B: {
++        case 0x2A:/*
++        case 0x2B: */{
+             // GP0(2Ah) - Monochrome four-point polygon, semi-transparent
+             
+             curAttribute = {1, 0};
+@@ -376,31 +385,31 @@ void Emulator::Gpu::gp0(uint32_t val) {
+             
+             break;
+         }
+-        case 0x30:
+-        case 0x31: {
++        case 0x30:/*
++        case 0x31:*/ {
+             // GP0(30h) - Shaded three-point polygon, opaque
+             // Used to draw the diamond(2 triangles)
+             
+-            curAttribute = {0, 0};
++            curAttribute = {0, 0, ColorOnly};
+             
+             gp0CommandRemaining = 6;
+             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
+             
+             break;
+         }
+-        case 0x32:
+-        case 0x33: {
++        case 0x32:/*
++        case 0x33:*/ {
+             // GP0(32h) - Shaded three-point polygon, semi-transparent
+             
+-            curAttribute = {1, 0};
++            curAttribute = {1, 0, ColorOnly};
+             
+             gp0CommandRemaining = 6;
+             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
+             
+             break;
+         }
+-        case 0x34:
+-        case 0x35: {
++        case 0x34:/*
++        case 0x35:*/ {
+             // GP0(34h) - Shaded Textured three-point polygon, opaque, texture-blending
+             
+             curAttribute = {0, 1, TextureMode::TextureColor};
+@@ -410,8 +419,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
+             
+             break;
+         }
+-        case 0x36:
+-        case 0x37: {
++        case 0x36:/*
++        case 0x37:*/ {
+             // GP0(36h) - Shaded Textured three-point polygon, semi-transparent, tex-blend
+             
+             curAttribute = {1, 1, TextureMode::TextureColor};
+@@ -421,8 +430,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
+             
+             break;
+         }
+-        case 0x38:
+-        case 0x39:
++        case 0x38:/*
++        case 0x39:*/
+             // GP0(38h) - Shaded four-point polygon, opaque
+             // Used to draw the diamond background, and the unique colored triangles
+             
+diff --git a/PSXEmulator/src/GPU/Gpu.h b/PSXEmulator/src/GPU/Gpu.h
+index 220c4c4..b9f53ec 100644
+--- a/PSXEmulator/src/GPU/Gpu.h
++++ b/PSXEmulator/src/GPU/Gpu.h
+@@ -154,6 +154,13 @@ namespace Emulator {
+         struct Color {
+             Color() = default;
+             
++            // GPU BGR555 color
++            Color(uint16_t p) {
++                r = ((p >> 10) & 0x1F) << 3;
++                g = ((p >> 5)  & 0x1F) << 3;
++                b = ( p        & 0x1F) << 3;
++            }
++            
+             Color(GLubyte r, GLubyte g, GLubyte b) : r(r), g(g), b(b) {
+                 
+             }
+diff --git a/PSXEmulator/src/GPU/Rendering/Buffer.h b/PSXEmulator/src/GPU/Rendering/Buffer.h
+index 5f52d62..73cd0ef 100644
+--- a/PSXEmulator/src/GPU/Rendering/Buffer.h
++++ b/PSXEmulator/src/GPU/Rendering/Buffer.h
+@@ -1,7 +1,8 @@
+ ﻿#pragma once
+ 
+-#include <stdint.h>
++#include <cstdint>
+ #include <cstring>
++#include <iostream>
+ #include <stdexcept>
+ 
+ #include <GL/glew.h>
+@@ -43,6 +44,12 @@ struct Buffer {
+     }
+     
+     void set(uint32_t index, const T& value) const {
++        if (index >= VERTEX_BUFFER_LEN) {
++            std::cerr << "[FATAL] Buffer overflow index=" << index 
++                      << " max=" << VERTEX_BUFFER_LEN << "\n";
++            std::abort();
++        }
++        
+         if (index >= VERTEX_BUFFER_LEN) {
+             throw std::runtime_error("buffer overflow!");
+         }
+diff --git a/PSXEmulator/src/GPU/Rendering/Renderer.cpp b/PSXEmulator/src/GPU/Rendering/Renderer.cpp
+index de44ae6..3f58d1f 100644
+--- a/PSXEmulator/src/GPU/Rendering/Renderer.cpp
++++ b/PSXEmulator/src/GPU/Rendering/Renderer.cpp
+@@ -4,14 +4,14 @@
+ #include <fstream>
+ #include <iostream>
+ #include <regex>
+-#include <sstream>
++#include <unistd.h>
++#include <execinfo.h>
+ 
+ #include <GLFW/glfw3.h>
+ 
++#include "Gpu.h"
+ #include "imgui.h"
+ 
+-#include "../Gpu.h"
+-
+ //#define Test
+ // Ik I shouldn't do this but im lazy
+ enum {
+@@ -21,38 +21,6 @@ enum {
+ 
+ GLuint Emulator::Renderer::program = 0;
+ 
+-/*std::string readFile(const std::string& filePath) {
+-    std::ifstream fileStream(filePath);
+-    std::stringstream buffer;
+-    
+-    buffer << fileStream.rdbuf();
+-    
+-    return buffer.str();
+-}
+-
+-// Function to preprocess shader code by handling #include directives
+-std::string preprocessShader(const std::string& shaderCode, const std::string& directory) {
+-    std::stringstream processedCode;
+-    std::istringstream codeStream(shaderCode);
+-    std::string line;
+-    std::regex includePattern("#include\\s+\"(.+?)\"");
+-    
+-    while (std::getline(codeStream, line)) {
+-        std::smatch matches;
+-        
+-        if (std::regex_search(line, matches, includePattern)) {
+-            std::string includeFile = matches[1].str();
+-            std::string includePath = directory + "/" + includeFile;
+-            std::string includeCode = readFile(includePath);
+-            processedCode << preprocessShader(includeCode, directory);
+-        } else {
+-            processedCode << line << '\n';
+-        }
+-    }
+-    
+-    return processedCode.str();
+-}*/
+-
+ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
+     if(!glfwInit()) {
+         std::cerr << "GLFW could not initialize: " << glewGetErrorString(0) << " \n";
+@@ -98,7 +66,9 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
+         
+         return;
+     }
+-    
++}
++
++void Emulator::Renderer::init() {
+     // Load and bind shaders
+     {
+         std::string vertexSource   = getShaderSource("../../Shaders/vertex.glsl");
+@@ -179,7 +149,7 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
+     
+     sceneFBO = createFrameBuffer(WIDTH, HEIGHT, sceneTexture);
+     
+-    // After sceneFBO creation
++    // After sceneFBO creationc
+     for(int i = 0; i < 2; i++) {
+         bloomFBO[i] = createFrameBuffer(WIDTH, HEIGHT, bloomTexture[i]);
+         
+@@ -217,13 +187,32 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
+         
+         setupScreenQuad();
+         
++        std::memset(positions.map,  0, sizeof(Gpu::Position  ) * VERTEX_BUFFER_LEN);
++        std::memset(colors.map,     0, sizeof(Gpu::Color     ) * VERTEX_BUFFER_LEN);
++        std::memset(uvs.map,        0, sizeof(Gpu::UV        ) * VERTEX_BUFFER_LEN);
++        std::memset(attributes.map, 0, sizeof(Gpu::Attributes) * VERTEX_BUFFER_LEN);
++        
+         glEnable(GL_DEBUG_OUTPUT);
+         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+-        glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
+-            if (severity != GL_DEBUG_SEVERITY_NOTIFICATION) {
+-                 std::cerr << "GL DEBUG [" << id << "] Severity: " << severity << " Type: " << type << "\n" << message << '\n';
+-            }
+-        }, nullptr);
++        glDebugMessageCallback([](GLenum source, GLenum type, GLuint id, GLenum severity, 
++                           GLsizei length, const GLchar* message, const void* userParam) {
++                               // FILTER NVIDIA SPAM
++                       if (id == 131185) return;
++                
++                std::cerr << "\n---- GL DEBUG ----\n";
++                std::cerr << "Message: " << message << "\n";
++                std::cerr << "Severity: " << severity 
++                          << " Type: " << type 
++                          << " ID: " << id << "\n";
++
++                // Dump a backtrace
++                std::cerr << "STACK TRACE:\n";
++                void* trace[32];
++                int trace_size = backtrace(trace, 32);
++                backtrace_symbols_fd(trace, trace_size, STDERR_FILENO);
++
++                std::cerr << "------------------\n\n";
++            }, nullptr);
+         
+         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+         
+@@ -239,6 +228,11 @@ static bool clearV = false;
+ static bool useShaders = true;
+ 
+ void Emulator::Renderer::display() {
++    /*std::memset(positions.map,  0, sizeof(Gpu::Position  ) * VERTEX_BUFFER_LEN);
++    std::memset(colors.map,     0, sizeof(Gpu::Color     ) * VERTEX_BUFFER_LEN);
++    std::memset(uvs.map,        0, sizeof(Gpu::UV        ) * VERTEX_BUFFER_LEN);
++    std::memset(attributes.map, 0, sizeof(Gpu::Attributes) * VERTEX_BUFFER_LEN);*/
++    
+     /*positions.beginFrame();
+     colors.beginFrame();
+     uvs.beginFrame();
+@@ -280,7 +274,7 @@ void Emulator::Renderer::display() {
+     glBindBuffer(GL_ARRAY_BUFFER, positions.getGLBuffer());
+     GLuint idx = getProgramAttrib(program, "vertexPosition");
+     glVertexAttribPointer(idx, 2, GL_FLOAT, GL_FALSE, sizeof(Gpu::Position), nullptr);*/
+-        
++    
+    // if(isRendering)
+    //     return;
+     
+@@ -372,9 +366,9 @@ void Emulator::Renderer::display() {
+     // Bind scene texture
+     glActiveTexture(GL_TEXTURE0);
+     glBindTexture(GL_TEXTURE_2D, sceneTexture);
+-    glGenerateMipmap(GL_TEXTURE_2D);
++    /*glGenerateMipmap(GL_TEXTURE_2D);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);*/
+     
+     // Bind bloom texture
+     glActiveTexture(GL_TEXTURE1);
+@@ -431,6 +425,9 @@ void Emulator::Renderer::display() {
+ void Emulator::Renderer::draw() {
+     if(nVertices == 0) return;
+     
++    //glClearColor(0, 0, 0, 0);
++    //glClear(GL_COLOR_BUFFER_BIT);
++    
+     if (clearV)
+         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+     
+@@ -442,6 +439,9 @@ void Emulator::Renderer::draw() {
+     
+     glActiveTexture(GL_TEXTURE0);
+     glBindTexture(GL_TEXTURE_2D, gpu.vram->texture16);
++    glActiveTexture(GL_TEXTURE1);
++    glBindTexture(GL_TEXTURE_2D, sceneTexture);
++    glUniform1i(glGetUniformLocation(program, "sceneColor"), 1);
+     
+     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
+     
+@@ -802,16 +802,18 @@ GLuint Emulator::Renderer::createFrameBuffer(GLsizei width, GLsizei height, GLui
+     GLuint framebuffer;
+     glGenFramebuffers(1, &framebuffer);
+     
+-    glGenTextures(1, &textureId);
+-    
+-    glBindTexture(GL_TEXTURE_2D, textureId);
+-    
+-    //glGenerateMipmap(GL_TEXTURE_2D);
+-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++    //if (textureId == 0 || !glIsTexture(textureId)) {
++        glGenTextures(1, &textureId);
++        glBindTexture(GL_TEXTURE_2D, textureId);
++        //glGenerateMipmap(GL_TEXTURE_2D);
++        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++   // } else {
++    //    glBindTexture(GL_TEXTURE_2D, textureId);
++    //}
+     
+     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureId, 0);
+diff --git a/PSXEmulator/src/GPU/Rendering/Renderer.h b/PSXEmulator/src/GPU/Rendering/Renderer.h
+index c7b577e..469c4ef 100644
+--- a/PSXEmulator/src/GPU/Rendering/Renderer.h
++++ b/PSXEmulator/src/GPU/Rendering/Renderer.h
+@@ -15,138 +15,139 @@ class GLFWwindow;
+ 
+ namespace Emulator {
+     class Renderer {
+-    public:
+-        Renderer(Emulator::Gpu& gpu);
+-        
+-        void display();
+-        void clear();
+-        
+-    private:
+-        void draw();
+-        
+-    public:
+-        void pushLine(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
+-        void pushTriangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
+-        void pushQuad(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
+-        void pushRectangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
+-        
+-    private:
+-        bool checkIfWithin(Emulator::Gpu::Position positions[], int length[]);
+-        
+-    public:
+-        void setDrawingOffset(int16_t x, int16_t y);
+-        void setDrawingArea(uint16_t left, uint16_t right, uint16_t top, uint16_t bottom) const;
+-        void setTextureWindow(uint8_t textureWindowXMask, uint8_t textureWindowYMask, uint8_t textureWindowXOffset, uint8_t textureWindowYOffset);
+-        void setSemiTransparencyMode(uint8_t semiTransparencyMode) const;
+-        
+-        void bindFrameBuffer(GLuint buf);
+-        
+-        static GLuint compileShader(const char* source, GLenum shaderType);
+-        GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
+-        GLuint getProgramAttrib(GLuint program, const std::string& attr);
+-        
+-        static std::string getShaderSource(const std::string& path);
+-        
+-        GLuint createFrameBuffer(GLsizei width, GLsizei height, GLuint& textureId);
+-        
+-    private:
+-        // GLFW callbacks
+-        /*static void APIENTRY openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
+-                                            GLsizei length, const GLchar *message, const void *userParam);*/
+-        
+-        void setupScreenQuad();
+-        
+-    public:
+-        // Shader parameters
+-        GLuint vertexShader;
+-        GLuint fragmentShader;
+-        
+-        // TODO; For testing imma make this static
+-        static GLuint program;
+-        
+-        bool upscalingEnabled = true;
+-        
+-        // Vertex Array Object
+-        GLuint VAO;
+-        
+-        GLuint sceneFBO;        // Framebuffer Object for the main scene
+-        GLuint bloomFBO[2];
+-        
+-        GLuint sceneTexture;
+-        GLuint bloomTexture[2];
+-        GLuint quadVAO;
+-        GLuint quadVBO;
+-        
+-        // Bloom
+-        GLuint bloomThresholdProgram;
+-        GLuint blurProgram;
+-        
+-        GLuint postProcessProgram;
+-        GLuint postProcessVertexShader;
+-        GLuint postProcessFragmentShader;
+-        
+-        // Uniforms
+-        
+-        GLint offsetUni;
+-        GLint drawingMinUni;
+-        GLint drawingMaxUni;
+-        //GLint textureDepthUni;
+-        GLint textureWindowUni;
+-        GLint semiTransparencyModeUni;
+-        
+-        // Buffer contains the vertices positions
+-        Buffer<Gpu::Position> positions;
+-        
+-        // Buffer contains the lines positions
+-        //Buffer<Gpu::Position> linePositions;
+-        
+-        // Buffer contains the vertices colors
+-        Buffer<Gpu::Color> colors;
+-        
+-        // Buffer contains the texture coordinates
+-        Buffer<Gpu::UV> uvs;
+-        
+-        // Buffer contains the vertices attributes
+-        Buffer<Gpu::Attributes> attributes;
+-        
+-        // Current number of vertices in the buffers
+-        uint32_t nVertices;
+-        
+-        GLFWwindow* window;
+-    public:
+-        // Bloom
+-        float threshold = 0.65f;
+-        float blurRadius = 1.5f;
+-        int bloomPasses = 1;
+-        
+-        float kernelB = 0.0f;
+-        float kernelC = 0.5f;
+-        float sharpness = 1.0f;
+-        float gamma = 0.8f;
+-        float scanline = 0.01f;
+-        float bloomIntensity = 1.2f;
+-        float lodBias = 0.5f;
+-        float edgeThreshold = 0.1f;
+-        float ditherStrength = 0.005f;
+-        float noiseStrength = 0.01f;
+-        float contrast = 1.1f;
+-        float saturation = 1.2f;
+-        float halation = 0.15f;
+-        
+-        int sampleRadius = 2;
+-        
+-        bool enableAdaptiveSharpening = true;
+-        bool enableBloom = false;
+-        bool enableUpscaling = false;
+-        
+-    private:
+-        bool horizontal = true;
+-        
+-        glm::vec2 drawingArea;
+-        
+-    private:
+-        Emulator::Gpu& gpu;
+-        
+-        Rasterizer _rasterizer;
++        public:
++            Renderer(Emulator::Gpu& gpu);
++            
++            void init();
++            void display();
++            void clear();
++            
++        private:
++            void draw();
++            
++        public:
++            void pushLine(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
++            void pushTriangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
++            void pushQuad(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
++            void pushRectangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
++            
++        private:
++            bool checkIfWithin(Emulator::Gpu::Position positions[], int length[]);
++            
++        public:
++            void setDrawingOffset(int16_t x, int16_t y);
++            void setDrawingArea(uint16_t left, uint16_t right, uint16_t top, uint16_t bottom) const;
++            void setTextureWindow(uint8_t textureWindowXMask, uint8_t textureWindowYMask, uint8_t textureWindowXOffset, uint8_t textureWindowYOffset);
++            void setSemiTransparencyMode(uint8_t semiTransparencyMode) const;
++            
++            void bindFrameBuffer(GLuint buf);
++            
++            static GLuint compileShader(const char* source, GLenum shaderType);
++            GLuint linkProgram(GLuint vertexShader, GLuint fragmentShader);
++            GLuint getProgramAttrib(GLuint program, const std::string& attr);
++            
++            static std::string getShaderSource(const std::string& path);
++            
++            GLuint createFrameBuffer(GLsizei width, GLsizei height, GLuint& textureId);
++            
++        private:
++            // GLFW callbacks
++            /*static void APIENTRY openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
++                                                GLsizei length, const GLchar *message, const void *userParam);*/
++            
++            void setupScreenQuad();
++            
++        public:
++            // Shader parameters
++            GLuint vertexShader;
++            GLuint fragmentShader;
++            
++            // TODO; For testing imma make this static
++            static GLuint program;
++            
++            bool upscalingEnabled = true;
++            
++            // Vertex Array Object
++            GLuint VAO;
++            
++            GLuint sceneFBO;        // Framebuffer Object for the main scene
++            GLuint bloomFBO[2];
++            
++            GLuint sceneTexture;
++            GLuint bloomTexture[2];
++            GLuint quadVAO;
++            GLuint quadVBO;
++            
++            // Bloom
++            GLuint bloomThresholdProgram;
++            GLuint blurProgram;
++            
++            GLuint postProcessProgram;
++            GLuint postProcessVertexShader;
++            GLuint postProcessFragmentShader;
++            
++            // Uniforms
++            
++            GLint offsetUni;
++            GLint drawingMinUni;
++            GLint drawingMaxUni;
++            //GLint textureDepthUni;
++            GLint textureWindowUni;
++            GLint semiTransparencyModeUni;
++            
++            // Buffer contains the vertices positions
++            Buffer<Gpu::Position> positions;
++            
++            // Buffer contains the lines positions
++            //Buffer<Gpu::Position> linePositions;
++            
++            // Buffer contains the vertices colors
++            Buffer<Gpu::Color> colors;
++            
++            // Buffer contains the texture coordinates
++            Buffer<Gpu::UV> uvs;
++            
++            // Buffer contains the vertices attributes
++            Buffer<Gpu::Attributes> attributes;
++            
++            // Current number of vertices in the buffers
++            uint32_t nVertices;
++            
++            GLFWwindow* window;
++        public:
++            // Bloom
++            float threshold = 0.65f;
++            float blurRadius = 1.5f;
++            int bloomPasses = 1;
++            
++            float kernelB = 0.0f;
++            float kernelC = 0.5f;
++            float sharpness = 1.0f;
++            float gamma = 0.8f;
++            float scanline = 0.01f;
++            float bloomIntensity = 1.2f;
++            float lodBias = 0.5f;
++            float edgeThreshold = 0.1f;
++            float ditherStrength = 0.005f;
++            float noiseStrength = 0.01f;
++            float contrast = 1.1f;
++            float saturation = 1.2f;
++            float halation = 0.15f;
++            
++            int sampleRadius = 2;
++            
++            bool enableAdaptiveSharpening = true;
++            bool enableBloom = false;
++            bool enableUpscaling = false;
++            
++        private:
++            bool horizontal = true;
++            
++            glm::vec2 drawingArea;
++            
++        private:
++            Emulator::Gpu& gpu;
++            
++            Rasterizer _rasterizer;
+     };
+ }
+diff --git a/PSXEmulator/src/GPU/VRAM.cpp b/PSXEmulator/src/GPU/VRAM.cpp
+index ad2e54d..2a4c46f 100644
+--- a/PSXEmulator/src/GPU/VRAM.cpp
++++ b/PSXEmulator/src/GPU/VRAM.cpp
+@@ -7,7 +7,7 @@
+ 
+ Emulator::VRAM::VRAM(Gpu& gpu) : gpu(gpu) {
+ 	ptr16 = new uint16_t[MAX_WIDTH * MAX_HEIGHT];
+-	std::fill(ptr16, ptr16 + (MAX_WIDTH * MAX_HEIGHT), 0);
++	std::fill_n(ptr16, (MAX_WIDTH * MAX_HEIGHT), 0);
+ 	
+ 	glGenTextures(1, &texture16);
+ 	glActiveTexture(GL_TEXTURE0);
+@@ -27,7 +27,14 @@ Emulator::VRAM::VRAM(Gpu& gpu) : gpu(gpu) {
+ 	}
+ }
+ 
+-void Emulator::VRAM::endTransfer() {
++Emulator::VRAM::~VRAM() {
++	delete[] ptr16;
++	
++	glDeleteTextures(1, &texture16);
++	glDeleteTextures(1, &texImGui);
++}
++
++void Emulator::VRAM::endTransfer() const {
+ 	glBindTexture(GL_TEXTURE_2D, texture16);
+ 	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+ 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 512, GL_RGBA, 
+@@ -63,7 +70,7 @@ void Emulator::VRAM::writePixel(uint32_t x, uint32_t y, uint16_t pixel) {
+ 	}
+ 	
+ 	uint16_t mask = (gpu.forceSetMaskBit << 15);
+-	setPixel(x, y, pixel0 | mask);
++	setPixel(x, /*MAX_HEIGHT - 1 - */y, pixel0 | mask);
+ }
+ 
+ void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
+@@ -80,7 +87,7 @@ uint16_t Emulator::VRAM::getPixel(uint32_t x, uint32_t y) const {
+ 	/*x %= MAX_WIDTH;
+ 	y %= MAX_HEIGHT;*/
+ 
+-	const size_t index = y * MAX_WIDTH + x;
++	const size_t index = y/*(MAX_HEIGHT - 1 - y)*/ * MAX_WIDTH + x;
+ 	return ptr16[index];
+ }
+ 
+diff --git a/PSXEmulator/src/GPU/VRAM.h b/PSXEmulator/src/GPU/VRAM.h
+index 0b89708..9b212bc 100644
+--- a/PSXEmulator/src/GPU/VRAM.h
++++ b/PSXEmulator/src/GPU/VRAM.h
+@@ -8,39 +8,40 @@ namespace Emulator {
+     class Gpu;
+     
+     class VRAM {
+-    public:
+-        VRAM(Gpu& gpu);
+-        
+-        void endTransfer();
+-        
+-        // Pixel stuff...
+-        //void drawPixel(uint32_t pixel);
+-        
+-        void writePixel(uint32_t x, uint32_t y, uint16_t pixel);
+-        void setPixel(uint32_t x, uint32_t y, uint32_t color);
+-        
+-        uint16_t getPixel(uint32_t x, uint32_t y) const;
+-        
+-        uint16_t getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
+-        uint16_t getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
+-        uint16_t getPixel16(uint32_t x, uint32_t y, uint32_t pageX, uint32_t pageY);
+-        
+-        uint16_t RGB555_to_RGB565(uint16_t color);
+-        
+-        void reset();
+-        
+-    public:
+-        // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#vram-overview-vram-addressing
+-        const int32_t MAX_WIDTH  = 1024;
+-        const int32_t MAX_HEIGHT = 512;
+-        
+-    private:
+-        Gpu& gpu;
+-        
+-    public:
+-        // Maybe move this to a struct?
+-        unsigned int texture16, texImGui;
+-        
+-        uint16_t* ptr16;
++        public:
++            explicit VRAM(Gpu& gpu);
++            ~VRAM();
++            
++            void endTransfer() const;
++            
++            // Pixel stuff...
++            //void drawPixel(uint32_t pixel);
++            
++            void writePixel(uint32_t x, uint32_t y, uint16_t pixel);
++            void setPixel(uint32_t x, uint32_t y, uint32_t color);
++            
++            [[nodiscard]] uint16_t getPixel(uint32_t x, uint32_t y) const;
++            
++            uint16_t getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
++            uint16_t getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
++            uint16_t getPixel16(uint32_t x, uint32_t y, uint32_t pageX, uint32_t pageY);
++            
++            uint16_t RGB555_to_RGB565(uint16_t color);
++            
++            void reset();
++            
++        public:
++            // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#vram-overview-vram-addressing
++            const int32_t MAX_WIDTH  = 1024;
++            const int32_t MAX_HEIGHT = 512;
++            
++        private:
++            Gpu& gpu;
++            
++        public:
++            // Maybe move this to a struct?
++            unsigned int texture16{}, texImGui{};
++            
++            uint16_t* ptr16;
+     };
+ }
+diff --git a/PSXEmulator/src/Memory/IO/SIO.cpp b/PSXEmulator/src/Memory/IO/SIO.cpp
+index 401db57..713b0aa 100644
+--- a/PSXEmulator/src/Memory/IO/SIO.cpp
++++ b/PSXEmulator/src/Memory/IO/SIO.cpp
+@@ -125,14 +125,14 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
+ 		ctrl |= (sio0Selected) << 13;
+ 		
+ 		return ctrl;
+-	} else if(addr == 0x1F80105E) {
++	} else if(addr == 0x1F80105E || addr == 0x1F80104E) {
+ 		/**
+ 		 * SIO#_BAUD (R/W)
+ 		 */
+ 		
+ 		return baudTimerRate;
+ 	}
+-	
++	// 1F80104E
+ 	assert(false);
+ 	
+ 	return 0xFF;
+diff --git a/PSXEmulator/src/Memory/MDEC/MDEC.cpp b/PSXEmulator/src/Memory/MDEC/MDEC.cpp
+index 1005099..a0eb331 100644
+--- a/PSXEmulator/src/Memory/MDEC/MDEC.cpp
++++ b/PSXEmulator/src/Memory/MDEC/MDEC.cpp
+@@ -1,5 +1,6 @@
+ #include "MDEC.h"
+ 
++#include <algorithm>
+ #include <cassert>
+ #include <cstdlib>
+ #include <cstring>
+@@ -20,24 +21,47 @@ MDEC::MDEC() {
+     }
+ }
+ 
++int part = 0;
+ uint32_t MDEC::load(uint32_t addr) {
+     if (addr == 0x1F801820) {
+         // 1F801824h - MDEC1 - MDEC Status Register (R)
+         
+-        // (or Garbage if there's no data available)
++        // (or Garbage if there's no data available)c
+         // Idk what 'garbage' would be but ig a random value
+         // I'm assuming it just returns a random memory address
+         // so this is 100% not needed, but I'm bored
+         if (output.empty())
+-            return rand() % INT32_MAX;
++            return rand() | 0xFFFF0000;
+         
+         // UHH TODO; ;-; Only part left but im so confused
+         
+-        uint32_t data = 0;
++        uint16_t data = 0;
+         
+         // Uhh TODO; Handle different types of bits somehow
+-        data = (output[outputIndex] & 0xFFFF) | (output[outputIndex + 1]  & 0xFFFF);
+-        outputIndex++;
++        // 15 bit
++        if (status.DataOutputDepth == 3) {
++            uint16_t bit15 = (uint16_t)status.DataOutputBit15 << 15;
++            data = (bit15 | (output[outputIndex + 0]));
++            data |= (bit15 | (output[outputIndex + 1])) << 16;
++            outputIndex += 2;
++        } else if (status.DataOutputDepth == 2) {
++            if (part == 0)
++                data = (output[outputIndex] & 0xffffff) | ((output[outputIndex + 1] & 0xff) << 24);
++            else if (part == 1)
++                data = ((output[outputIndex + 1] & 0xffff00) >> 8) | ((output[outputIndex + 2] & 0xffff) << 16);
++            else if (part == 2)
++                data = ((output[outputIndex + 2] & 0xff0000) >> 16) | ((output[outputIndex + 3] & 0xffffff) << 8);
++            
++            if (part == 2) {
++                part = 0;
++                outputIndex += 4;
++            } else {
++                part++;
++            }
++        } else {
++            data = output[outputIndex];
++            outputIndex++;
++        }
+         
+         if (outputIndex > output.size()) {
+             output.clear();
+@@ -55,19 +79,24 @@ uint32_t MDEC::load(uint32_t addr) {
+         
+         // (0=Ready, 1=Busy receiving or processing parameters)
+         status.CommandBusy      = !output.empty();
+-        printf("RETURND; %x\n", status.reg);
++        //printf("RETURND; %x\n", status.reg);
+         
+         return status.reg;
+     }
+     
++    assert(false);
++    
+     return 0;
+ }
+ 
+ void MDEC::store(uint32_t addr, uint32_t val) {
++    //printf("MDEC::store %x - %x\n", addr, val);
++    
+     if (addr == 0x1f801820) {
+         // 1F801820h - MDEC0 - MDEC Command/Parameter Register (W)
+         if (paramCount != 0) {
+             if (paramCount == 1) {
++                int jhyg = this->command.Op;
+                 printf("sadg\n");
+             }
+             
+@@ -114,9 +143,11 @@ void MDEC::store(uint32_t addr, uint32_t val) {
+         }
+     } else {
+         printf("Unhandled store MDEC %x = %x\n", addr, val);
++        assert(false);
+     }
+ }
+ 
++static int lastCmd = 0;
+ void MDEC::handleCommand() {
+     /**
+     * Used to send command word, followed by parameter words to the MDEC
+@@ -137,15 +168,7 @@ void MDEC::handleCommand() {
+     
+     status.CommandBusy = true;
+     
+-    // TODO; Unsure for those values????
+-    // It says 'reflects' so I'm assuming,
+-    // ( Command bits 25-28 are reflected to Status bits 23-26 as usually. ) 'as usually'???
+-    // ( Command bits 0-15 are reflected to Status bits 0-15 )
+-    // its meant to be copied to 'status'?????
+-    //status.DataOutputBit15  = command.DataOutputBit15;
+-    //status.DataOutputSigned = command.DataOutputSigned;
+-    //status.DataOutputDepth  = command.DataOutputDepth;
+-    
++    lastCmd = cmd;
+     switch (cmd) {
+         case 0:
+         // Those behave same as cmd (0)
+@@ -156,6 +179,7 @@ void MDEC::handleCommand() {
+             // No function
+             
+             paramCount = 0;//command.NumberOfParameterWords;
++            assert(false);
+             
+             break;
+         }
+@@ -167,7 +191,7 @@ void MDEC::handleCommand() {
+             
+             input.resize(paramCount * 2);
+             output.resize(0);
+-            
++            part = 0;
+             outputIndex = 0;
+             
+             break;
+@@ -214,7 +238,7 @@ void MDEC::handleCommand() {
+              * (based on the standard JPEG constants, although, MDEC(3) allows to use other values than that constants).
+              */
+             
+-            paramCount         = 64 / 4;
++            paramCount = 64 / 2;
+             
+             break;
+         }
+@@ -229,7 +253,17 @@ void MDEC::handleCommand() {
+     
+     // It only says it should copy,
+     // remaining words if cmd = 0 | 1?
+-    // TODO; confirm this somehow
++    if (cmd == 0 || cmd == 1) {
++        // TODO; confirm this somehow
++        // TODO; Unsure for those values????
++        // It says 'reflects' so I'm assuming,
++        // ( Command bits 25-28 are reflected to Status bits 23-26 as usually. ) 'as usually'???
++        // ( Command bits 0-15 are reflected to Status bits 0-15 )
++        // its meant to be copied to 'status'?????
++        status.DataOutputBit15  = command.DataOutputBit15;
++        status.DataOutputSigned = command.DataOutputSigned;
++        status.DataOutputDepth  = command.DataOutputDepth;
++    }
+     
+     // (4..7) mirrors of (0)
+     //if (cmd != 3 && cmd != 2)
+@@ -241,8 +275,8 @@ void MDEC::handleCommandProcessing(uint32_t val) {
+     switch (command.Op) {
+         case 1: {
+             // MDEC(1) - Decode Macroblock(s)
+-            input[counter * 2] = val & 0xffff;
+-            input[counter * 2 + 1] = (val >> 16) & 0xffff;
++            input[counter * 2] = val & 0xFFFF;
++            input[counter * 2 + 1] = (val >> 16) & 0xFFFF;
+             
+             if (paramCount == 1) {
+                 decodeBlocks();
+@@ -338,45 +372,51 @@ void MDEC::reset() {
+ }
+ 
+ void MDEC::decodeBlocks() {
+-    for (auto src : input) {
++    for (auto src = input.begin(); src != input.end();) {
+         // Uhh
+-        DCTBlock block = decodeMarcoBlocks(src);
+-        
+-        //output.insert(output.end(), (block.data).begin(), (block.data).end());
+-        for (auto RLE : block.data) {
+-            output.push_back(RLE.reg);
+-        }
++        std::optional<DCTBlock> block = decodeMarcoBlocks(src);
++        if (!block.has_value())
++            continue;
++        
++        /*for (auto rle : block.data) {
++            output.push_back(rle.reg);
++        }*/
++        
++        // Just to look like ik what I'm doing
++        std::transform(block.value().data.begin(), block.value().data.end(),
++                std::back_inserter(output),
++                [](const RLE& r) { return r.reg; });
+     }
+ }
+ 
+-MDEC::DCTBlock MDEC::decodeMarcoBlocks(uint16_t &src) {
++std::optional<MDEC::DCTBlock> MDEC::decodeMarcoBlocks(std::vector<uint16_t>::iterator &src) {
+     DCTBlock block;
+     
+     if (command.DataOutputDepth > 1) {
+         // 15bpp or 24bpp depth
+         // decode_colored_macroblock
+-        rl_decode_block(Crblk.data(), src, iq_uv.data()); // ;Cr (low resolution)
+-        rl_decode_block(Cbblk.data(), src, iq_uv.data()); // ;Cb (low resolution)
++        if (!rl_decode_block(Crblk, src, colorQuantTable)) return std::nullopt; // ;Cr (low resolution)
++        if (!rl_decode_block(Cbblk, src, colorQuantTable)) return std::nullopt; // ;Cb (low resolution)
+         
+         // ;Y1 (and upper-left  Cr,Cb)
+-        rl_decode_block(Yblk .data(), src, iq_y .data());
++        if (!rl_decode_block(Yblk, src, luminanceQuantTable)) return std::nullopt;
+         yuv_to_rgb(block, 0, 0);
+         
+         // ;Y2 (and upper-right Cr,Cb)
+-        rl_decode_block(Yblk .data(), src, iq_y .data());
++        if (!rl_decode_block(Yblk, src, luminanceQuantTable)) return std::nullopt;
+         yuv_to_rgb(block, 0, 8);
+         
+         // ;Y3 (and lower-left  Cr,Cb)
+-        rl_decode_block(Yblk .data(), src, iq_y .data());
++        if (!rl_decode_block(Yblk, src, luminanceQuantTable)) return std::nullopt;
+         yuv_to_rgb(block, 8, 0);
+         
+         // ;Y4 (and lower-right Cr,Cb)
+-        rl_decode_block(Yblk .data(), src, iq_y .data());
++        if (!rl_decode_block(Yblk, src, luminanceQuantTable)) return std::nullopt;
+         yuv_to_rgb(block, 8, 8);
+     } else {
+         // 4bpp or 8bpp depth
+         // decode_monochrome_macroblock
+-        rl_decode_block(Yblk.data(), src, iq_y.data());
++        if (!rl_decode_block(Yblk, src, luminanceQuantTable)) return std::nullopt;
+         y_to_mono(block); // ;Y
+         
+         assert(false);
+@@ -385,16 +425,24 @@ MDEC::DCTBlock MDEC::decodeMarcoBlocks(uint16_t &src) {
+     return block;
+ }
+ 
+-void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
++bool MDEC::rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt) {
++    blk.fill(0);
++    
+     uint16_t n, k = 0;
+     uint16_t q_scale = 0;
+     uint16_t val = 0;
+     
++    auto signext10 = [](uint16_t x) -> int16_t {
++        return (x & 0x200) ? (int16_t)(x | 0xFC00) : (int16_t)(x & 0x03FF);
++    };
++    
+     // First value is DCT
+     
+     skip:
++        if (src == input.end()) return false;
++        
+         // To avoid confusion
+-        n = src++;
++        n = *src++;
+         
+         // Skip padding
+         if (n == 0xFE00)
+@@ -405,8 +453,8 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
+         // calc first value (without q_scale/8) (?)
+         // https://fgiesen.wordpress.com/2024/10/23/zero-or-sign-extend/
+         // https://www.geeksforgeeks.org/c/sign-extend-a-nine-bit-number-in-c/
+-        val = n & 0x3FF; // 10 bits
+-        if (val & 0x200) val |= ~0x3FF; // If signbit sent, extend
++        DCT dct = DCT(n);
++        val = signext10(dct.DC);
+         
+         val = val * qt[k];
+     
+@@ -436,8 +484,9 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
+                 blk[k] = val;    
+             }
+             
+-            n = src;
+-            src += 2;
++            if (src == input.end()) return false;
++            n = *src;
++            src++;
+             
+             // get next entry (or FE00h end code)
+             if (n == 0xFE00)
+@@ -445,6 +494,9 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
+             
+             // Breh x2
+             k = k + ((n >> 10) & 0x3F) + 1; // Skip zerofilled entries
++            if (k >= 64)
++                break;
++            
+             val = n & 0x3FF; // 10 bits
+             if (val & 0x200) val |= ~0x3FF; // If signbit sent, extend
+             
+@@ -456,10 +508,12 @@ void MDEC::rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt) {
+         }
+     }
+     
+-    real_idct_core(blk);
++    real_idct_core(blk.data());
+     
+     // return (with "src" address advanced)
+-    src++;
++    //src++;
++    
++    return true;
+ }
+ 
+ void MDEC::fast_idct_core(uint16_t *blk) {
+@@ -534,7 +588,8 @@ void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy) {
+             uint16_t G5 = (g & 0xFF) >> 3;
+             uint16_t B5 = (b & 0xFF) >> 3;
+             
+-            uint16_t pixel = (R5 << 10) | (G5 << 5) | B5;
++            //uint16_t pixel = (R5 << 10) | (G5 << 5) | B5;
++            uint16_t pixel = (B5 << 10) | (G5 << 5) | R5;
+             block.data[(x + xx) + (y + yy) * 16] = RLE(pixel);
+         }
+     }
+diff --git a/PSXEmulator/src/Memory/MDEC/MDEC.h b/PSXEmulator/src/Memory/MDEC/MDEC.h
+index 751da05..72fb7cd 100644
+--- a/PSXEmulator/src/Memory/MDEC/MDEC.h
++++ b/PSXEmulator/src/Memory/MDEC/MDEC.h
+@@ -7,6 +7,8 @@
+ #include <array>
+ #include <cstdint>
+ #include <cstdio>
++#include <memory>
++#include <optional>
+ #include <vector>
+ 
+ class MDEC {
+@@ -88,7 +90,7 @@ class MDEC {
+         
+         struct DCTBlock {
+             DCT dct;
+-            std::array<RLE, 64> data;
++            std::array<RLE, 16*16> data;
+             uint16_t EOB; // Fixed to FE00h
+             
+             DCTBlock() = default;
+@@ -109,11 +111,12 @@ class MDEC {
+     private:
+         void handleCommand();
+         void handleCommandProcessing(uint32_t val);
++        
+     private:
+-        void decodeBlocks();
+-        DCTBlock decodeMarcoBlocks(uint16_t &src);
++        void                      decodeBlocks();
++        std::optional<DCTBlock> decodeMarcoBlocks(std::vector<uint16_t>::iterator &src);
+         
+-        void rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt);
++        bool rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt);
+         
+         void fast_idct_core(uint16_t *blk);
+         void real_idct_core(uint16_t *blk);
+@@ -176,8 +179,8 @@ class MDEC {
+         std::array<uint16_t, 64> Crblk;
+         std::array<uint16_t, 64> Cbblk;
+         std::array<uint16_t, 64> Yblk;
+-        std::array<uint16_t, 64> iq_uv;
+-        std::array<uint16_t, 64> iq_y;
++        //std::array<uint16_t, 64> iq_uv;
++        //std::array<uint16_t, 64> iq_y;
+ };
+ 
+ #endif //MDEC_H
+\ No newline at end of file
+diff --git a/PSXEmulator/src/Memory/Range.h b/PSXEmulator/src/Memory/Range.h
+index 4d5bb95..0490e23 100644
+--- a/PSXEmulator/src/Memory/Range.h
++++ b/PSXEmulator/src/Memory/Range.h
+@@ -40,7 +40,7 @@ namespace map {
+     //static const Range SYSCONTROL = {0x1f801000, 36};
+     static const Range CACHECONTROL = {0xfffe0130, 4}; // 0xfffe0130
+     
+-    // Gamepad and memeory card controller
++    // Gamepad and memory card controller
+     static const Range PADMEMCARD = {0x1f801040, 32};
+     
+     // SPU Registers
+@@ -48,7 +48,7 @@ namespace map {
+     static const Range SPU = {0x1f801c00, 640};
+     
+     // Direct Memory Access registers
+-    // Used to move data back and fourth between RAM & (GPU, CDROM, SPU.. etc..)
++    // Used to move data back and forth between RAM & (GPU, CDROM, SPU.. etc..)
+     static const Range DMA = {0x1f801080, 0x80};
+     
+     static const Range PCSX_REDUX_EXPANSION = {0x1F802080, 8};
+diff --git a/PSXEmulator/src/Memory/interconnect.cpp b/PSXEmulator/src/Memory/interconnect.cpp
+index b729547..17ce135 100644
+--- a/PSXEmulator/src/Memory/interconnect.cpp
++++ b/PSXEmulator/src/Memory/interconnect.cpp
+@@ -226,7 +226,7 @@ void Interconnect::dmaBlock(Port port) {
+         remsz.value() -= 1;
+     }
+     
+-    //channel.done(dma, port);
++    //channel.done(_dma, port);
+ }
+ 
+ void Interconnect::dmaLinkedList(Port port) {
+@@ -283,6 +283,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
+     
+     uint32_t major = (offset & 0x70) >> 4;
+     uint32_t minor = offset & 0xF;
++    
+     std::optional<Port> activePort = std::nullopt;
+     
+     switch (major) {
+@@ -313,10 +314,10 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
+     case 7: {
+             switch (minor) {
+             case 0:
+-                _dma.setControl(val);
++                _dma.setControl(val); // DPCR (0x1F8010F0)
+                 break;
+             case 4:
+-                _dma.setInterrupt(val);
++                _dma.setInterrupt(val); // DICR (0x1F8010F4)
+                 break;
+             default:
+                 throw std::runtime_error("Unhandled DMA write " + std::to_string(offset) + " : " + std::to_string(val));
+diff --git a/PSXEmulator/src/Memory/interconnect.h b/PSXEmulator/src/Memory/interconnect.h
+index 80f2ab3..18213c5 100644
+--- a/PSXEmulator/src/Memory/interconnect.h
++++ b/PSXEmulator/src/Memory/interconnect.h
+@@ -275,6 +275,7 @@ public:
+         
+         if (map::DMA.contains(abs_addr, offset)) {
+             setDmaReg(offset, val);
++            
+             return;
+         }
+         
+@@ -412,7 +413,7 @@ public:
+             i = {};
+         
+         // TODO;
+-        _bios.reset("BIOS/ps-22a.bin");
++        _bios.reset("../BIOS/ps-22a.bin");
+         _dma.reset();
+         _gpu->reset();
+         //spu->reset();

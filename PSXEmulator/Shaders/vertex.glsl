@@ -15,9 +15,13 @@ out vec4 UVs;
 // to the Fragment shader right away..
 //flat out uvec3 attr;
 flat out int attr;
+flat out ivec2 drawingAreaMinIn;
+flat out ivec2 drawingAreaMaxIn;
 //flat out uint textureAttr[4];
 
 uniform vec2 offset;
+uniform ivec2 drawingAreaMin;
+uniform ivec2 drawingAreaMax;
 
 out vec2 VRAMPos;
 
@@ -27,18 +31,17 @@ const int TEXTURE_MODE_SHIFT = 2;
 void main() {
     //vec2 position = vertexPosition + offset;
     vec2 position = vertexPosition;
+    //ivec2 area = ivec2(drawingAreaMin.x, drawingAreaMax.y);
     ivec2 area = ivec2(1024, 512);
     
     VRAMPos = position;
+    drawingAreaMinIn = drawingAreaMin;
+    drawingAreaMaxIn = drawingAreaMax;
     
     // For testing
     /*uint isSemiTransparent = attributes & IS_SEMITRANSPARENT_MASK;
     uint blendTexture = (attributes & BLEND_TEXTURE_MASK) >> 1;*/
     int textureMode = (int(attributes) & TEXTURE_MODE_MASK) >> TEXTURE_MODE_SHIFT;
-    
-    if(textureMode == 3) {
-        area = ivec2(uint(1024), uint(512));
-    }
     
     /*
     * Converts VRAM coordinates (0; area.x, 0; area.y)

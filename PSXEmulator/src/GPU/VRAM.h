@@ -8,39 +8,39 @@ namespace Emulator {
     class Gpu;
     
     class VRAM {
-    public:
-        VRAM(Gpu& gpu);
+        public:
+            VRAM(Gpu& gpu);
         
-        void endTransfer();
+            void endTransfer();
         
-        // Pixel stuff...
-        //void drawPixel(uint32_t pixel);
+            // Pixel stuff...
+            //void drawPixel(uint32_t pixel);
         
-        void writePixel(uint32_t x, uint32_t y, uint16_t pixel);
-        void setPixel(uint32_t x, uint32_t y, uint32_t color);
+            void writePixel(uint32_t x, uint32_t y, uint16_t pixel);
+            void setPixel(uint32_t x, uint32_t y, uint32_t color);
         
-        uint16_t getPixel(uint32_t x, uint32_t y) const;
+            uint16_t getPixel(uint32_t x, uint32_t y) const;
         
-        uint16_t getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
-        uint16_t getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
-        uint16_t getPixel16(uint32_t x, uint32_t y, uint32_t pageX, uint32_t pageY);
+            uint16_t getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
+            uint16_t getPixel8(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY);
+            uint16_t getPixel16(uint32_t x, uint32_t y, uint32_t pageX, uint32_t pageY);
         
-        uint16_t RGB555_to_RGB565(uint16_t color);
+            uint16_t RGB555_to_RGB565(uint16_t color);
         
-        void reset();
+            void reset();
         
-    public:
-        // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#vram-overview-vram-addressing
-        const int32_t MAX_WIDTH  = 1024;
-        const int32_t MAX_HEIGHT = 512;
+        public:
+            // https://psx-spx.consoledev.net/graphicsprocessingunitgpu/#vram-overview-vram-addressing
+            const int32_t MAX_WIDTH  = 1024;
+            const int32_t MAX_HEIGHT = 512;
         
-    private:
-        Gpu& gpu;
+        private:
+            Gpu& gpu;
         
-    public:
-        // Maybe move this to a struct?
-        unsigned int texture16, texImGui;
+        public:
+            // Maybe move this to a struct?
+            unsigned int texture16, texImGui;
         
-        uint16_t* ptr16;
+            uint16_t* ptr16;
     };
 }

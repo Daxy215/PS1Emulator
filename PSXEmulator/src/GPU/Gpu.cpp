@@ -14,6 +14,36 @@
 #include "gte.h"
 #include "../Memory/IRQ.h"
 
+static const Emulator::Gpu::BitField polygonFields[] = {
+    {"rgb",               0, 24},
+    {"isRawTexture",     24, 1},
+    {"isSemiTransparent",25, 1},
+    {"isTextured",       26, 1},
+    {"isFourVerts",      27, 1},
+    {"isGouraud",        28, 1},
+};
+
+static const Emulator::Gpu::BitField lineFields[] = {
+    {"rgb",               0, 24},
+    {"isSemiTransparent",25, 1},
+    {"isPolyline",       27, 1},
+    {"gouraud",          28, 1},
+};
+
+static const Emulator::Gpu::BitField rectagnleFields[] = {
+    {"rgb",               0, 24},
+    {"isRawTexture",      25, 1},
+    {"isSemiTransparent", 25, 1},
+    {"isTextured",        26, 1},
+    /**
+     * 0 (00)      variable size
+     * 1 (01)      single pixel (1x1)
+     * 2 (10)      8x8 sprite
+     * 3 (11)      16x16 sprite
+     */
+    {"rectangleSize",     27, 2},
+};
+
 Emulator::Gpu::Gpu()
     : pageBaseX(0),
       pageBaseY(0),
@@ -32,10 +62,10 @@ Emulator::Gpu::Gpu()
       interlaced(false),
       displayEnabled(false),
       interrupt(false),
-      dmaDirection(DmaDirection::Off),
-      renderer(new Renderer(*this)),
-      vram(new VRAM(*this)) {
-    
+      dmaDirection(DmaDirection::Off) {
+        renderer = new Renderer(*this);
+        vram = new VRAM(*this);
+        //renderer->init();
 }
 
 bool Emulator::Gpu::step(uint32_t cycles) {
@@ -48,7 +78,8 @@ bool Emulator::Gpu::step(uint32_t cycles) {
      * 368pix/PAL: 3406/7  = 486.5714 dots   368pix/NTSC: 3413/7  = 487.5714 dots
      */
     
-    dot = dotCycles[hres.hr2 << 2 | hres.hr1];
+    //auto index = hres.hr2 << 2 | hres.hr1;
+    //dot = dotCycles[index];
     
     /**
       * The PSone/PAL video clock is the cpu clock multiplied by 11/7.
@@ -67,7 +98,6 @@ bool Emulator::Gpu::step(uint32_t cycles) {
     
     //isInHBlank = _cycles < displayHorizStart || _cycles >= displayHorizEnd;
     isInVBlank = _scanLine < displayLineStart || _scanLine >= displayLineEnd;
-    dot = dotCycles[hres.hr2 << 2 | hres.hr1];
     
     /**
      * Horizontal Timings
@@ -107,8 +137,11 @@ bool Emulator::Gpu::step(uint32_t cycles) {
         _scanLine = 0;
         frames++;
         
-        renderer->display();
         vram->endTransfer();
+        //vram->syncReadTexture();
+        //renderer->display();
+        //renderer->nVertices = 0;
+        renderer->endFrame();
         
         return true;
     }
@@ -204,6 +237,13 @@ uint32_t Emulator::Gpu::status() {
     
     // Bit 31: Drawing even/odd lines in interlace mode (0=Even, 1=Odd)
     status |= isOddLine << 31;
+
+    /**
+    * A(4Eh) - gpu_sync()
+    * If DMA is off (when GPUSTAT.Bit29-30 are zero): Waits until GPUSTAT.Bit28=1 (or until timeout).
+    * If DMA is on: Waits until D2_CHCR.Bit24=0 (or until timeout), and does then wait until GPUSTAT.Bit28=1 (without timeout, ie. may hang forever), and does then turn off DMA via GP1(04h).
+    * Returns 0 (or -1 in case of timeout, however, the timeout values are very big, so it may take a LOT of seconds before it returns).
+    */
     
     uint32_t dma = 0;
     if (dmaDirection == DmaDirection::Off) {
@@ -221,17 +261,226 @@ uint32_t Emulator::Gpu::status() {
     return status;
 }
 
+uint8_t lastCmd;
+uint32_t lastOp;
+std::unordered_map<std::string, uint32_t> fields;
 void Emulator::Gpu::gp0(uint32_t val) {
+    // Testing
+    if (gp0CommandRemaining > 0 && lastCmd != 0) {
+        gp0CommandRemaining--;
+        gp0Command.pushWord(val);
+        
+        // First command is gp0QuadMonoOpaque
+        // which is the background of the boot screen
+        if (gp0CommandRemaining == 0) {
+            uint32_t in = gp0Command.index(0);
+            
+            switch (gp0Mode) {
+                case Gp0Mode::Polygon: {
+                    const bool gouraud         = fields["isGouraud"];
+                    const bool fourVerts       = fields["isFourVerts"];
+                    //bool semiTransparent = fields["isSemiTransparent"];
+                    const bool rawTexture      = fields["isRawTexture"];
+                    //uint32_t rgb         = fields["rgb"];
+                    const bool isTextured      = fields["isTextured"] || rawTexture;
+                    
+                    const uint8_t verticesCount = fourVerts ? 4 : 3;
+                    
+                    Color c0 = Color::fromGp0(in);
+                    Position positions[verticesCount];
+                    Color colors[verticesCount];
+                    UV uvs[verticesCount];
+                    
+                    uint8_t idx = 0;
+                    uint8_t stepping = 1 + gouraud + (isTextured ? 1 : 0);
+                    
+                    uint16_t clut = isTextured ? gp0Command.index(1 + 1) >> 16 : 0;
+                    uint16_t page = isTextured ? gp0Command.index(1 + stepping + 1) >> 16 : 0;
+                    
+                    for (int i = 1; i < gp0Command.len; i += stepping) {
+                        if (gouraud && i != 1) {
+                            // It says, if doing flat shading then,
+                            // there is no more colors to be sent per vertex
+                            colors[idx] = Color::fromGp0(gp0Command.index(i - 1));
+                        } else {
+                            colors[idx] = c0;
+                        }
+                        
+                        if (isTextured) {
+                            uvs[idx] = UV::fromGp0(gp0Command.index(i + 1), clut, page, *this);
+                        }
+                        
+                        positions[idx] = Position::fromGp0(gp0Command.index(i));
+                        
+                        idx++;
+                    }
+                    
+                    if (fourVerts) {
+                        renderer->pushQuad(positions, colors, uvs, curAttribute);
+                    } else {
+                        renderer->pushTriangle(positions, colors, uvs, curAttribute);
+                    }
+                }
+                case Gp0Mode::Line: {
+                    
+                    break;
+                }
+                case Gp0Mode::Rectangle: {
+                    const bool rawTexture      = fields["isRawTexture"];
+                    const bool isTextured      = fields["isTextured"] || rawTexture;
+                    const uint8_t rectangleSize   = fields["rectangleSize"];
+                    
+                    const Position p0 = Position::fromGp0(gp0Command.index(1));
+                    const Color c0    = Color::fromGp0(in);
+                    UV uv0;
+                    
+                    if (isTextured) {
+                        const auto c = static_cast<uint16_t>(gp0Command.index(2) >> 16);
+                        uv0 = UV::fromGp0(gp0Command.index(2), c, pageBaseX, pageBaseY, *this);
+                    }
+                    
+                    uint16_t width = 0;
+                    uint16_t height = 0;
+                    
+                    /**
+                     * 0 (00)      variable size
+                     * 1 (01)      single pixel (1x1)
+                     * 2 (10)      8x8 sprite
+                     * 3 (11)      16x16 sprite
+                     */
+                    if (rectangleSize == 0) {
+                        uint32_t sizeData = gp0Command.index(isTextured ? 3 : 2);
+                        
+                        width = sizeData & 0xFFFF;
+                        height = sizeData >> 16;
+                        
+                        // Max size of 1023x511
+                        // but textured max; 256,256
+                        // TODO; It doesn't say (im probably just blind),
+                        // TODO; that it should clamp it or just ignore,
+                        // TODO; any rectangles outside of those areas?
+                        if (isTextured) {
+                            width = std::clamp<uint16_t>(width, 0, 256);
+                            height = std::clamp<uint16_t>(height, 0, 256);
+                        } else {
+                            width = std::clamp<uint16_t>(width, 0, 1023);
+                            height = std::clamp<uint16_t>(height, 0, 511);
+                        }
+                    } else if (rectangleSize == 1) {
+                        width = height = 1;
+                    } else if (rectangleSize == 2) {
+                        width = height = 8;
+                    } else if (rectangleSize == 3) {
+                        width = height = 16;
+                    }
+                    
+                    //uint8_t opcode = (in >> 24) & 0xFF;
+                    renderRectangle(p0, c0, uv0, width, height);
+                    
+                    break;
+                }
+            }
+            
+            gp0Mode = Command;
+        }
+        
+        return;
+    }
+    
     if(gp0CommandRemaining == 0 && gp0Mode == Command) {
+        gp0Command.clear();
+        
         uint8_t opcode = (val >> 24) & 0xFF;
+        uint8_t cmd = (val >> 29) & 0x7;
+        
+        // Polygon
+        if (cmd == 0b001) {
+            lastCmd = cmd;
+            
+            fields = decodeFields(val, polygonFields, std::size(polygonFields));
+            gp0Mode = Gp0Mode::Polygon;
+             
+            bool gouraud         = fields["isGouraud"];
+            bool fourVerts       = fields["isFourVerts"];
+            bool semiTransparent = fields["isSemiTransparent"];
+            bool rawTexture      = fields["isRawTexture"];
+            bool textured        = fields["isTextured"];
+            //Polygon p = Polygon(val);
+            
+            TextureMode mode;
+            if (rawTexture)
+                mode = TextureOnly;
+            else if (textured)
+                mode = TextureColor;
+            else
+                mode = ColorOnly;
+            
+            // IDE having weird issue so I gotta do a check
+            curAttribute = { semiTransparent == 1 ? 1 : 0, gouraud == 1 ? 1 : 0, mode};
+            
+            uint8_t verticesCount = fourVerts ? 4 : 3;
+            bool isTextured = textured || rawTexture;
+            
+            uint8_t colorsCount = gouraud ? (verticesCount - 1) : 0;
+            uint8_t uvsCount = isTextured ? (verticesCount) : 0;
+            gp0CommandRemaining = (verticesCount + colorsCount + uvsCount);
+            gp0Command.pushWord(val);
+            
+            return;
+        } else if (cmd == 0x010) {
+            //lastCmd = cmd;
+            
+            //fields = decodeFields(val, lineFields, std::size(lineFields));
+            //gp0Mode = Gp0Mode::Line;
+        } else if (cmd == 0b011) {
+            lastCmd = cmd;
+            
+            fields = decodeFields(val, rectagnleFields, std::size(rectagnleFields));
+            gp0Mode = Gp0Mode::Rectangle;
+            
+            // gp0VarRectangleMonoOpaque
+            bool semiTransparent = fields["isSemiTransparent"];
+            bool rawTexture      = fields["isRawTexture"];
+            bool textured        = fields["isTextured"];
+            const uint8_t rectangleSize   = fields["rectangleSize"];
+            
+            TextureMode mode;
+            if (rawTexture)
+                mode = TextureOnly;
+            else if (textured)
+                mode = TextureColor;
+            else
+                mode = ColorOnly;
+            
+            // Rectangle doesn't have blending
+            curAttribute = { semiTransparent == 1 ? 1 : 0, 0, mode};
+            
+            // If it's a variable size then,
+            // it'll contain an extra word
+            uint8_t verticesCount = 1 + ((rectangleSize == 0) ? 1 : 0);
+            
+            gp0CommandRemaining = verticesCount;
+            gp0Command.pushWord(val);
+            
+            //if (opcode == 0x68)
+            //    printf("Decpdomg; %x\n", opcode);
+            
+            return;
+        }
+        
+        if (cmd != 0 && cmd != 4 && cmd != 5 && cmd != 6 && cmd != 7) {
+            //printf("f\n");
+        }
+        
+        lastCmd = 0;
         
         switch (opcode) {
         case 0x00:
             
-            gp0CommandRemaining = 1;
+            gp0CommandRemaining = 0;
             Gp0CommandMethod = &Gpu::gp0Nop;
             
-            break;
+            return;
         case 0x01:
             
             gp0CommandRemaining = 1;
@@ -252,8 +501,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
             Gp0CommandMethod = &Gpu::gp0FillVRam;
             
             break;
-        case 0x20:
-        case 0x21: {
+        case 0x20:/*
+        case 0x21:*/ {
             // GP0(20h) - Monochrome three-point polygon, opaque
             
             gp0CommandRemaining = 4;
@@ -261,11 +510,11 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         }
-        case 0x22:
-        case 0x23: {
+        case 0x22:/*
+        case 0x23:*/ {
             // GP0(22h) - Monochrome three-point polygon, semi-transparent
             
-            curAttribute = {1, 0};
+            curAttribute = {1, 0, ColorOnly};
             
             gp0CommandRemaining = 4;
             Gp0CommandMethod = &Gpu::gp0TriangleMonoOpaque;
@@ -275,7 +524,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x24: {
             // GP0(24h) - Textured three-point polygon, opaque, texture-blending
             
-            curAttribute = {0, 1, TextureMode::TextureColor};
+            curAttribute = {1, 1, TextureMode::TextureColor};
             
             gp0CommandRemaining = 7;
             Gp0CommandMethod = &Gpu::gp0TriangleTexturedOpaque;
@@ -316,9 +565,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             // GP0(2Ch) - Textured four-point polygon, opaque, texture-blending
             // Used to draw the sony text & the text from the menus
             
-            // TODO; This is meant to be "TextureColor",
-            // but setting it to that messes up the texts?
-            curAttribute = {0, 1, TextureMode::TextureOnly};
+            curAttribute = {0, 1, TextureMode::TextureColor};
             
             gp0CommandRemaining = 9;
             Gp0CommandMethod = &Gpu::gp0QuadTextureBlendOpaque;
@@ -357,16 +604,18 @@ void Emulator::Gpu::gp0(uint32_t val) {
             break;
         }
         case 0x28:
-        case 0x29:
+        //case 0x29:
             // GP0(28h) - Monochrome four-point polygon, opaque
             // Used to draw the background
+            
+            curAttribute = { 0, 0, TextureMode::ColorOnly };
             
             gp0CommandRemaining = 5;
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
             
             break;
-        case 0x2A:
-        case 0x2B: {
+        case 0x2A:/*
+        case 0x2B: */{
             // GP0(2Ah) - Monochrome four-point polygon, semi-transparent
             
             curAttribute = {1, 0};
@@ -376,31 +625,31 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         }
-        case 0x30:
-        case 0x31: {
+        case 0x30:/*
+        case 0x31:*/ {
             // GP0(30h) - Shaded three-point polygon, opaque
             // Used to draw the diamond(2 triangles)
             
-            curAttribute = {0, 0};
+            curAttribute = {0, 0, ColorOnly};
             
             gp0CommandRemaining = 6;
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
             
             break;
         }
-        case 0x32:
-        case 0x33: {
+        case 0x32:/*
+        case 0x33:*/ {
             // GP0(32h) - Shaded three-point polygon, semi-transparent
             
-            curAttribute = {1, 0};
+            curAttribute = {1, 0, ColorOnly};
             
             gp0CommandRemaining = 6;
             Gp0CommandMethod = &Gpu::gp0TriangleShadedOpaque;
             
             break;
         }
-        case 0x34:
-        case 0x35: {
+        case 0x34:/*
+        case 0x35:*/ {
             // GP0(34h) - Shaded Textured three-point polygon, opaque, texture-blending
             
             curAttribute = {0, 1, TextureMode::TextureColor};
@@ -410,8 +659,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         }
-        case 0x36:
-        case 0x37: {
+        case 0x36:/*
+        case 0x37:*/ {
             // GP0(36h) - Shaded Textured three-point polygon, semi-transparent, tex-blend
             
             curAttribute = {1, 1, TextureMode::TextureColor};
@@ -421,8 +670,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         }
-        case 0x38:
-        case 0x39:
+        case 0x38:/*
+        case 0x39:*/
             // GP0(38h) - Shaded four-point polygon, opaque
             // Used to draw the diamond background, and the unique colored triangles
             
@@ -771,12 +1020,12 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         default:
-            printf("Unhandled GP0 command %x\n", opcode);
+            printf("Unhandled GP0 command %x last; %x\n", opcode, lastOp);
             
             return;
         }
         
-        gp0Command.clear();
+        lastOp = opcode;
     }
     
     switch (gp0Mode) {
@@ -1250,41 +1499,40 @@ void Emulator::Gpu::gp0ClearCache(uint32_t val) {
     
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    renderer->clear();
+    //renderer->clear();
 }
 
 void Emulator::Gpu::gp0FillVRam(uint32_t val) {
     //uint32_t color =  gp0Command.index(0) & 0xFFFFFF;
-    Color color = Color::fromGp0(gp0Command.index(0));
+    uint32_t c = gp0Command.index(0);
     uint32_t cords = gp0Command.index(1);
     uint32_t res = gp0Command.index(2);
     
+    Color c0 = Color::fromGp0(c);
+    
+    /*uint16_t r =  c        & 0x1F;
+    uint16_t g = (c >> 5 ) & 0x1F;
+    uint16_t b = (c >> 10) & 0x1F;
+    
+    uint16_t rgb555 = (b << 10) | (g << 5) | r;
+    */
+    
     startX = (cords & 0xFFFF) & 0x3F0;
     startY = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
-    endX = startX + (((res & 0xFFFF) + 0x0F) & ~0x0F);
-    endY = startY + (((res & 0xFFFF0000) >> 16) & 0x1FF);
+    //startX =  cords        & 0x3FF;
+    //startY = (cords >> 16) & 0x1FF;
+    uint32_t width  =  res        & 0x3FF;
+    uint32_t height = (res >> 16) & 0x1FF;
     
-    for(uint32_t y = startX; y < endY; y++) {
-        for(uint32_t x = startY; x < endX; x++) {
-            vram->setPixel(x, y, color.toU32());
+    endX = startX + width;
+    endY = startY + height;
+    
+    // NAW I HAD ENDX AND ENDY SWAPPED
+    for(uint32_t y = startY; y < endY; y++) {
+        for(uint32_t x = startX; x < endX; x++) {
+            vram->setPixel(x, y, c0.toU32());
         }
     }
-    
-    Position positions[] = {
-        { startX, startY },
-        { endX, startY },
-        { startX, endY },
-        { endX, endY },
-    };
-    
-    Color colors[] = {
-        {color},
-        {color},
-        {color},
-        {color},
-    };
-    
-    renderer->pushRectangle(positions, colors, {}, { 0, 0 });
 }
 
 void Emulator::Gpu::gp0TriangleMonoOpaque(uint32_t val) {
@@ -1410,12 +1658,38 @@ void Emulator::Gpu::gp0ImageLoad(uint32_t val) {
     endX = startX + (((res & 0xFFFF) - 1) & 0x3FF) + 1;
     endY = startY + ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
     
+    /*uint32_t x =  cords        & 0x3FF;
+    uint32_t y = (cords >> 16) & 0x1FF;
+    
+    uint32_t w =  res        & 0x3FF;
+    uint32_t h = (res >> 16) & 0x1FF;
+    
+    startX = curX = x;
+    startY = curY = y;
+    
+    endX = x + w;
+    endY = y + h;*/
+    
     gp0Mode = VRam;
 }
 
 void Emulator::Gpu::gp0ImageStore(uint32_t val) {
     uint32_t cords = gp0Command.index(1); // this is supposed to be 3 ;-;
     uint32_t res = gp0Command.index(2);
+    
+    /*uint32_t x =  cords        & 0x3FF;
+    uint32_t y = (cords >> 16) & 0x1FF;
+    
+    uint32_t w =  res        & 0x3FF;
+    uint32_t h = (res >> 16) & 0x1FF;
+    
+    startX = curX = x;
+    startY = curY = y;
+    
+    endX = x + w;
+    endY = y + h;
+    
+    readMode = VRam;*/
     
     uint32_t x = (cords & 0xFFFF) & 0x3FF;
     uint32_t y = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
@@ -1437,6 +1711,32 @@ void Emulator::Gpu::gp0VramToVram(uint32_t val) {
     uint32_t dests = gp0Command.index(2);
     uint32_t res = gp0Command.index(3);
     
+    /*uint32_t srcX =  cords        & 0x3FF;
+    uint32_t srcY = (cords >> 16) & 0x1FF;
+    
+    uint32_t dstX =  dests        & 0x3FF;
+    uint32_t dstY = (dests >> 16) & 0x1FF;
+    
+    uint32_t w =  res        & 0x3FF;
+    uint32_t h = (res >> 16) & 0x1FF;
+    
+    int stepX = 1;
+    int stepY = 1;
+    
+    if (dstX > srcX) stepX = -1;
+    if (dstY > srcY) stepY = -1;
+    
+    int startX = (stepX > 0) ? 0 : w - 1;
+    int startY = (stepY > 0) ? 0 : h - 1;
+    
+    for (int y = startY; y >= 0 && y < (int)h; y += stepY){
+        for (int x = startX; x >= 0 && x < (int)w; x += stepX){
+            uint16_t c = vram->getPixel(srcX + x, srcY + y);
+            vram->writePixel(dstX + x, dstY + y, c);
+        }
+    }
+    */
+    
     uint32_t srcX = (cords & 0xFFFF) & 0x3FF;
     uint32_t srcY = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
     
@@ -1456,8 +1756,6 @@ void Emulator::Gpu::gp0VramToVram(uint32_t val) {
             vram->writePixel(dstX + posX, dstY + y, color);
         }
     }
-    
-    //vram->endTransfer();
 }
 
 void Emulator::Gpu::gp1(uint32_t val) {

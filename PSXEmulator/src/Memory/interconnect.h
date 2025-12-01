@@ -275,6 +275,7 @@ public:
         
         if (map::DMA.contains(abs_addr, offset)) {
             setDmaReg(offset, val);
+            
             return;
         }
         
@@ -412,7 +413,7 @@ public:
             i = {};
         
         // TODO;
-        _bios.reset("BIOS/ps-22a.bin");
+        _bios.reset("../BIOS/ps-22a.bin");
         _dma.reset();
         _gpu->reset();
         //spu->reset();

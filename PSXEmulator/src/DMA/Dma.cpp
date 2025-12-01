@@ -13,15 +13,16 @@ void Dma::step() {
             
             auto prvIrq = irq();
 	        
-            auto en = channelIrqEn & (1 << (static_cast<size_t>(i)));
-	        
-            /**
-            * Was updating the wrong flag ;-;
-            */
-            channelIrqFlags |= en;
-	        
-            if(!prvIrq && irq()) {
-                interruptPending = true;
+            auto mask = (1 << static_cast<size_t>(i));
+            auto en = channelIrqEn & mask;
+            channelIrqFlags |= en ? mask : 0;
+            
+            bool ir = irq();
+            
+            // Wtf was I doing??????????
+            if(prvIrq/* && irq()*/) {
+                //interruptPending = true;
+                printf("");
             }
         }
     }
@@ -98,6 +99,11 @@ void Dma::reset() {
     irqFlag = false;
     
     control = 0;
+    /**
+     *  Initial value on reset is 07654321h.
+     *  If two or more channels have the same priority setting,
+     *  then the priority is determined by the channel number (DMA0=Lowest, DMA6=Highest, CPU=higher than DMA6?).
+     */
     
     for(auto& channel : channels)
         channel.reset();

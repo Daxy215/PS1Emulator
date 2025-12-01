@@ -7,6 +7,8 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
+#include <optional>
 #include <vector>
 
 class MDEC {
@@ -88,7 +90,7 @@ class MDEC {
         
         struct DCTBlock {
             DCT dct;
-            std::array<RLE, 64> data;
+            std::array<RLE, 16*16> data;
             uint16_t EOB; // Fixed to FE00h
             
             DCTBlock() = default;
@@ -109,17 +111,18 @@ class MDEC {
     private:
         void handleCommand();
         void handleCommandProcessing(uint32_t val);
-    private:
-        void decodeBlocks();
-        DCTBlock decodeMarcoBlocks(uint16_t &src);
         
-        void rl_decode_block(uint16_t *blk, uint16_t &src, uint16_t *qt);
+    private:
+        void                    decodeBlocks();
+        std::optional<DCTBlock> decodeMarcoBlocks(std::vector<uint16_t>::iterator &src);
+        
+        bool rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt);
         
         void fast_idct_core(uint16_t *blk);
         void real_idct_core(uint16_t *blk);
         
-        void yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy);
-        void y_to_mono(DCTBlock &block);
+        void yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<uint16_t, 64> &blk);
+        void y_to_mono(DCTBlock &block, std::array<uint16_t, 64> &blk);
         
     private:
         bool color = false; // (0=Luminance only, 1=Luminance and Color)
@@ -175,9 +178,9 @@ class MDEC {
         
         std::array<uint16_t, 64> Crblk;
         std::array<uint16_t, 64> Cbblk;
-        std::array<uint16_t, 64> Yblk;
-        std::array<uint16_t, 64> iq_uv;
-        std::array<uint16_t, 64> iq_y;
+        std::array<uint16_t, 64> Yblk0, Yblk1, Yblk2, Yblk3;
+        //std::array<uint16_t, 64> iq_uv;
+        //std::array<uint16_t, 64> iq_y;
 };
 
 #endif //MDEC_H

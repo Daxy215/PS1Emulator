@@ -125,14 +125,14 @@ uint32_t Emulator::IO::SIO::load(uint32_t addr) {
 		ctrl |= (sio0Selected) << 13;
 		
 		return ctrl;
-	} else if(addr == 0x1F80105E) {
+	} else if(addr == 0x1F80105E || addr == 0x1F80104E) {
 		/**
 		 * SIO#_BAUD (R/W)
 		 */
 		
 		return baudTimerRate;
 	}
-	
+	// 1F80104E
 	assert(false);
 	
 	return 0xFF;

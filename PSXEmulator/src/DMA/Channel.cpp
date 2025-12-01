@@ -117,7 +117,8 @@ void Channel::done(Dma& dma, Port port) {
 		dma.channelIrqFlags |= (1 << static_cast<size_t>(port));
 		dma.interruptPending = true;
 	}
-	//interruptPending = true;
+	
+	interruptPending = true;
 }
 
 void Channel::reset() {
@@ -136,4 +137,3 @@ void Channel::reset() {
 	step = Increment;
 	sync = Manual;
 }
-

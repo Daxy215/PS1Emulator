@@ -12,15 +12,17 @@ void Emulator::Rasterizer::drawTriangle(const Emulator::Gpu::Position positions[
 	//drawLine(positions[0], positions[1], colors[0], colors[1]);
 	//drawLine(positions[1], positions[2], colors[1], colors[2]);
 	//drawLine(positions[2], positions[0], colors[2], colors[0]);
-	
-	if(positions[0].x == 658) {
+		
+	/*if(positions[0].x == 658) {
 		printf("");
-	}
+	}*/
 	
 	//fillTrinagle(positions, colors, uvs, attributes);
 }
 
 void Emulator::Rasterizer::drawQuad(const Emulator::Gpu::Position positions[], const Emulator::Gpu::Color colors[], const Emulator::Gpu::UV uvs[], const Gpu::Attributes attributes) const {
+	return;
+	
 	// [2, 3, 0]
 	Gpu::Position tr1[] = { positions[2], positions[3], positions[0] };
 	drawTriangle(tr1, colors, {}, attributes);
@@ -31,6 +33,8 @@ void Emulator::Rasterizer::drawQuad(const Emulator::Gpu::Position positions[], c
 }
 
 void Emulator::Rasterizer::drawRectangle(const Emulator::Gpu::Position positions[], const Emulator::Gpu::Color colors[], const Emulator::Gpu::UV uvs[], const Gpu::Attributes attributes) const {
+	return;
+	
 	/*// [2, 3, 0]
 	Gpu::Position tr1[] = { positions[2], positions[3], positions[0] };
 	drawTriangle(tr1, colors, {}, attributes);
@@ -49,6 +53,8 @@ void Emulator::Rasterizer::drawRectangle(const Emulator::Gpu::Position positions
 }
 
 void Emulator::Rasterizer::drawLine(const Emulator::Gpu::Position& p1, const Emulator::Gpu::Position& p2, const Emulator::Gpu::Color& c1, const Emulator::Gpu::Color& c2) const {
+	return;
+	
 	int dx = abs(p2.x - p1.x);
 	int dy = abs(p2.y - p1.y);
 	int sx = p1.x < p2.x ? 1 : -1;

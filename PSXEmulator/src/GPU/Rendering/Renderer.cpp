@@ -19,40 +19,6 @@ enum {
     HEIGHT = 512
 };
 
-GLuint Emulator::Renderer::program = 0;
-
-/*std::string readFile(const std::string& filePath) {
-    std::ifstream fileStream(filePath);
-    std::stringstream buffer;
-    
-    buffer << fileStream.rdbuf();
-    
-    return buffer.str();
-}
-
-// Function to preprocess shader code by handling #include directives
-std::string preprocessShader(const std::string& shaderCode, const std::string& directory) {
-    std::stringstream processedCode;
-    std::istringstream codeStream(shaderCode);
-    std::string line;
-    std::regex includePattern("#include\\s+\"(.+?)\"");
-    
-    while (std::getline(codeStream, line)) {
-        std::smatch matches;
-        
-        if (std::regex_search(line, matches, includePattern)) {
-            std::string includeFile = matches[1].str();
-            std::string includePath = directory + "/" + includeFile;
-            std::string includeCode = readFile(includePath);
-            processedCode << preprocessShader(includeCode, directory);
-        } else {
-            processedCode << line << '\n';
-        }
-    }
-    
-    return processedCode.str();
-}*/
-
 Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     if(!glfwInit()) {
         std::cerr << "GLFW could not initialize: " << glewGetErrorString(0) << " \n";
@@ -72,13 +38,11 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
     printf("monitorCount: %d\n", monitorCount);
     
-    auto monitor = monitors[2];
+    auto monitor = monitors[0];
     //const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     
-    int mx = 0, my = 0;
-    
-    if (monitorCount > 1)
-        glfwGetMonitorPos(monitor, &mx, &my);
+    int mx, my;
+    glfwGetMonitorPos(monitor, &mx, &my);
     
     window = glfwCreateWindow(WIDTH, HEIGHT, "PSX", nullptr, nullptr);
     glfwSetWindowPos(window, mx + 100, my + 100);
@@ -177,7 +141,7 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     glEnable(GL_BLEND);
     //glDisable(GL_BLEND);
     
-    sceneFBO = createFrameBuffer(WIDTH, HEIGHT, sceneTexture);
+    sceneFBO = createFrameBuffer(WIDTH, HEIGHT, sceneTex);
     
     // After sceneFBO creation
     for(int i = 0; i < 2; i++) {
@@ -235,52 +199,8 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
 }
 
 static bool isRendering = false;
-static bool clearV = false;
-static bool useShaders = true;
-
+static bool useShaders = false;
 void Emulator::Renderer::display() {
-    /*positions.beginFrame();
-    colors.beginFrame();
-    uvs.beginFrame();
-    attributes.beginFrame();
-    
-    glBindVertexArray(VAO);
-    
-    // POSITION
-    {
-        GLuint index = getProgramAttrib(program, "vertexPosition");
-        glBindBuffer(GL_ARRAY_BUFFER, positions.getGLBuffer());
-        glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, sizeof(Gpu::Position), nullptr);
-    }
-    
-    // COLOR
-    {
-        GLuint index = getProgramAttrib(program, "vertexColor");
-        glBindBuffer(GL_ARRAY_BUFFER, colors.getGLBuffer());
-        glVertexAttribIPointer(index, 3, GL_UNSIGNED_BYTE, 0, nullptr);
-    }
-    
-    // UV
-    {
-        GLuint index = getProgramAttrib(program, "texCoords");
-        glBindBuffer(GL_ARRAY_BUFFER, uvs.getGLBuffer());
-        glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, sizeof(Gpu::UV), nullptr);
-    }
-    
-    // ATTRIBUTES
-    {
-        GLuint index = getProgramAttrib(program, "attributes");
-        glBindBuffer(GL_ARRAY_BUFFER, attributes.getGLBuffer());
-        glVertexAttribIPointer(index, 1, GL_INT, 0, nullptr);
-    }
-    
-    glBindVertexArray(VAO);
-    
-    // Rebind current frame's buffer
-    glBindBuffer(GL_ARRAY_BUFFER, positions.getGLBuffer());
-    GLuint idx = getProgramAttrib(program, "vertexPosition");
-    glVertexAttribPointer(idx, 2, GL_FLOAT, GL_FALSE, sizeof(Gpu::Position), nullptr);*/
-        
    // if(isRendering)
    //     return;
     
@@ -318,7 +238,7 @@ void Emulator::Renderer::display() {
     glBindVertexArray(quadVAO);
     
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sceneTexture);
+    glBindTexture(GL_TEXTURE_2D, sceneTex);
     
     glUniform1i(glGetUniformLocation(bloomThresholdProgram, "thresholdImg"), 0);
     glUniform1f(glGetUniformLocation(bloomThresholdProgram, "threshold"), threshold);
@@ -371,7 +291,7 @@ void Emulator::Renderer::display() {
     
     // Bind scene texture
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sceneTexture);
+    glBindTexture(GL_TEXTURE_2D, sceneTex);
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -428,11 +348,14 @@ void Emulator::Renderer::display() {
     attributes.endFrame();*/
 }
 
+void Emulator::Renderer::endFrame() {
+    display();
+
+    nVertices = 0;    
+}
+
 void Emulator::Renderer::draw() {
     if(nVertices == 0) return;
-    
-    if (clearV)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable( GL_BLEND );
@@ -448,16 +371,12 @@ void Emulator::Renderer::draw() {
     glBindVertexArray(0);
     glUseProgram(0);
     
-    if (clearV)
-        nVertices = 0;
-    
-    clearV = false;
+    nVertices = 0;
 }
 
 void Emulator::Renderer::clear() {
     //nVertices = 0;
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    clearV = true;
 }
 
 void Emulator::Renderer::pushLine(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Gpu::Attributes attributes) {
@@ -496,13 +415,6 @@ void Emulator::Renderer::pushTriangle(Emulator::Gpu::Position positions[], Emula
         nVertices = 0;
         
         //display();
-    }
-    
-    _rasterizer.drawTriangle(positions, colors, uvs, attributes);
-    
-    int length[] = { 0, 1, 2 };
-    if(!checkIfWithin(positions, length)) {
-        return;
     }
     
     for(int i = 0; i < 3; i++) {

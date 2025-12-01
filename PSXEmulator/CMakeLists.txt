@@ -33,6 +33,9 @@ file(COPY ${CMAKE_SOURCE_DIR}/Shaders    DESTINATION ${CMAKE_BINARY_DIR})
 
 # Enable debugging symbols for Debug builds
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -g -O0")
+set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -g -O0")
+set(CMAKE_STRIP FALSE)
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer")
 
-# Include the "src" file
 add_subdirectory(src)
