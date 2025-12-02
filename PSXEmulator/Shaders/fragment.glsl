@@ -153,8 +153,47 @@ void main() {
         }
     }
     
+    /*if(textureMode == 0 || textureMode == 1) {
+        if(blendTexture == 1) {
+            discard;
+        }
+    }*/
+    
     // textureMode ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
     if (textureMode == 0) {
+        if (blendTexture == 1) {
+            // Texel = 128 (0x80) because TME=0
+            vec3 col255 = color * 255.0;
+            vec3 tex255 = vec3(128.0);
+            
+            vec3 blended255 = floor((tex255 * col255) / 128.0);
+            F.rgb = blended255 / 255.0;
+            F.a = 1.0;
+        } else {
+            F = vec4(color, 1.0);
+        }
+    } else {
+        // Textured primitives
+        if (textureMode == 1) {
+            F = samp;
+        } else { // textureMode == 2
+            F = samp * vec4(color, 1.0);
+        }
+        
+        if (blendTexture == 1) {
+            // finalChannel.rgb = (texel.rgb * vertexColour.rgb) / vec3(128.0)
+            vec3 tex5 = samp.rgb * 31.0;
+            vec3 tex255 = tex5 * (255.0 / 31.0);
+            vec3 col255 = color * 255.0;
+            
+            vec3 blended255 = floor((tex255 * col255) / 128.0);
+            
+            F.rgb = blended255 / 255.0;
+            F.a   = samp.a;
+        }
+    }
+    
+    /*if (textureMode == 0) {
         // untextured
         F = vec4(color, 1.0);
     } else if (textureMode == 1) {
@@ -162,21 +201,8 @@ void main() {
         F = samp;
     } else if (textureMode == 2) {
         // texture * vertex color
-        //F = samp * vec4(color, 1.0);
-        
-        /*if (blendTexture == 1) {
-            // (Tex * VertexColor) >> 7  where both are 0..255
-            vec3 tex255 = samp.rgb * 255.0;
-            vec3 col255 = color * 255.0;
-            
-            vec3 blended = (tex255 * col255) * (1.0 / 128.0); // >> 7
-            
-            F.rgb = clamp(blended / 255.0, 0.0, 1.0);
-            F.a   = samp.a;
-        } else {*/
-            F = samp * vec4(color, 1.0);
-        //}
-    }
+        F = samp * vec4(color, 1.0);
+    }*/
     
     /*
      * B=Back  (the old pixel read from the image in the frame buffer)
@@ -186,57 +212,55 @@ void main() {
      * 1.0 x B - 1.0 x F    ;aka B-F
      * 1.0 x B +0.25 x F    ;aka B+F/4
      */
-//    if(isSemiTransparent == 1) {
-//        float gamma = 1.0;
-//        float invGamma = 1.0 / gamma;
-//
-//        vec4 B = read(int(VRAMPos.x), int(VRAMPos.y));
-//        //vec4 B = texelFetch(sceneColor, ivec2(int(VRAMPos.x), int(VRAMPos.y)), 0);
-//
-//        vec3 Blinear = pow(B.rgb, vec3(gamma));
-//        vec3 Flinear = pow(F.rgb, vec3(gamma));
-//
-//        vec3 Bi = floor(Blinear * 31.0 + 0.5);
-//        vec3 Fi = floor(Flinear * 31.0 + 0.5) * 3;
-//
-//        vec3 O;
-//
-//        if (semiTransparencyMode == 0)
-//        O = (Bi + Fi) * 0.5;
-//        else if (semiTransparencyMode == 1)
-//        O = Bi + Fi;
-//        else if (semiTransparencyMode == 2)
-//        O = Bi - Fi;
-//        else
-//        O = Bi + Fi * 0.25;
-//
-//        O = clamp(O, 0.0, 31.0);
-//
-//        // Convert back to display gamma
-//        vec3 final = pow(O / 31.0, vec3(invGamma));
-//        outColor = vec4(final, 1.0);
-//
-//        /*// (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
-//        if(semiTransparencyMode == 0) {
-//            // 0.5 x B + 0.5 x F    ;aka B/2+F/2
-//            outColor = (0.5 * B) + (0.5 * F);
-//        } else if(semiTransparencyMode == 1) {
-//            // 1.0 x B + 1.0 x F    ;aka B+F
-//            outColor = B + F;
-//        }  else if(semiTransparencyMode == 2) {
-//            // 1.0 x B - 1.0 x F    ;aka B-F
-//            outColor = B - F;
-//        }  else if(semiTransparencyMode == 3) {
-//            // 1.0 x B +0.25 x F    ;aka B+F/4
-//            outColor = B + (0.25 * F);
-//        }
-//        
-//        outColor = clamp(outColor, 0.0, 1.0);*/
-//        //outColor = F * 0.5;
-//    } else {
+    if(isSemiTransparent == 1) {
+        float gamma = 1.0;
+        float invGamma = 1.0 / gamma;
+
+        vec4 B = read(int(VRAMPos.x), int(VRAMPos.y));
+        //vec4 B = texelFetch(sceneColor, ivec2(int(VRAMPos.x), int(VRAMPos.y)), 0);
+
+        vec3 Blinear = pow(B.rgb, vec3(gamma));
+        vec3 Flinear = pow(F.rgb, vec3(gamma));
+
+        vec3 Bi = floor(Blinear * 31.0 + 0.5);
+        vec3 Fi = floor(Flinear * 31.0 + 0.5);
+
+        vec3 O;
+
+        if (semiTransparencyMode == 0)
+            O = (Bi + Fi) * 0.5;
+        else if (semiTransparencyMode == 1)
+            O = Bi + Fi;
+        else
+            O = Bi + Fi * 0.25;
+        
+        O = clamp(O, 0.0, 31.0);
+        
+        // Convert back to display gamma
+        vec3 final = pow(O / 31.0, vec3(invGamma));
+        outColor = vec4(final, 1.0);
+        
+        /*// (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
+         if(semiTransparencyMode == 0) {
+            // 0.5 x B + 0.5 x F    ;aka B/2+F/2
+            outColor = (0.5 * B) + (0.5 * F);
+        } else if(semiTransparencyMode == 1) {
+            // 1.0 x B + 1.0 x F    ;aka B+F
+            outColor = B + F;
+        }  else if(semiTransparencyMode == 2) {
+            // 1.0 x B - 1.0 x F    ;aka B-F
+            outColor = B - F;
+        }  else if(semiTransparencyMode == 3) {
+            // 1.0 x B +0.25 x F    ;aka B+F/4
+            outColor = B + (0.25 * F);
+        }
+        
+        outColor = clamp(outColor, 0.0, 1.0);*/
+        //outColor = F * 0.5;
+    } else {
         // No transparency
         outColor = F;
-    //}
+    }
     
     fragColor = vec4(outColor.rgb, 1.0);
 }

@@ -408,12 +408,12 @@ void Emulator::Gpu::gp0(uint32_t val) {
             //Polygon p = Polygon(val);
             
             TextureMode mode;
-            if (rawTexture)
-                mode = TextureOnly;
-            else if (textured)
-                mode = TextureColor;
-            else
+            if (!textured)
                 mode = ColorOnly;
+            else if (rawTexture)
+                mode = TextureOnly;
+            else
+                mode = TextureColor;
             
             // IDE having weird issue so I gotta do a check
             curAttribute = { semiTransparent == 1 ? 1 : 0, gouraud == 1 ? 1 : 0, mode};
@@ -443,6 +443,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             bool rawTexture      = fields["isRawTexture"];
             bool textured        = fields["isTextured"];
             const uint8_t rectangleSize   = fields["rectangleSize"];
+            bool isTextured = textured || rawTexture;
             
             TextureMode mode;
             if (rawTexture)
@@ -457,13 +458,10 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             // If it's a variable size then,
             // it'll contain an extra word
-            uint8_t verticesCount = 1 + ((rectangleSize == 0) ? 1 : 0);
+            uint8_t verticesCount = 1 + ((rectangleSize == 0) ? 1 : 0) + (isTextured ? 1 : 0);
             
             gp0CommandRemaining = verticesCount;
             gp0Command.pushWord(val);
-            
-            //if (opcode == 0x68)
-            //    printf("Decpdomg; %x\n", opcode);
             
             return;
         }
@@ -1143,11 +1141,6 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
     textureDisable = ((val >> 11) & 1) != 0;
     rectangleTextureFlipX = ((val >> 12) & 1) != 0;
     rectangleTextureFlipY = ((val >> 13) & 1) != 0;
-    
-    //assert(drawToDisplay == 1);
-    //assert(textureDisable == 0);
-    //assert(rectangleTextureFlipX == 0);
-    //assert(rectangleTextureFlipY == 0);
 }
 
 void Emulator::Gpu::gp0DrawingAreaTopLeft(uint32_t val) {
@@ -1499,7 +1492,9 @@ void Emulator::Gpu::gp0ClearCache(uint32_t val) {
     
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    //renderer->clear();
+    renderer->clear();
+    
+    //printf("CLEAR\n");
 }
 
 void Emulator::Gpu::gp0FillVRam(uint32_t val) {

@@ -140,8 +140,9 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     
     glEnable(GL_BLEND);
     //glDisable(GL_BLEND);
-    
-    sceneFBO = createFrameBuffer(WIDTH, HEIGHT, sceneTex);
+
+    for (int i = 0; i < 2; i++)
+        sceneFBO[i] = createFrameBuffer(WIDTH, HEIGHT, sceneTex[i]);
     
     // After sceneFBO creation
     for(int i = 0; i < 2; i++) {
@@ -199,20 +200,23 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
 }
 
 static bool isRendering = false;
-static bool useShaders = false;
+static bool useShaders = true;
+static bool clearV = true;
 void Emulator::Renderer::display() {
    // if(isRendering)
    //     return;
     
     isRendering = true;
     
-    if (useShaders)
-        glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO[curTex]);
     
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //if (clearV)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    int winWidth = WIDTH, winHeight = HEIGHT;
+    glfwGetFramebufferSize(window, &winWidth, &winHeight);
+    
     glViewport(0, 0, WIDTH, HEIGHT);
-    //int winWidth = WIDTH, winHeight = HEIGHT;
-    //glfwGetFramebufferSize(window, &winWidth, &winHeight);
     //glViewport(0, 0, winWidth, winHeight);
     
     // Render scene
@@ -238,7 +242,7 @@ void Emulator::Renderer::display() {
     glBindVertexArray(quadVAO);
     
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sceneTex);
+    glBindTexture(GL_TEXTURE_2D, sceneTex[curTex]);
     
     glUniform1i(glGetUniformLocation(bloomThresholdProgram, "thresholdImg"), 0);
     glUniform1f(glGetUniformLocation(bloomThresholdProgram, "threshold"), threshold);
@@ -279,8 +283,8 @@ void Emulator::Renderer::display() {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
-    int winWidth = WIDTH, winHeight = HEIGHT;
-    glfwGetFramebufferSize(window, &winWidth, &winHeight);
+    //int winWidth = WIDTH, winHeight = HEIGHT;
+    //glfwGetFramebufferSize(window, &winWidth, &winHeight);
     
     // Render scene
     glViewport(0, 0, winWidth, winHeight);
@@ -291,17 +295,18 @@ void Emulator::Renderer::display() {
     
     // Bind scene texture
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sceneTex);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    int idx = 1 - curTex;
+    glBindTexture(GL_TEXTURE_2D, sceneTex[idx]);
+    //glGenerateMipmap(GL_TEXTURE_2D);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
     // Bind bloom texture
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, bloomTexture[1]);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //glGenerateMipmap(GL_TEXTURE_2D);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
     {
         // Set uniforms
@@ -349,6 +354,7 @@ void Emulator::Renderer::display() {
 }
 
 void Emulator::Renderer::endFrame() {
+    
     display();
 
     nVertices = 0;    
@@ -372,11 +378,17 @@ void Emulator::Renderer::draw() {
     glUseProgram(0);
     
     nVertices = 0;
+    
+    clearV = false;
+    
+    curTex = 1 - curTex;
 }
 
 void Emulator::Renderer::clear() {
-    //nVertices = 0;
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    /*glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
+    clearV = true;
 }
 
 void Emulator::Renderer::pushLine(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Gpu::Attributes attributes) {

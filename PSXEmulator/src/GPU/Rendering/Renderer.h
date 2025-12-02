@@ -71,8 +71,9 @@ namespace Emulator {
             // Vertex Array Object
             GLuint VAO;
             
-            GLuint sceneFBO;
-            GLuint sceneTex;
+            GLuint sceneFBO[2];
+            GLuint sceneTex[2];
+            int curTex = 0;
             GLuint bloomFBO[2];
             
             //GLuint sceneTexture;

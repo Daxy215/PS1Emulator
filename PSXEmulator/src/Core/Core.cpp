@@ -885,13 +885,13 @@ int main(int argc, char* argv[]) {
 		
 		//cpu->showDisassembler();
 		
-		static bool show = true;
-		if (ImGui::Begin("VRAM", &show)) {
-			ImGui::Image((ImTextureID)(intptr_t)gpu->renderer->sceneTex, ImVec2(1024, 512));
-		}
-		ImGui::End();
+		//static bool show = true;
+		//if (ImGui::Begin("VRAM", &show)) {
+		//	ImGui::Image((ImTextureID)(intptr_t)gpu->renderer->sceneTex, ImVec2(1024, 512));
+		//}
+		//ImGui::End();
 		
-		int winW, winH;
+		/*int winW, winH;
 		glfwGetFramebufferSize(gpu->renderer->window, &winW, &winH);
 		
 		float x1 = (gpu->drawingAreaLeft   / 1024.0f) * winW;
@@ -906,7 +906,7 @@ int main(int argc, char* argv[]) {
 			0.0f,
 			0,
 			3.0f
-		);
+		);*/
 		
 		if (ImGui::BeginMainMenuBar()) {
 			if (ImGui::BeginMenu("File")) {
