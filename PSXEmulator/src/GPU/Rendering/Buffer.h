@@ -7,7 +7,7 @@
 
 #include <GL/glew.h>
 
-constexpr unsigned int VERTEX_BUFFER_LEN = 640 * 240;
+constexpr unsigned int VERTEX_BUFFER_LEN = (640 * 240) * 2;
 
 template<typename T>
 struct Buffer {

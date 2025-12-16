@@ -181,7 +181,7 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 				stat.DSR_INPUT_LEVEL = _controllers[sio0Selected].interrupt;
 				
 				if(stat.DSR_INPUT_LEVEL) {
-					timer = 5;
+					timer = 500;
 				}
 			} else if(_connectedDevice == MemoryCard) {
 				// TODO; Temp - Handle 2nd port
@@ -194,7 +194,7 @@ void Emulator::IO::SIO::store(uint32_t addr, uint32_t val) {
 				}
 				
 				if(stat.DSR_INPUT_LEVEL) {
-					timer = 3;
+					timer = 3 * 300;
 				}
 			} else {
 				stat.DSR_INPUT_LEVEL = false;

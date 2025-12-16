@@ -30,9 +30,9 @@ static const Emulator::Gpu::BitField lineFields[] = {
     {"gouraud",          28, 1},
 };
 
-static const Emulator::Gpu::BitField rectagnleFields[] = {
+static const Emulator::Gpu::BitField rectangleFields[] = {
     {"rgb",               0, 24},
-    {"isRawTexture",      25, 1},
+    {"isRawTexture",      24, 1},
     {"isSemiTransparent", 25, 1},
     {"isTextured",        26, 1},
     /**
@@ -90,13 +90,20 @@ bool Emulator::Gpu::step(uint32_t cycles) {
       * PAL:  53.222400MHz/314/3406 = ca. 49.76 Hz (ie. almost 50Hz)
       * NTSC: 53.222400MHz/263/3413 = ca. 59.29 Hz (ie. almost 60Hz)
       */
-    _cycles += static_cast<uint32_t>(cycles * (11.0f / 7.0f));
+    //_cycles += static_cast<uint32_t>(cycles * (11.0f / 7.0f));
+    uint32_t gpuTicks = cycles * 11;
+    _gpuFrac += gpuTicks;
+    uint32_t dots = _gpuFrac / 7;
+    _gpuFrac %= 7;
     
-    uint32_t hblankStart = displayHorizEnd;
-    uint32_t hblankEnd = displayHorizStart;
-    isInHBlank = (_cycles >= hblankStart) && (_cycles < hblankEnd);
+    _cycles += dots;
     
-    //isInHBlank = _cycles < displayHorizStart || _cycles >= displayHorizEnd;
+    //uint32_t hblankStart = displayHorizEnd;
+    //uint32_t hblankEnd = displayHorizStart;
+    //isInHBlank = (_cycles >= hblankStart) && (_cycles < hblankEnd);
+    
+    // I think Mednafen does this?
+    isInHBlank = _cycles < displayHorizStart || _cycles >= displayHorizEnd;
     isInVBlank = _scanLine < displayLineStart || _scanLine >= displayLineEnd;
     
     /**
@@ -106,12 +113,6 @@ bool Emulator::Gpu::step(uint32_t cycles) {
      */
     uint32_t htiming = ((vmode == VMode::Pal) ? 3406 : 3413);
     
-    uint32_t newLines = _cycles / htiming;
-    if(newLines == 0) return false;
-    
-    _cycles %= htiming;
-    _scanLine += newLines;
-    
     /**
     * Vertical Timings
     * PAL:  314 scanlines per frame (13Ah)
@@ -119,31 +120,29 @@ bool Emulator::Gpu::step(uint32_t cycles) {
     */
     uint32_t vtiming = ((vmode == VMode::Pal) ? 314 : 263);
     
-    if(_scanLine < vtiming - 20 - 1) {
+    if (!isInVBlank) {
         // Bit31 In 480-lines mode, bit31 changes per frame.
         // And in 240-lines mode, the bit changes per scanline.
         // The bit is always zero during Vblank (vertical retrace and upper/lower screen border).
-        if(interlaced && vres == VerticalRes::Y480Lines) {
-            isOddLine = (frames % 2) != 0;
-        } else {
-            isOddLine = (_scanLine % 2) != 0;
-        }
+        
+        if (interlaced && vres == VerticalRes::Y480Lines)
+            isOddLine = (frames & 1);
+        else
+            isOddLine = (_scanLine & 1);
     } else {
         isOddLine = false;
     }
     
-    if(_scanLine >= vtiming - 1) {
-        // VBlank occurred
-        _scanLine = 0;
-        frames++;
+    while (_cycles >= htiming) {
+        _cycles -= htiming;
+        _scanLine++;
         
-        vram->endTransfer();
-        //vram->syncReadTexture();
-        //renderer->display();
-        //renderer->nVertices = 0;
-        renderer->endFrame();
-        
-        return true;
+        if (_scanLine == vtiming) {
+            _scanLine = 0;
+            frames++;
+            
+            return true;
+        }
     }
     
     return false;
@@ -181,11 +180,13 @@ uint32_t Emulator::Gpu::status() {
     // Bit 13: Interlace Field (0 = Top, 1 = Bottom)
     // (or, always 1 when GP1(08h).5=0)
     //status |= (interlaced ? 1 : static_cast<uint8_t>(field)) << 13;
-    status |= (static_cast<uint8_t>(field)) << 13;
+    //status |= (static_cast<uint8_t>(field)) << 13;
+    status |= 1 << 13;
     
     // Bit 14:  Flip screen horizontally (0=Off, 1=On, v1 only)
     status |= (rectangleTextureFlipX) << 14;
     
+    //   GPUSTAT.15 bit1 of texpage Y base
     status |= static_cast<uint32_t>(textureDisable) << 15;
     status |= hres.intoStatus();
     
@@ -405,7 +406,6 @@ void Emulator::Gpu::gp0(uint32_t val) {
             bool semiTransparent = fields["isSemiTransparent"];
             bool rawTexture      = fields["isRawTexture"];
             bool textured        = fields["isTextured"];
-            //Polygon p = Polygon(val);
             
             TextureMode mode;
             if (!textured)
@@ -416,7 +416,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
                 mode = TextureColor;
             
             // IDE having weird issue so I gotta do a check
-            curAttribute = { semiTransparent == 1 ? 1 : 0, gouraud == 1 ? 1 : 0, mode};
+            curAttribute = { semiTransparent, gouraud, mode};
             
             uint8_t verticesCount = fourVerts ? 4 : 3;
             bool isTextured = textured || rawTexture;
@@ -432,10 +432,10 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             //fields = decodeFields(val, lineFields, std::size(lineFields));
             //gp0Mode = Gp0Mode::Line;
-        } else if (cmd == 0b011) {
+        } else if (cmd == 56/*0b011*/) {
             lastCmd = cmd;
             
-            fields = decodeFields(val, rectagnleFields, std::size(rectagnleFields));
+            fields = decodeFields(val, rectangleFields, std::size(rectangleFields));
             gp0Mode = Gp0Mode::Rectangle;
             
             // gp0VarRectangleMonoOpaque
@@ -446,15 +446,15 @@ void Emulator::Gpu::gp0(uint32_t val) {
             bool isTextured = textured || rawTexture;
             
             TextureMode mode;
-            if (rawTexture)
-                mode = TextureOnly;
-            else if (textured)
-                mode = TextureColor;
-            else
+            if (!textured)
                 mode = ColorOnly;
+            else if (rawTexture)
+                mode = TextureOnly;
+            else
+                mode = TextureColor;
             
             // Rectangle doesn't have blending
-            curAttribute = { semiTransparent == 1 ? 1 : 0, 0, mode};
+            curAttribute = { semiTransparent, 0, mode};
             
             // If it's a variable size then,
             // it'll contain an extra word
@@ -499,6 +499,12 @@ void Emulator::Gpu::gp0(uint32_t val) {
             Gp0CommandMethod = &Gpu::gp0FillVRam;
             
             break;
+        case 0x03:
+            //   GP0(03h)                 - Unknown (does take up FIFO space!!!)
+            
+           printf("CMD; = %x\n", cmd);
+           
+            break;
         case 0x20:/*
         case 0x21:*/ {
             // GP0(20h) - Monochrome three-point polygon, opaque
@@ -522,7 +528,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x24: {
             // GP0(24h) - Textured three-point polygon, opaque, texture-blending
             
-            curAttribute = {1, 1, TextureMode::TextureColor};
+            curAttribute = {0, 1, TextureMode::TextureColor};
             
             gp0CommandRemaining = 7;
             Gp0CommandMethod = &Gpu::gp0TriangleTexturedOpaque;
@@ -616,7 +622,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x2B: */{
             // GP0(2Ah) - Monochrome four-point polygon, semi-transparent
             
-            curAttribute = {1, 0};
+            curAttribute = {true, false, ColorOnly};
             
             gp0CommandRemaining = 5;
             Gp0CommandMethod = &Gpu::gp0QuadMonoOpaque;
@@ -771,6 +777,28 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         }
+        case 0x58: {
+            //  GP0(58h) - Shaded Poly-line, opaque
+            
+            curAttribute = {0, 0, TextureMode::ColorOnly};
+            
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0ShadedPolyLine;
+            gp0Mode = PolyLine;
+            
+            break;
+        }
+        case 0x5A: {
+            // GP0(5Ah) - Shaded Poly-line, semi-transparent
+            
+            curAttribute = {1, 0, TextureMode::ColorOnly};
+            
+            gp0CommandRemaining = 1;
+            Gp0CommandMethod = &Gpu::gp0ShadedPolyLine;
+            gp0Mode = PolyLine;
+            
+            break;
+        }
         case 0x60: {
             // GP0(60h) - Monochrome Rectangle (variable size) (opaque)
             
@@ -782,7 +810,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x62: {
             // GP0(62h) - Monochrome Rectangle (variable size) (semi-transparent)
             
-            curAttribute = {1, 0};
+            curAttribute = {true, false, ColorOnly};
             
             gp0CommandRemaining = 3;
             Gp0CommandMethod = &Gpu::gp0VarRectangleMonoOpaque;
@@ -841,7 +869,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x6A: {
             // GP0(6Ah) - Monochrome Rectangle (1x1) (Dot) (semi-transparent)
 
-            curAttribute = {1, 0};
+            curAttribute = {true, false, ColorOnly};
             
             gp0CommandRemaining = 2;
             Gp0CommandMethod = &Gpu::gp0DotRectangleMonoOpaque;
@@ -859,7 +887,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x72: {
             // GP0(72h) - Monochrome Rectangle (8x8) (semi-transparent)
             
-            curAttribute = {1, 0};
+            curAttribute = {true, false, ColorOnly};
             
             gp0CommandRemaining = 2;
             Gp0CommandMethod = &Gpu::gp08RectangleMonoOpaque;
@@ -917,7 +945,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
         case 0x7A: {
             // GP0(7Ah) - Monochrome Rectangle (16x16) (semi-transparent)
             
-            curAttribute = {1, 0};
+            curAttribute = {true, false, ColorOnly};
             
             gp0CommandRemaining = 2;
             Gp0CommandMethod = &Gpu::gp016RectangleMonoOpaque;
@@ -1018,7 +1046,9 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         default:
-            printf("Unhandled GP0 command %x last; %x\n", opcode, lastOp);
+            // TODO; idk probably doing smth wrong but Tekken 3 calls those but they dont exists?
+            if (opcode != 0x29 && opcode != 0x21)
+                printf("Unhandled GP0 command %x last; %x cmd? = %x\n", opcode, lastOp, cmd);
             
             return;
         }
@@ -1034,7 +1064,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             if(gp0CommandRemaining == 0) {
                 // Set texture depth of the vertices that are going,
                 // to be sent to the GPU
-                curAttribute.textureDepth = static_cast<int>(this->textureDepth);
+                curAttribute.setTextureDepth(static_cast<int>(this->textureDepth));
                 
                 // All of the parameters optioned; run the command
                 Gp0CommandMethod(*this, val);
@@ -1056,6 +1086,18 @@ void Emulator::Gpu::gp0(uint32_t val) {
                         gp0CommandRemaining = 0;
                         gp0Mode = Command;
                         
+                        //vram->endTransfer();
+
+                        uint32_t w = endX - startX;
+                        uint32_t h = endY - startY;
+                        
+                        vram->flushRegion(startX, startY, w, h);
+                        
+                        uint32_t glY = (512 - startY) - h;
+                        
+                        //vram->copyToTexture(startX, glY, dstX, dstY, w, h, renderer->sceneTex[0]);
+                        vram->copyToTexture(startX, glY, startX, glY, w, h, renderer->sceneTex[0]);
+                        
                         return true;
                     }
                 }
@@ -1063,11 +1105,48 @@ void Emulator::Gpu::gp0(uint32_t val) {
                 return false;
             };
             
-            vram->writePixel(curX, curY, val & 0xFFFF);
+            const auto finish = [&] {
+                gp0CommandRemaining = 0;
+                gp0Mode = Command;
+                
+                if (!renderVRamToScreen) return;
+                
+                uint32_t w = endX - startX;
+                uint32_t h = endY - startY;
+                
+                vram->flushRegion(startX, startY, w, h);
+                
+                uint32_t glY = (512 - startY) - h;
+                
+                //vram->copyToTexture(startX, glY, dstX, dstY, w, h, renderer->sceneTex[0]);
+                vram->copyToTexture(startX, glY, startX, glY, w, h, renderer->sceneTex[0]);
+            };
+            
+            uint16_t p0 = val & 0xFFFF;
+            uint16_t p1 = val >> 16;
+            vram->writePixel(curX, curY, p0);
+            
+            curX++;
+            if (curX >= endX) {
+                curX = startX;
+                curY++;
+                if (curY >= endY) finish();
+            }
+            
+            vram->writePixel(curX, curY, p1);
+            
+            curX++;
+            if (curX >= endX) {
+                curX = startX;
+                curY++;
+                if (curY >= endY) finish();
+            }
+            
+            /*vram->writePixel(curX, curY, val & 0xFFFF);
             if(step()) return;
             
             vram->writePixel(curX, curY, (val >> 16) & 0xFFFF);
-            if(step()) return;
+            if(step()) return;*/
             
             break;
         }
@@ -1081,7 +1160,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             if((val & 0xf000f000) == 0x50005000) {
                 // Set texture depth of the vertices that are going,
                 // to be sent to the GPU
-                curAttribute.textureDepth = static_cast<int>(this->textureDepth);
+                curAttribute.setTextureDepth(static_cast<int>(this->textureDepth));
                 
                 // Termination code
                 Gp0CommandMethod(*this, val);
@@ -1342,23 +1421,25 @@ void Emulator::Gpu::gp0MonoLine(uint32_t val) {
 }
 
 void Emulator::Gpu::gp0PolyLineMono(uint32_t val) {
-    currentLineColor = Color::fromGp0(gp0Command.index(0));
+    /**
+     * TODO; If the 2 vertices in a line overlap,
+     * TODO; then the GPU will draw a 1x1 rectangle,
+     * TODO; in the location of the 2 vertices using the colour of the first vertex.
+     */
+    auto     currentLineColor = Color::fromGp0(gp0Command.index(0));
+    Position prev             = Position::fromGp0(gp0Command.index(1));
     
-    for (size_t i = 1; i < gp0Command.len; i++) {
+    for (size_t i = 2; i < gp0Command.len; i++) {
         uint32_t data = gp0Command.index(i);
         
         Position current = Position::fromGp0(data);
         
-        if (i == 0) {
-            lineStart = current;
-        } else {
-            Position positions[] = {lineStart, current};
-            Color colors[] = {currentLineColor, currentLineColor};
-            
-            renderer->pushLine(positions, colors, {}, curAttribute);
-            
-            lineStart = current;
-        }
+        Position positions[] = {prev, current};
+        Color colors[] = {currentLineColor, currentLineColor};
+        
+        renderer->pushLine(positions, colors, {}, curAttribute);
+        
+        prev = current;
     }
 }
 
@@ -1374,6 +1455,29 @@ void Emulator::Gpu::gp0ShadedLine(uint32_t val) {
     };
     
     renderer->pushLine(positions, colors, {}, curAttribute);
+}
+
+void Emulator::Gpu::gp0ShadedPolyLine(uint32_t val) {
+    /**
+     * TODO; If the 2 vertices in a line overlap,
+     * TODO; then the GPU will draw a 1x1 rectangle,
+     * TODO; in the location of the 2 vertices using the colour of the first vertex.
+     */
+    Color    c0   = Color   ::fromGp0(gp0Command.index(0));
+    Position p0 = Position::fromGp0(gp0Command.index(1));
+    
+    for (size_t i = 2; i < gp0Command.len; i += 2) {
+        const Color    c1 = Color::fromGp0(gp0Command.index(i));
+        const Position p1 = Position::fromGp0(gp0Command.index(i + 1));
+        
+        Position positions[] = {p0, p1};
+        Color colors[] = {c0, c1};
+        
+        renderer->pushLine(positions, colors, {}, curAttribute);
+        
+        c0 = c1;
+        p0 = p1;
+    }
 }
 
 void Emulator::Gpu::renderRectangle(Position position, Color color, UV uv, uint16_t width, uint16_t height) {
@@ -1395,12 +1499,16 @@ void Emulator::Gpu::renderRectangle(Position position, Color color, UV uv, uint1
     };
     
     Color colors[4] = { color, color, color, color };
+    
     UV uvs[4] = {
         UV(uv.u          , uv.v           , uv.dataX, uv.dataY),
         UV(uv.u + width, uv.v           , uv.dataX, uv.dataY),
         UV(uv.u          , uv.v + height, uv.dataX, uv.dataY),
         UV(uv.u + width, uv.v + height, uv.dataX, uv.dataY),
     };
+    
+    if (rectangleTextureFlipX) std::swap(uvs[0], uvs[1]), std::swap(uvs[2], uvs[3]);
+    if (rectangleTextureFlipY) std::swap(uvs[0], uvs[2]), std::swap(uvs[1], uvs[3]);
     
     renderer->pushRectangle(positions, colors, uvs, curAttribute);
 }
@@ -1483,13 +1591,6 @@ void Emulator::Gpu::gp016RectangleTextured(uint32_t val) {
 }
 
 void Emulator::Gpu::gp0ClearCache(uint32_t val) {
-    // TODO;
-    /*memset(vram->pixels16, 0, vram->MAX_WIDTH * vram->MAX_HEIGHT * sizeof(uint16_t));
-    memset(vram->pixels8, 0,  vram->MAX_WIDTH * vram->MAX_HEIGHT * sizeof(uint8_t));
-    memset(vram->pixels4, 0,  vram->MAX_WIDTH * vram->MAX_HEIGHT * sizeof(uint8_t));*/
-    
-    //memset(vram->ptr16, 0, vram->MAX_WIDTH * vram->MAX_HEIGHT * sizeof(uint16_t));
-    
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     renderer->clear();
@@ -1509,24 +1610,55 @@ void Emulator::Gpu::gp0FillVRam(uint32_t val) {
     uint16_t g = (c >> 5 ) & 0x1F;
     uint16_t b = (c >> 10) & 0x1F;
     
-    uint16_t rgb555 = (b << 10) | (g << 5) | r;
-    */
+    uint16_t rgb555 = (b << 10) | (g << 5) | r;*/
     
-    startX = (cords & 0xFFFF) & 0x3F0;
-    startY = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
-    //startX =  cords        & 0x3FF;
-    //startY = (cords >> 16) & 0x1FF;
-    uint32_t width  =  res        & 0x3FF;
-    uint32_t height = (res >> 16) & 0x1FF;
+    struct mask {
+        constexpr static int startX(int x) { return x & 0x3f0; }
+        constexpr static int startY(int y) { return y & 0x1ff; }
+        constexpr static int endX(int x) { return ((x & 0x3ff) + 0x0f) & ~0x0f; }
+        constexpr static int endY(int y) { return y & 0x1ff; }
+    };
     
-    endX = startX + width;
-    endY = startY + height;
+    startX = curX = std::max<int>(0, mask::startX(cords & 0xffff));
+    startY = curY = std::max<int>(0, mask::startY((cords & 0xffff0000) >> 16));
+    endX = std::min<int>(1024, startX + mask::endX(res & 0xffff));
+    endY = std::min<int>(512, startY + mask::endY((res & 0xffff0000) >> 16));
     
     // NAW I HAD ENDX AND ENDY SWAPPED
     for(uint32_t y = startY; y < endY; y++) {
         for(uint32_t x = startX; x < endX; x++) {
             vram->setPixel(x, y, c0.toU32());
         }
+    }
+    
+    if (!renderVRamToScreen) return;
+    //return; // TODO; Does weird shit
+    
+    Position positions[] = {
+        { startX, startY },  // 0 TL
+        { endX,   startY },  // 1 TR
+        { endX,   endY   },  // 2 BR
+        { startX, endY   }   // 3 BL
+    };
+    
+    Color colors[4] = { c0, c0, c0, c0 };
+    
+    Attributes attr = { false, false, ColorOnly };
+    
+    // Triangle 1: 2,3,0
+    {
+        Position t1[3] = { positions[0], positions[1], positions[2] };
+        Color    c1[3] = { colors[0],    colors[1],    colors[2]    };
+        
+        renderer->pushTriangle(t1, c1, {}, attr);
+    }
+    
+    // Triangle 2: 3,0,1
+    {
+        Position t2[3] = { positions[0], positions[2], positions[3] };
+        Color    c2[3] = { colors[0],    colors[2],    colors[3]    };
+        
+        renderer->pushTriangle(t2, c2, {}, attr);
     }
 }
 
@@ -1646,12 +1778,25 @@ void Emulator::Gpu::gp0ImageLoad(uint32_t val) {
     uint32_t cords = gp0Command.index(1);
     uint32_t res = gp0Command.index(2);
     
-    startX = curX = (cords & 0xFFFF) & 0x3FF;
+    struct MaskCopy {
+        constexpr static int x(int x) { return x & 0x3ff; }
+        constexpr static int y(int y) { return y & 0x1ff; }
+        constexpr static int w(int w) { return ((w - 1) & 0x3ff) + 1; }
+        constexpr static int h(int h) { return ((h - 1) & 0x1ff) + 1; }
+    };
+    
+    startX = curX = MaskCopy::x(cords & 0xffff);
+    startY = curY = MaskCopy::y((cords & 0xffff0000) >> 16);
+    
+    endX = startX + MaskCopy::w(res & 0xffff);
+    endY = startY + MaskCopy::h((res & 0xffff0000) >> 16);
+    
+    /*startX = curX = (cords & 0xFFFF) & 0x3FF;
     startY = curY = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
     
     // 2nd  Source Coord      (YyyyXxxxh) ; write to GP0 port (as usual?)
     endX = startX + (((res & 0xFFFF) - 1) & 0x3FF) + 1;
-    endY = startY + ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;
+    endY = startY + ((((res & 0xFFFF0000) >> 16) - 1) & 0x1FF) + 1;*/
     
     /*uint32_t x =  cords        & 0x3FF;
     uint32_t y = (cords >> 16) & 0x1FF;
@@ -1669,7 +1814,7 @@ void Emulator::Gpu::gp0ImageLoad(uint32_t val) {
 }
 
 void Emulator::Gpu::gp0ImageStore(uint32_t val) {
-    uint32_t cords = gp0Command.index(1); // this is supposed to be 3 ;-;
+    uint32_t cords = gp0Command.index(1); // this is supposed to be 3 ;-; Huh???
     uint32_t res = gp0Command.index(2);
     
     /*uint32_t x =  cords        & 0x3FF;
@@ -1686,7 +1831,7 @@ void Emulator::Gpu::gp0ImageStore(uint32_t val) {
     
     readMode = VRam;*/
     
-    uint32_t x = (cords & 0xFFFF) & 0x3FF;
+    /*uint32_t x = (cords & 0xFFFF) & 0x3FF;
     uint32_t y = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
     
     uint32_t width = (((res & 0xFFFF) - 1) & 0x3FF) + 1;
@@ -1696,12 +1841,25 @@ void Emulator::Gpu::gp0ImageStore(uint32_t val) {
     startY = curY = y;
     
     endX = startX + width;
-    endY = startY + height;
+    endY = startY + height;*/
+    
+    struct MaskCopy {
+        constexpr static int x(int x) { return x & 0x3ff; }
+        constexpr static int y(int y) { return y & 0x1ff; }
+        constexpr static int w(int w) { return ((w - 1) & 0x3ff) + 1; }
+        constexpr static int h(int h) { return ((h - 1) & 0x1ff) + 1; }
+    };
+    
+    startX = curX = MaskCopy::x(cords & 0xffff);
+    startY = curY = MaskCopy::y((cords & 0xffff0000) >> 16);
+    
+    endX = startX + MaskCopy::w(res & 0xffff);
+    endY = startY + MaskCopy::h((res & 0xffff0000) >> 16);
     
     readMode = VRam;
 }
 
-void Emulator::Gpu::gp0VramToVram(uint32_t val) {
+void Emulator::Gpu::gp0VramToVram(uint32_t val) const {
     uint32_t cords = gp0Command.index(1);
     uint32_t dests = gp0Command.index(2);
     uint32_t res = gp0Command.index(3);
@@ -1729,8 +1887,7 @@ void Emulator::Gpu::gp0VramToVram(uint32_t val) {
             uint16_t c = vram->getPixel(srcX + x, srcY + y);
             vram->writePixel(dstX + x, dstY + y, c);
         }
-    }
-    */
+    }*/
     
     uint32_t srcX = (cords & 0xFFFF) & 0x3FF;
     uint32_t srcY = ((cords & 0xFFFF0000) >> 16) & 0x1FF;
@@ -1751,111 +1908,128 @@ void Emulator::Gpu::gp0VramToVram(uint32_t val) {
             vram->writePixel(dstX + posX, dstY + y, color);
         }
     }
+    
+    if (!renderVRamToScreen) return;
+    
+    // TODO; VERIFY THIS
+    uint32_t x = dstX;
+    uint32_t y = dstY;
+    uint32_t w = width;
+    uint32_t h = height;
+    
+    vram->flushRegion(x, y, w, h);
+    
+    uint32_t glY = (512 - y) - h;
+    
+    //vram->copyToTexture(startX, glY, dstX, dstY, w, h, renderer->sceneTex[0]);
+    vram->copyToTexture(x, glY, x, glY, w, h, renderer->sceneTex[0]);
 }
 
 void Emulator::Gpu::gp1(uint32_t val) {
     uint32_t opcode = (val >> 24) & 0xFF;
     
     switch (opcode) {
-    case 0x00:
-        gp1Reset(val);
-        break;
-    case 0x01:
-        gp1ResetCommandBuffer(val);
-        break;
-    case 0x02:
-        gp1AcknowledgeIrq(val);
-        break;
-    case 0x03:
-        gp1DisplayEnable(val);
-        break;
-    case 0x04:
-        gp1DmaDirection(val);
-        break;
-    case 0x05:
-        gp1DisplayVramStart(val);
-        break;
-    case 0x06:
-        gp1DisplayHorizontalRange(val);
-        break;
-    case 0x07:
-        gp1DisplayVerticalRange(val);
-        break;
-    case 0x08:
-        gp1DisplayMode(val);
-        break;
-        // -> 1F
-    case 0x10: {
-        readMode = Command;
-        
-        /**
-         * On New 208pin GPUs, following values can be selected:
-         * 00h-01h = Returns Nothing (old value in GPUREAD remains unchanged)
-         * 02h     = Read Texture Window setting  ;GP0(E2h) ;20bit/MSBs=Nothing
-         * 03h     = Read Draw area top left      ;GP0(E3h) ;20bit/MSBs=Nothing
-         * 04h     = Read Draw area bottom right  ;GP0(E4h) ;20bit/MSBs=Nothing
-         * 05h     = Read Draw offset             ;GP0(E5h) ;22bit
-         * 06h     = Returns Nothing (old value in GPUREAD remains unchanged)
-         * 07h     = Read GPU Type (usually 2)    ;see "GPU Versions" chapter
-         * 08h     = Unknown (Returns 00000000h) (lightgun on some GPUs?)
-         * 09h-0Fh = Returns Nothing (old value in GPUREAD remains unchanged)
-         * 10h-FFFFFFh = Mirrors of 00h..0Fh
-         */
-        
-        switch (val % 8) {
-            // Returns nothing
-            case 0:
-            case 1:
-                break;
-            case 2: {
-                _read = (textureWindowYOffset << 15) | (textureWindowXOffset << 10) | (textureWindowYMask << 5) | textureWindowXMask;
-                
-                break;
-            }
-            case 3: {
-                _read = (drawingAreaTop << 10) | drawingAreaLeft;
-                
-                break;
-            }
-            case 4: {
-                _read = (drawingAreaBottom << 10) | drawingAreaRight;
-                
-                break;
-            }
-            case 5: {
-                _read = (((drawingYOffset) & 0x7FF) << 11) | ((drawingXOffset) & 0x7FF);
-                
-                break;
-            }
-            case 6: {
+        case 0x00:
+            gp1Reset(val);
+            break;
+        case 0x01:
+            gp1ResetCommandBuffer(val);
+            break;
+        case 0x02:
+            gp1AcknowledgeIrq(val);
+            break;
+        case 0x03:
+            gp1DisplayEnable(val);
+            break;
+        case 0x04:
+            gp1DmaDirection(val);
+            break;
+        case 0x05:
+            gp1DisplayVramStart(val);
+            break;
+        case 0x06:
+            gp1DisplayHorizontalRange(val);
+            break;
+        case 0x07:
+            gp1DisplayVerticalRange(val);
+            break;
+        case 0x08:
+            gp1DisplayMode(val);
+            break;
+            // -> 1F
+        case 0x10: {
+            readMode = Command;
+            
+            /**
+             * On New 208pin GPUs, following values can be selected:
+             * 00h-01h = Returns Nothing (old value in GPUREAD remains unchanged)
+             * 02h     = Read Texture Window setting  ;GP0(E2h) ;20bit/MSBs=Nothing
+             * 03h     = Read Draw area top left      ;GP0(E3h) ;20bit/MSBs=Nothing
+             * 04h     = Read Draw area bottom right  ;GP0(E4h) ;20bit/MSBs=Nothing
+             * 05h     = Read Draw offset             ;GP0(E5h) ;22bit
+             * 06h     = Returns Nothing (old value in GPUREAD remains unchanged)
+             * 07h     = Read GPU Type (usually 2)    ;see "GPU Versions" chapter
+             * 08h     = Unknown (Returns 00000000h) (lightgun on some GPUs?)
+             * 09h-0Fh = Returns Nothing (old value in GPUREAD remains unchanged)
+             * 10h-FFFFFFh = Mirrors of 00h..0Fh
+             */
+            
+            switch (val % 8) {
                 // Returns nothing
-                
-                break;
+                case 0:
+                case 1:
+                    break;
+                case 2: {
+                    _read = (textureWindowYOffset << 15) | (textureWindowXOffset << 10) | (textureWindowYMask << 5) | textureWindowXMask;
+                    
+                    break;
+                }
+                case 3: {
+                    _read = (drawingAreaTop << 10) | drawingAreaLeft;
+                    
+                    break;
+                }
+                case 4: {
+                    _read = (drawingAreaBottom << 10) | drawingAreaRight;
+                    
+                    break;
+                }
+                case 5: {
+                    _read = (((drawingYOffset) & 0x7FF) << 11) | ((drawingXOffset) & 0x7FF);
+                    
+                    break;
+                }
+                case 6: {
+                    // R  06h     = Returns Nothing (old value in GPUREAD remains unchanged)
+                    
+                    break;
+                }
+                case 7: {
+                    _read = 2; // GPU VERSION
+                    
+                    break;
+                }
+                case 8: {
+                    _read = 0;
+                    
+                    break;
+                }
+                default: {
+                    printf("Unknown GP1 read value %d\n", (val % 8));
+                    std::cerr << "";
+                    assert(false);
+                    
+                    break;
+                }
             }
-            case 7: {
-                _read = 2; // GPU VERSION
-                
-                break;
-            }
-            case 8: {
-                _read = 0;
-                
-                break;
-            }
-            default: {
-                printf("Unknown GP1 read value %d\n", (val % 8));
-                std::cerr << "";
-                
-                break;
-            }
+            
+            break;
         }
-        
-        break;
-    }
-    default:
-        std::cerr << "ERROR; Unhandled GPU1 command " << std::to_string(opcode) << '\n';
-        
-        break;
+        default:
+            std::cerr << "ERROR; Unhandled GPU1 command " << std::to_string(opcode) << '\n';
+            assert(false);
+            
+            break;
     }
 }
 
@@ -1904,8 +2078,8 @@ void Emulator::Gpu::gp1Reset(uint32_t val) {
     
     // XXX should also clear the command FIFO when we implement it
     // XXX Should also invalidate GPU chance if we ever implement it
-    //gp0Command.clear();
-    //gp0CommandRemaining = 0;
+    gp0Command.clear();
+    gp0CommandRemaining = 0;
 }
 
 void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
@@ -1934,35 +2108,43 @@ void Emulator::Gpu::gp1DisplayMode(uint32_t val) {
 
 void Emulator::Gpu::gp1DisplayEnable(uint32_t val) {
     displayEnabled = (val & 1) == 0;
+    
+    if (!displayEnabled)
+        printf("AUP?\n");
+    
+    //assert(displayEnabled);
+}
+
+void Emulator::Gpu::gp1DisplayVramStart(uint32_t val) {
+    uint32_t rawX =  val        & 0x3FF; // bits 0–9  (0..1023, halfword offset)
+    uint32_t rawY = (val >> 10) & 0x1FF; // bits 10–18 (0..511 VRAM lines)
+    
+    uint32_t x = (rawX & ~7);   // align down to 8 pixels
+    uint32_t y = rawY;
+    
+    displayVramXStart = x;
+    displayVramYStart = y;
 }
 
 void Emulator::Gpu::gp1DmaDirection(uint32_t val) {
     switch (val & 3) {
-    case 0:
-        dmaDirection = DmaDirection::Off;
-        break;
-    case 1:
-        dmaDirection = DmaDirection::Fifo;
-        break;
-    case 2:
-        dmaDirection = DmaDirection::CpuToGp0;
-        break;
-    case 3:
-        dmaDirection = DmaDirection::VRamToCpu;
-        break;
-    default:
-        dmaDirection = DmaDirection::Off;
-        
-        throw std::runtime_error("This shouldn't happen.. GP1 Direction; " + std::to_string(val & 3));
+        case 0:
+            dmaDirection = DmaDirection::Off;
+            break;
+        case 1:
+            dmaDirection = DmaDirection::Fifo;
+            break;
+        case 2:
+            dmaDirection = DmaDirection::CpuToGp0;
+            break;
+        case 3:
+            dmaDirection = DmaDirection::VRamToCpu;
+            break;
+        default:
+            dmaDirection = DmaDirection::Off;
+            
+            throw std::runtime_error("This shouldn't happen.. GP1 Direction; " + std::to_string(val & 3));
     }
-}
-
-void Emulator::Gpu::gp1DisplayVramStart(uint32_t val) {
-    displayVramXStart = static_cast<int16_t>(val & /*0x3FE*/0x3FF);
-    displayVramYStart = static_cast<int16_t>((val >> 10) & 0x1FF);
-    
-    //assert(displayVramXStart == 0);
-    //assert(displayVramYStart == 0);
 }
 
 void Emulator::Gpu::gp1DisplayHorizontalRange(uint32_t val) {
@@ -2035,47 +2217,43 @@ void Emulator::Gpu::reset() {
     dmaDirection = DmaDirection::Off;
     rectangleTextureFlipX = false;
     rectangleTextureFlipY = false;
-
+    
     textureWindowXMask = 0;
     textureWindowYMask = 0;
     textureWindowXOffset = 0;
     textureWindowYOffset = 0;
-
+    
     drawingAreaLeft = 0;
     drawingAreaTop = 0;
     drawingAreaRight = 0;
     drawingAreaBottom = 0;
     drawingXOffset = 0;
     drawingYOffset = 0;
-
+    
     displayVramXStart = 0;
     displayVramYStart = 0;
     displayHorizStart = 0;
     displayHorizEnd = 0;
     displayLineStart = 0;
     displayLineEnd = 0;
-
+    
     _read = 0;
     _scanLine = 0;
     _cycles = 0;
     frames = 0;
-
+    
     isInHBlank = false;
     isInVBlank = false;
     dot = 1;
     isOddLine = false;
-
+    
     gp0Command.clear();
     gp0CommandRemaining = 0;
     gp0Mode = Command;
     readMode = Command;
     Gp0CommandMethod = nullptr;
-
+    
     curAttribute = {};
-
-    // Reset poly-line state
-    lineStart = Position();
-    currentLineColor = Color();
     
     // TODO; ?
     vram->reset();
@@ -2087,6 +2265,4 @@ void Emulator::Gpu::reset() {
 
 void Emulator::Gpu::setTextureDepth(TextureDepth depth) {
     this->textureDepth = depth;
-    
-    //renderer->setTextureDepth(static_cast<int>(depth));
 }

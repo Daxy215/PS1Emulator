@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include <GLFW/glfw3.h>
+#include <glm/detail/func_geometric.inl>
 
 #include "imgui.h"
 
@@ -38,7 +39,7 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     GLFWmonitor** monitors = glfwGetMonitors(&monitorCount);
     printf("monitorCount: %d\n", monitorCount);
     
-    auto monitor = monitors[0];
+    auto monitor = monitors[monitorCount - 1];
     //const GLFWvidmode* mode = glfwGetVideoMode(monitor);
     
     int mx, my;
@@ -140,7 +141,7 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
     
     glEnable(GL_BLEND);
     //glDisable(GL_BLEND);
-
+    
     for (int i = 0; i < 2; i++)
         sceneFBO[i] = createFrameBuffer(WIDTH, HEIGHT, sceneTex[i]);
     
@@ -160,7 +161,7 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
         // Compile vertex shader first as,
         // it's used with other shaders
         //std::string postVertexSource   = preprocessShader(readFile("Shaders/bloomVertex.glsl"), "Shader");
-        std::string postVertexSource   = getShaderSource("../Shaders/bloomVertex.glsl");
+        /*std::string postVertexSource   = getShaderSource("../Shaders/bloomVertex.glsl");
         postProcessVertexShader = compileShader(postVertexSource.c_str(), GL_VERTEX_SHADER);
         
         //std::string thresholdSource = preprocessShader(readFile("Shaders/bloom_threshold.frag"), "Shaders");
@@ -178,6 +179,37 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
         std::string postFragmentSource = getShaderSource("../Shaders/bloomFragment.glsl");
         
         postProcessFragmentShader = compileShader(postFragmentSource.c_str(), GL_FRAGMENT_SHADER);
+        postProcessProgram = linkProgram(postProcessVertexShader, postProcessFragmentShader);*/
+        
+        const char *v = R"(
+            #version 330 core
+            
+            layout(location = 0) in vec2 aPos;
+            layout(location = 1) in vec2 aUV;
+            
+            out vec2 vUV;
+            
+            void main() {
+                vUV = aUV;
+                gl_Position = vec4(aPos, 0.0, 1.0);
+            })";
+        
+        const char *f = R"(
+            #version 330 core
+            
+            in vec2 vUV;
+            out vec4 fragColor;
+            
+            uniform sampler2D screenTexture;
+            
+            void main() {
+                fragColor = texture(screenTexture, vUV);
+            }
+            )";
+        
+        postProcessVertexShader   = compileShader(v,   GL_VERTEX_SHADER);
+        postProcessFragmentShader = compileShader(f, GL_FRAGMENT_SHADER);
+        
         postProcessProgram = linkProgram(postProcessVertexShader, postProcessFragmentShader);
         
         setupScreenQuad();
@@ -200,18 +232,15 @@ Emulator::Renderer::Renderer(Emulator::Gpu& gpu) : gpu(gpu), _rasterizer(gpu) {
 }
 
 static bool isRendering = false;
-static bool useShaders = true;
-static bool clearV = true;
+static bool useShaders = false;
 void Emulator::Renderer::display() {
-   // if(isRendering)
-   //     return;
+    if(isRendering)
+       return;
     
     isRendering = true;
     
     glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO[curTex]);
-    
-    //if (clearV)
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     int winWidth = WIDTH, winHeight = HEIGHT;
     glfwGetFramebufferSize(window, &winWidth, &winHeight);
@@ -220,13 +249,37 @@ void Emulator::Renderer::display() {
     //glViewport(0, 0, winWidth, winHeight);
     
     // Render scene
-    
     glEnable(GL_BLEND);
+    //glDisable(GL_BLEND);
     draw();
     glDisable(GL_BLEND);
     
     if (!useShaders) {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        
+        int winWidth, winHeight;
+        glfwGetFramebufferSize(window, &winWidth, &winHeight);
+        glViewport(0, 0, winWidth, winHeight);
+        
+        glUseProgram(postProcessProgram);
+        
+        glBindVertexArray(quadVAO);
+        
+        glActiveTexture(GL_TEXTURE0);
+        
+        if (!renderVRAM)
+            glBindTexture(GL_TEXTURE_2D, sceneTex[curTex]);
+        else
+            glBindTexture(GL_TEXTURE_2D, gpu.vram->tex);
+        
+        glUniform1i(glGetUniformLocation(postProcessProgram, "screenTexture"), 0);
+        
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        
+        glBindVertexArray(0);
+        
         isRendering = false;
+        
         return;
     }
     
@@ -295,8 +348,7 @@ void Emulator::Renderer::display() {
     
     // Bind scene texture
     glActiveTexture(GL_TEXTURE0);
-    int idx = 1 - curTex;
-    glBindTexture(GL_TEXTURE_2D, sceneTex[idx]);
+    glBindTexture(GL_TEXTURE_2D, sceneTex[curTex]);
     //glGenerateMipmap(GL_TEXTURE_2D);
     //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -353,11 +405,21 @@ void Emulator::Renderer::display() {
     attributes.endFrame();*/
 }
 
-void Emulator::Renderer::endFrame() {
+void Emulator::Renderer::renderFrame() {
+    /*uint32_t fbX = gpu.displayVramXStart;
+    uint32_t fbY = gpu.displayVramYStart;
+    uint32_t fbW = gpu.hres.getResolution();                  // 256/320/368/512/640
+    uint32_t fbH = (gpu.vres == VerticalRes::Y480Lines) 
+             ? 480 
+             : (gpu.display LineEnd - gpu.displayLineStart);*/
+    
+    //gpu.vram->copyToTexture(0, 0, 1024, 512, sceneTex[curTex]);
     
     display();
-
-    nVertices = 0;    
+    
+    curTex = 0;
+    
+    nVertices = 0;
 }
 
 void Emulator::Renderer::draw() {
@@ -370,25 +432,21 @@ void Emulator::Renderer::draw() {
     glBindVertexArray(VAO);
     
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gpu.vram->texture16);
+    glBindTexture(GL_TEXTURE_2D, gpu.vram->tex);
+    
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, sceneTex[0]);
     
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(nVertices));
     
     glBindVertexArray(0);
     glUseProgram(0);
-    
-    nVertices = 0;
-    
-    clearV = false;
-    
-    curTex = 1 - curTex;
 }
 
 void Emulator::Renderer::clear() {
     /*glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
-    clearV = true;
 }
 
 void Emulator::Renderer::pushLine(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Gpu::Attributes attributes) {
@@ -398,27 +456,46 @@ void Emulator::Renderer::pushLine(Emulator::Gpu::Position positions[], Emulator:
     
     //_rasterizer.drawLine(positions, colors, uvs, attributes);
     
-    //int indices[] = {0, 1};
-    //if (!checkIfWithin(positions, indices)) {
-    //    return;
-    //}
+    float dx = positions[1].x - positions[0].x;
+    float dy = positions[1].y - positions[0].y;
     
-    //linePositions.map[lineVertexCount + 0] = positions[0];
-    //linePositions.map[lineVertexCount + 1] = positions[1];
-    
-    for (int i = 0; i < 2; i++) {
-        this->positions.set(nVertices, positions[i]);
-        if (attributes.usesColor()) this->colors.set(nVertices, colors[i]);
-        if (attributes.useTextures()) this->uvs.set(nVertices, uvs[i]);
-        this->attributes.set(nVertices, attributes);
-        nVertices++;
+    float len = sqrtf(dx*dx + dy*dy);
+    if (len == 0) {
+        assert(false && "Uhhh len is 0?? (pushLine)");
+        return;
     }
     
-    this->positions.set(nVertices, positions[0]);
-    if(attributes.usesColor()) this->colors.set(nVertices, colors[0]);
-    if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
-    this->attributes.set(nVertices, attributes);
-    nVertices++;
+    dx /= len;
+    dy /= len;
+    
+    float px = -dy;
+    float py = dx;
+    
+    float thickness = 1;
+    float ox = px * (thickness * 0.5f);
+    float oy = py * (thickness * 0.5f);
+    
+    Emulator::Gpu::Position v0{ positions[0].x + ox, positions[0].y + oy };
+    Emulator::Gpu::Position v1{ positions[1].x + ox, positions[1].y + oy };
+    Emulator::Gpu::Position v2{ positions[1].x - ox, positions[1].y - oy };
+    Emulator::Gpu::Position v3{ positions[0].x - ox, positions[0].y - oy };
+    
+    Emulator::Gpu::Color c0 = colors[0];
+    Emulator::Gpu::Color c1 = colors[0];
+    Emulator::Gpu::Color c2 = colors[1];
+    Emulator::Gpu::Color c3 = colors[1];
+    
+    {
+        Gpu::Position pos[3] = { v0, v1, v2 };
+        Gpu::Color    col[3] = { c0, c1, c2 };
+        pushTriangle(pos, col, {}, attributes);
+    }
+    
+    {
+        Gpu::Position pos[3] = { v2, v3, v0 };
+        Gpu::Color    col[3] = { c2, c3, c0 };
+        pushTriangle(pos, col, {}, attributes);
+    }
 }
 
 void Emulator::Renderer::pushTriangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Gpu::Attributes attributes) {
@@ -451,11 +528,6 @@ void Emulator::Renderer::pushQuad(Emulator::Gpu::Position positions[], Emulator:
     
     // First triangle
     // [2, 3, 0]
-
-    int length[] = { 2, 3, 0 };
-    if(!checkIfWithin(positions, length)) {
-        return;
-    }
     
     this->positions.set(nVertices, positions[2]);
     if(attributes.usesColor()) this->colors.set(nVertices, colors[2]);
@@ -474,12 +546,6 @@ void Emulator::Renderer::pushQuad(Emulator::Gpu::Position positions[], Emulator:
     if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
-    
-    // [3, 0, 1]
-    int length1[] = { 3, 0, 1 };
-    if(!checkIfWithin(positions, length1)) {
-        return;
-    }
     
     this->positions.set(nVertices, positions[3]);
     if(attributes.usesColor()) this->colors.set(nVertices, colors[3]);
@@ -525,12 +591,6 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position positions[], Emul
     
     // First triangle
     // [0, 1, 2]
-    
-    int length[] = { 0, 1, 2 };
-    if(!checkIfWithin(positions, length)) {
-        return;
-    }
-    
     this->positions.set(nVertices, positions[0]);
     this->colors.set(nVertices, colors[0]);
     if(attributes.useTextures()) this->uvs.set(nVertices, uvs[0]);
@@ -552,11 +612,6 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position positions[], Emul
     // First triangle
     // [1, 2, 3]
     
-    int length0[] = { 1, 2, 3 };
-    if(!checkIfWithin(positions, length0)) {
-        return;
-    }
-    
     this->positions.set(nVertices, positions[1]);
     this->colors.set(nVertices, colors[1]);
     if(attributes.useTextures()) this->uvs.set(nVertices, uvs[1]);
@@ -574,35 +629,6 @@ void Emulator::Renderer::pushRectangle(Emulator::Gpu::Position positions[], Emul
     if(attributes.useTextures()) this->uvs.set(nVertices, uvs[3]);
     this->attributes.set(nVertices, attributes);
     nVertices++;
-}
-
-bool Emulator::Renderer::checkIfWithin(Emulator::Gpu::Position positions[], int length[]) {
-    return true;
-    
-    for(size_t i = 0; i < 3; i++) {
-        int index = i;//length[i];
-        
-        auto v0 = positions[index];
-        auto v1 = positions[(index + 1) % 3];
-        
-        float dis0 = abs(v0.x - v1.x);
-        float dis1 = abs(v0.y - v1.y);
-        
-        // Size Restriction: The maximum distance between two vertices is 1023 horizontally, and 511 vertically. 
-        if(dis0 >= 1024 || dis1 >= 512) {
-            return false;
-        }
-        
-        auto width = gpu.hres.getResolution();
-        auto height = gpu.vres == VerticalRes::Y240Lines ? 240 : 480;
-        
-        // Check if within screen bounds
-        if(v0.x < 0 || v0.x > width || v0.y < 0 || v0.y > height) {
-            return false;
-        }
-    }
-    
-    return true;
 }
 
 void Emulator::Renderer::setDrawingOffset(int16_t x, int16_t y) {
@@ -700,17 +726,14 @@ GLuint Emulator::Renderer::getProgramAttrib(GLuint program, const std::string& a
 }
 
 std::string Emulator::Renderer::getShaderSource(const std::string& path) {
-    // Convert to absolute path
     std::filesystem::path absPath = std::filesystem::absolute(path);
     
-    // Open the file in binary mode
     std::ifstream file(absPath/*, std::ios::in | std::ios::binary*/);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open the file at path: " << absPath << '\n';
         return {};
     }
     
-    // Read the file contents into a string
     std::string content{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
     
     // Close the file
@@ -731,7 +754,7 @@ GLuint Emulator::Renderer::createFrameBuffer(GLsizei width, GLsizei height, GLui
     glBindTexture(GL_TEXTURE_2D, textureId);
     
     //glGenerateMipmap(GL_TEXTURE_2D);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, /*GL_RGBA8*/GL_RGB5_A1, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -754,7 +777,7 @@ void Emulator::Renderer::setupScreenQuad() {
         -1.0f,  1.0f,   0.0f, 1.0f,
         -1.0f, -1.0f,   0.0f, 0.0f,
          1.0f, -1.0f,   1.0f, 0.0f,
-    
+        
         -1.0f,  1.0f,   0.0f, 1.0f,
          1.0f, -1.0f,   1.0f, 0.0f,
          1.0f,  1.0f,   1.0f, 1.0f
@@ -765,13 +788,12 @@ void Emulator::Renderer::setupScreenQuad() {
     glBindVertexArray(quadVAO);
     glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreenQuad), fullscreenQuad, GL_STATIC_DRAW);
-
+    
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
-
+    
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-
+    
     glBindVertexArray(0);
-
 }

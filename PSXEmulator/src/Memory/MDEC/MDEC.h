@@ -1,12 +1,7 @@
-//
-// Created by daxy on 19/11/2025.
-//
-
 #ifndef MDEC_H
 #define MDEC_H
+
 #include <array>
-#include <cstdint>
-#include <cstdio>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -66,7 +61,7 @@ class MDEC {
         
         union DCT {
             struct {
-                int16_t DC : 10; // 9-0   DC   Direct Current reference (10 bits, signed)
+                uint16_t DC : 10; // 9-0   DC   Direct Current reference (10 bits, signed)
                 uint16_t Q : 6 ; // 15-10 Q    Quantization factor (6 bits, unsigned)
             };
             
@@ -78,7 +73,7 @@ class MDEC {
         
         union RLE {
             struct {
-                int16_t  AC  : 10; // 9-0   AC   Relative AC value (10 bits, signed)
+                uint16_t  AC  : 10; // 9-0   AC   Relative AC value (10 bits, signed)
                 uint16_t LEN : 6 ; // 15-10 LEN  Number of zero AC values to be inserted (6 bits, unsigned)
             };
             
@@ -90,8 +85,9 @@ class MDEC {
         
         struct DCTBlock {
             DCT dct;
-            std::array<RLE, 16*16> data;
-            uint16_t EOB; // Fixed to FE00h
+            //std::array<uint16_t, 16*16> data;
+            std::vector<uint32_t> data;
+            uint16_t EOB{}; // Fixed to FE00h
             
             DCTBlock() = default;
         };
@@ -112,17 +108,17 @@ class MDEC {
         void handleCommand();
         void handleCommandProcessing(uint32_t val);
         
-    private:
+    public:
         void                    decodeBlocks();
         std::optional<DCTBlock> decodeMarcoBlocks(std::vector<uint16_t>::iterator &src);
         
-        bool rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt);
+        bool rl_decode_block(std::array<int16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt);
         
-        void fast_idct_core(uint16_t *blk);
-        void real_idct_core(uint16_t *blk);
+        void fast_idct_core(int16_t *blk);
+        void real_idct_core(std::array<int16_t, 64>& blk) const;
         
-        void yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<uint16_t, 64> &blk);
-        void y_to_mono(DCTBlock &block, std::array<uint16_t, 64> &blk);
+        void yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<int16_t, 64> &blk);
+        void y_to_mono(DCTBlock &block, std::array<int16_t, 64> &blk);
         
     private:
         bool color = false; // (0=Luminance only, 1=Luminance and Color)
@@ -131,7 +127,7 @@ class MDEC {
         uint32_t counter = 0;
         uint32_t outputIndex = 0;
         
-    private:
+    public:
         Status status = Status(0);
         Control control = Control(0);
         DecodeCommand command = DecodeCommand(0);
@@ -140,12 +136,12 @@ class MDEC {
         // Uhh ig this is meant to be 2d, 8x8
         std::array<DCTBlock, 64> blocks;
         
-    private:
+    public:
         // Input from idk DMA or whatever
         std::vector<uint16_t> input;
         
         // Output data from algorithm
-        std::vector<uint16_t> output;
+        std::vector<uint32_t> output;
         
         std::array<uint8_t, 64> luminanceQuantTable;
         std::array<uint8_t, 64> colorQuantTable;
@@ -160,7 +156,7 @@ class MDEC {
         };
         
         // Values obtained from https://psx-spx.consoledev.net/macroblockdecodermdec/#1f801824h-mdec1-mdec-status-register-r
-        std::array<int8_t, 64> zigzag = {
+        std::array<uint8_t, 64> zigzag = {
             0 ,1 ,5 ,6 ,14,15,27,28,
             2 ,4 ,7 ,13,16,26,29,42,
             3 ,8 ,12,17,25,30,41,43,
@@ -174,11 +170,11 @@ class MDEC {
         std::array<double, 64> scaleZag;
         
         // reversed of zigzag table
-        std::array<int8_t, 64> zagzig;
+        std::array<uint8_t, 64> zagzig;
         
-        std::array<uint16_t, 64> Crblk;
-        std::array<uint16_t, 64> Cbblk;
-        std::array<uint16_t, 64> Yblk0, Yblk1, Yblk2, Yblk3;
+        std::array<int16_t, 64> Crblk;
+        std::array<int16_t, 64> Cbblk;
+        std::array<int16_t, 64> Yblk0, Yblk1, Yblk2, Yblk3;
         //std::array<uint16_t, 64> iq_uv;
         //std::array<uint16_t, 64> iq_y;
 };

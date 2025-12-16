@@ -144,17 +144,26 @@ namespace Emulator {
             struct Position {
                 Position() = default;
                 
+                Position(int x, int y) : x(x), y(y) {}
                 Position(uint32_t x, uint32_t y) : x(x), y(y) {}
                 Position(float x, float y) : x(x), y(y) {}
                 
                 static Position fromGp0(uint32_t val) {
-                    float x = static_cast<float>(static_cast<int16_t>(val));
+                    int16_t x = (int16_t)((val & 0x7FF) << 5) >> 5;
+                    int16_t y = (int16_t)(((val >> 16) & 0x7FF) << 5) >> 5;
+                    
+                    float fx = float(x + Gpu::drawingXOffset);
+                    float fy = float(y + Gpu::drawingYOffset);
+                    
+                    return { fx, fy };
+                    
+                    /*float x = static_cast<float>(static_cast<int16_t>(val));
                     float y = static_cast<float>(static_cast<int16_t>(val >> 16));
                     
                     x += Gpu::drawingXOffset;
                     y += Gpu::drawingYOffset;
                     
-                    return {x, y};
+                    return {x, y};*/
                 }
                 
                 float x, y;
@@ -214,7 +223,7 @@ namespace Emulator {
                     int depth = ((page & 0x180) >> 7);
                     gpu.setTextureDepth(static_cast<Emulator::TextureDepth>(depth));
                     
-                    gpu.curAttribute.textureDepth = depth;
+                    gpu.curAttribute.setTextureDepth(depth);
                     
                     float u = static_cast<float>((val) & 0xFF);
                     float v = static_cast<float>((val >> 8) & 0xFF);
@@ -266,33 +275,49 @@ namespace Emulator {
              * 
              * huh?
              */
-            enum TextureMode : GLint { ColorOnly = 0, TextureOnly = 1, TextureColor = 2 };
+            enum TextureMode : uint8_t {
+                ColorOnly    = 0,
+                TextureOnly  = 1,
+                TextureColor = 2
+            };
             
-            union Attributes {
-                struct {
-                    GLint isSemiTransparent : 1;
-                    GLint blendTexture      : 1; // TODO; Unimplemented
-                    TextureMode textureMode : 3;
-                    GLint textureDepth      : 2;
-                };
+            struct Attributes {
+                uint32_t _reg = 0;
                 
                 Attributes() = default;
-                Attributes(GLint reg) : _reg(reg) {}
-                Attributes(GLint isSemiTransparent, GLint blendTexture, TextureMode textureMode = ColorOnly) {
-                    this->isSemiTransparent = isSemiTransparent;
-                    this->blendTexture = blendTexture;
-                    this->textureMode = textureMode;
+                Attributes(uint32_t reg) : _reg(reg) {}
+                
+                Attributes(int isSemiTransparent, int blendTexture, TextureMode textureMode = ColorOnly) {
+                    setSemiTransparent(isSemiTransparent);
+                    setBlendTexture(blendTexture);
+                    setTextureMode(textureMode);
                 }
                 
-                bool usesColor() const {
-                    return (textureMode != TextureOnly);
+                void setSemiTransparent(int v) {
+                    if (v) _reg |= 0x1u;
+                    else   _reg &= ~0x1u;
+                }
+
+                void setBlendTexture(int v) {
+                    if (v) _reg |= 0x2u;
+                    else   _reg &= ~0x2u;
                 }
                 
-                bool useTextures() const {
-                    return (textureMode != ColorOnly);
+                void setTextureMode(TextureMode mode) {
+                    _reg = (_reg & ~(0x7u << 2)) | ((uint32_t(mode) & 0x7u) << 2);
                 }
                 
-                GLint _reg = 0;
+                void setTextureDepth(int d) {
+                    _reg = (_reg & ~(0x3u << 5)) | ((uint32_t(d) & 0x3u) << 5);
+                }
+                
+                int isSemiTransparent() const { return (_reg >> 0) & 0x1; }
+                int blendTexture()      const { return (_reg >> 1) & 0x1; }
+                TextureMode textureMode() const { return TextureMode((_reg >> 2) & 0x7u); }
+                int textureDepth()      const { return (_reg >> 5) & 0x3; }
+                
+                bool usesColor()   const { return textureMode() != TextureOnly; }
+                bool useTextures() const { return textureMode() != ColorOnly; }
             };
             
             struct BitField {
@@ -398,6 +423,9 @@ namespace Emulator {
             // GP0(52h) - Shaded line, semi-transparent
             void gp0ShadedLine(uint32_t val);
             
+            //  GP0(58h) - Shaded Poly-line, opaque
+            void gp0ShadedPolyLine(uint32_t val);
+            
             // Helper function
             void renderRectangle(Position position, Color color, UV uv, uint16_t width, uint16_t height);
             
@@ -437,7 +465,7 @@ namespace Emulator {
             // From VRAM to CPU
             void gp0ImageStore(uint32_t val);
             
-            void gp0VramToVram(uint32_t val);
+            void gp0VramToVram(uint32_t val) const;
             
             // Handles writes to the GP1 command register
             void gp1(uint32_t val);
@@ -523,29 +551,28 @@ namespace Emulator {
             int16_t drawingAreaBottom;   // Bottom-most line of drawing area
             static inline int16_t drawingXOffset;       // Horizontal drawing offset applied to all vertices
             static inline int16_t drawingYOffset;       // Vertical drawing offset applied to all vertices
-            int16_t displayVramXStart;   // First column of the display area in VRAM
-            int16_t displayVramYStart;   // First line of the display area in VRAM
+            uint32_t displayVramXStart;   // First column of the display area in VRAM
+            uint32_t displayVramYStart;   // First line of the display area in VRAM
             uint16_t displayHorizStart;   // Display output horizontal start relative to HSYNC
             uint16_t displayHorizEnd;     // Display output horizontal end relative to HSYNC
             uint16_t displayLineStart;    // Display output first line relative to VSYNC
             uint16_t displayLineEnd;      // Display output last line relative to VSYNC
             
-        private:
-            uint32_t startX, startY, curX, curY, endX, endY;
+            bool renderVRamToScreen = false;
             
-            // Poly line rendering
-            Position lineStart;
-            Color currentLineColor;
+        private:
+            int startX, startY, curX, curY, endX, endY;
             
         private:
             uint32_t _read = 0;
             
-            const float ntscVideoClock = 53693175.0f / 60.0f;
-            const float palVideoClock = 53203425.0f / 60.0f;
+            //const float ntscVideoClock = 53693175.0f / 60.0f;
+            //const float palVideoClock = 53203425.0f / 60.0f;
 		    
         public:
             uint32_t _scanLine = 0;
             uint32_t _cycles = 0;
+            uint32_t _gpuFrac = 0;
             uint32_t frames = 0;
 		    
         public:

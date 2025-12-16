@@ -68,9 +68,11 @@ int Disk::getTrackPosition(Location loc) {
 
 Location Disk::getTrackBegin(int track) {
 	size_t total = 75 * 2;
+	
 	for (int i = 0; i < track; i++) {
 		total += tracks[i].pregap.toLba() + tracks[i].sectorCount;
 	}
+	
 	return Location::fromLBA(total);
 }
 

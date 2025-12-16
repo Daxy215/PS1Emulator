@@ -13,6 +13,9 @@ public:
     
     template<typename T>
     T load(size_t offset) {
+        return *reinterpret_cast<const T*>(ptr + offset);
+        
+        /*
         auto it = cache.find(offset);
         if (it != cache.end()) return it->second;
         
@@ -22,7 +25,7 @@ public:
         
         cache[offset] = v;
         
-        return v;
+        return v;*/
     }
     
     void reset(const std::string& path);

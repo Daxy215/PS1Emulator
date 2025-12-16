@@ -15,119 +15,230 @@
  * 1, 0, 1, 0, 0, 1, 0, 1, 0, 1,
  * 2, 2, 3, 2, 2, 3, 2, 2, 3, 2,
  */
-
-Emulator::IO::Timer::Timer(TimerType type) : _type(type) {
+Emulator::IO::Timer::Timer(TimerType type) : type(type) {
 	
 }
 
-void Emulator::IO::Timer::step(uint32_t cycles) {
-	cycles -= holdAtZero;
+void Emulator::IO::Timer::step(uint32_t cpuCycles) {
+	_cycles += cpuCycles;
 	
-	//if(paused)
-	//	return;
-	
-	_cycles += cycles;
-	
-	//t = counter;
-	
-	switch (_type) {
-	case TimerType::DotClock:
-		if(mode.sync) {
-			switch (mode.syncMode) {
-				case 0: { if (isInHBlank) { _cycles -= cycles; return; } break; }
-				case 1: { if (isInHBlank) { _cycles = 0; counter = 0; } break; }
-				case 2: { if (isInHBlank) { _cycles = 0; counter = 0; } else { _cycles = 0; return; } break; }
-				case 3: {
-					if(!wasInHBlank && isInHBlank) {
-						mode.sync = false;
-					} else {
-						_cycles = 0;
+	// Synchronization
+	if (mode.sync) {
+		switch (type) {
+			case TimerType::DotClock:
+				switch (mode.syncMode) {
+					case 0: // Pause during HBlank
+						if (isInHBlank) return;
+						break;
 						
-						return;
-					}
-					
-					break;
+					case 1: // Reset at HBlank
+						if (isInHBlank) {
+							counter = 0;
+							_cycles = 0;
+							return;
+						}
+						
+						break;
+						
+					case 2: // Reset at HBlank, pause outside
+						if (isInHBlank) {
+							counter = 0;
+							_cycles = 0;
+						} else {
+							return;
+						}
+						
+						break;
+						
+					case 3: // Pause until next HBlank edge, then free run
+						if (!wasInHBlank && isInHBlank) {
+							mode.sync = 0; // disable sync
+						} else {
+							return;
+						}
+						
+						break;
 				}
-			default:
-				printf("");
+				
 				break;
-			}
-		}
-		
-		if(mode.source == 0 || mode.source == 2) {
-			// Use System Clock
-			/*counter += static_cast<int>(_cycles * 1.5f);
-			_cycles %= static_cast<int>(1.5f);*/
-			counter += static_cast<int>(_cycles);
-			_cycles = 0;
-		} else {
-			// Use Dot Clock
-			counter += _cycles / 6;//(_cycles * 11 / 7 / static_cast<double>(this->dot));
-			_cycles %= 6;
-		}
-		
-		break;
-	case TimerType::HBlank:
-		if(mode.sync) {
-			switch (mode.syncMode) {
-				case 0: { if (isInVBlank) { return; } break; }
-				case 1: { if (isInVBlank) counter = 0; break; }
-				case 2: { if (isInVBlank) counter = 0; else return; break; }
-				case 3: {
-					if(!wasInVBlank && isInVBlank) {
-						mode.sync = false;
-					}
-					
+				
+			case TimerType::HBlank:
+				switch (mode.syncMode) {
+					case 0: // Pause during VBlank
+						if (isInVBlank) return;
+						break;
+						
+					case 1: // Reset at VBlank
+						if (isInVBlank) {
+							counter = 0;
+							_cycles = 0;
+							return;
+						}
+						
+						break;
+						
+					case 2: // Reset at VBlank, pause outside
+						if (isInVBlank) {
+							counter = 0;
+							_cycles = 0;
+						} else {
+							return;
+						}
+						
+						break;
+
+					case 3: // Pause until VBlank edge, then free-run
+						if (!wasInVBlank && isInVBlank) {
+							mode.sync = 0;
+						} else {
+							return;
+						}
+						
+						break;
+				}
+				
+				break;
+				
+			case TimerType::SystemClock8:
+				// syncMode 0 and 3 both pause timer
+				if (mode.syncMode == 0 || mode.syncMode == 3) {
+					_cycles = 0;
 					return;
 				}
-			}
+				
+				break;
 		}
-		
-		if(mode.source == 0 || mode.source == 2) {
-			// Use System Clock
-			/*counter += static_cast<int>(_cycles * 1.5f);
-			_cycles %= static_cast<int>(1.5f);*/
-			counter += static_cast<int>(_cycles);
-			_cycles = 0;
-		} else {
-			if(!wasInHBlank && isInHBlank) {
-				counter++;
-			}
-			
-			//counter += _cycles / 3413;
-			//_cycles %= 3413;
-			/*t += cycles / 768;
-			_cycles %= 768;*/
-		}
-		
-		break;
-	case TimerType::SystemClock8:
-		if(mode.sync && (mode.syncMode == 0 || mode.syncMode == 3)) {
-			// Paused
-			_cycles = 0;
-			
-			break;
-		}
-		
-		if(mode.source == 0 || mode.source == 1) {
-			// Use System Clock
-			/*counter += static_cast<int>(_cycles * 1.5f);
-			_cycles %= static_cast<int>(1.5f);*/
-			counter += static_cast<int>(_cycles);
-			_cycles = 0;
-		} else {
-			// Use System Clock / 8
-			counter += (int)(_cycles / (8/* * 1.5f*/));
-			_cycles %= static_cast<int>(8/* * 1.5f*/);
-			//_cycles = Utils::modf(_cycles, 8);
-		}
-		
-		break;
 	}
 	
-	handleInterrupt();
+	// Clock source
+	switch (type) {
+		case TimerType::DotClock:
+			if (mode.source & 1) {
+				// Dot clock = 1 tick per 6 CPU cycles
+				finishTick(_cycles / 6);
+				_cycles %= 6;
+			} else {
+				// System clock
+				finishTick(_cycles);
+				_cycles = 0;
+			}
+			
+			break;
+			
+		case TimerType::HBlank:
+			if (mode.source & 1) {
+				// Count rising edge only
+				if (!wasInHBlank && isInHBlank)
+					finishTick(1);
+				
+				_cycles = 0;
+			} else {
+				// System clock
+				finishTick(_cycles);
+				_cycles = 0;
+			}
+			
+			break;
+			
+		case TimerType::SystemClock8:
+			if (mode.source >= 2) {
+				// system clock / 8
+				finishTick(_cycles / 8);
+				_cycles %= 8;
+			} else {
+				// normal system clock
+				finishTick(_cycles);
+				_cycles = 0;
+			}
+			
+			break;
+	}
+}
+
+void Emulator::IO::Timer::tick() {
+	counter++;
 	
-	//counter = static_cast<uint16_t>(t);
+	if (counter == target) {
+		mode.reachedTarget = true;
+		
+		if (mode.resetType) {
+			counter = 0;
+			holdAtZero = 2;
+		}
+		
+		if (mode.interruptTarget)
+			requestIRQ();
+	}
+	
+	if (counter == 0x10000) {
+		mode.hasWrapped = true;
+		counter = 0;
+		
+		if (!mode.resetType)
+			holdAtZero = 1;
+		
+		if (mode.interruptWrap)
+			requestIRQ();
+	}
+}
+
+void Emulator::IO::Timer::finishTick(uint32_t ticks) {
+	uint32_t old = counter;
+	uint32_t newValue = counter + ticks;
+	
+	if (!ignoreTargetUntilWrap && old < target && newValue >= target) {
+		mode.reachedTarget = true;
+		
+		if (mode.resetType)
+			newValue = 0;
+		
+		if (mode.interruptTarget)
+			requestIRQ();
+	}
+	
+	counter = newValue;
+	
+	// Overflow
+	if (counter >= 0x10000) {
+		mode.hasWrapped = true;
+		counter &= 0xFFFF;
+		
+		ignoreTargetUntilWrap = false;
+		
+		if (mode.resetType == 0)
+			counter = 0;
+		
+		if (mode.interruptWrap)
+			requestIRQ();
+	}
+	
+	counter &= 0xFFFF;
+}
+
+void Emulator::IO::Timer::requestIRQ() {
+	if (mode.interruptMode == 0) {
+		// One-shot: only fire if not already fired
+		if (!mode.interrupt) return;
+		mode.interrupt = false;
+	} else {
+		// Toggle mode or pulse mode
+		if (mode.interruptToggleMode)
+			mode.interrupt = !mode.interrupt;
+		else
+			mode.interrupt = false;
+	}
+	
+	switch (type) {
+		case TimerType::DotClock:
+			IRQ::trigger(IRQ::Timer0);
+			break;
+		case TimerType::HBlank:
+			IRQ::trigger(IRQ::Timer1);
+			break;
+		case TimerType::SystemClock8:
+			IRQ::trigger(IRQ::Timer2);
+			break;
+	}
 }
 
 void Emulator::IO::Timer::syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot) {
@@ -138,80 +249,6 @@ void Emulator::IO::Timer::syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot
 	this->isInVBlank = isInVBlank;
 	
 	this->dot = dot;
-}
-
-void Emulator::IO::Timer::handleInterrupt() {
-	bool shouldInterrupt = false;
-	
-	//if(target == 10) {
-	//	printf("f\n");
-	//}
-	
-	if (!ignoreTargetUntilWrap && counter >= target) {
-		mode.reachedTarget = true;
-		
-		if (mode.resetType) {
-			counter = 0;
-			holdAtZero = 2;
-		}
-		
-		if(mode.interruptTarget) {
-			shouldInterrupt = true;
-		}
-	}
-	
-	if(counter >= 0xFFFF) {
-		mode.hasWrapped = true;
-		
-		if (ignoreTargetUntilWrap) {
-			ignoreTargetUntilWrap = false;
-		}
-		
-		if (!mode.resetType) {
-			counter = 0;
-			holdAtZero = 1;
-		}
-		
-		if(mode.interruptWrap) {
-			shouldInterrupt = true;
-		}
-	}
-	
-	counter &= 0xFFFF;
-	
-	if(!shouldInterrupt)
-		return;
-	
-	if(!mode.interruptToggleMode) {
-		mode.interrupt = false;
-	} else {
-		mode.interrupt = !mode.interrupt;
-	}
-	
-	//bool trigger = mode.interrupt == 0;
-	
-	if(!mode.interruptMode) {
-		if(!wasIRQ/* && trigger*/) {
-			wasIRQ = true;
-		} else {
-			return;
-		}
-	}
-	
-	// Trigger interrupt based on timer counter
-	switch (_type) {
-		case TimerType::DotClock:
-			IRQ::trigger(IRQ::Timer0);
-			break;
-		case TimerType::HBlank:
-			IRQ::trigger(IRQ::Timer1);
-			break;
-		case TimerType::SystemClock8:
-			IRQ::trigger(IRQ::Timer2);
-		break;
-	}
-	
-	mode.interrupt = true;
 }
 
 void Emulator::IO::Timer::setMode(uint16_t val) {

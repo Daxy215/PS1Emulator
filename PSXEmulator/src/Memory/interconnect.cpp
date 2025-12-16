@@ -13,49 +13,14 @@ bool Interconnect::step(uint32_t cycles) {
     _sio.step(1);
     
     _dma.step();
-    _spu->step();
+    //_spu->step();
     
     bool didVBlank = _gpu->step(cycles);
     
     _timers.sync(_gpu->isInHBlank, _gpu->isInVBlank, _gpu->dot);
-    _timers.step(cycles / 3);
+    _timers.step(cycles/* / 3*/);
     
     return didVBlank;
-}
-
-uint32_t Interconnect::loadInstruction(uint32_t addr) {
-    if(_cacheControl.isCacheEnabled() == 0 || addr >= 0xA0000000) {
-        uint32_t abs_addr = map::maskRegion(addr);
-        uint32_t offset = 0;
-        
-        if (map::RAM.contains(abs_addr, offset)) {
-            return _ram.load<uint32_t>(offset);
-        }
-        
-        if (map::BIOS.contains(abs_addr, offset)) {
-            return _bios.load<uint32_t>(offset);
-        }
-        
-        // TODO; Testing
-        return load<uint32_t>(addr);
-    }
-    
-    // I-Cache
-    
-    // Cache is only active in the cached regions (KUSEG and KSEG0).
-    uint32_t tag = ((addr & 0xFFFFF000) >> 12) | 0x80000000;
-    uint16_t index = (addr & 0xFFC) >> 2;
-    
-    auto line = icache[index];
-    
-    if (line.tag == tag) {
-        return line.data;
-    }
-    
-    auto data = load<uint32_t>(addr);
-    icache[index] = ICache(tag, data);
-    
-    return data;
 }
 
 uint32_t Interconnect::dmaReg(uint32_t offset) {
@@ -117,8 +82,8 @@ void Interconnect::doDma(Port port) {
 void Interconnect::dmaBlock(Port port) {
     Channel& channel = _dma.getChannel(port);
     
-    uint32_t increment = (channel.step == Increment) ? 4 : static_cast<uint32_t>(static_cast<int32_t>(-4));
-    uint32_t addr = channel.base;
+    int32_t increment = (channel.step == Increment) ? 4 : -4;
+    int32_t addr = channel.base;
     
     // Transfer size in words
     std::optional<uint32_t> remsz = channel.transferSize();
@@ -132,17 +97,18 @@ void Interconnect::dmaBlock(Port port) {
         
         switch (channel.direction) {
             case FromRam: {
-                uint32_t srcWord = _ram.load<uint32_t>(curAddr);
+                auto srcWord = _ram.load<uint32_t>(curAddr);
                 
                 switch (port) {
                     case Gpu:
                         _gpu->gp0(srcWord);
+                        
                         break;
                     case MdecIn:
                         if (!mdec.dataInRequest())
                             break;
                         
-                        mdec.store(0x1f801820, srcWord);
+                        mdec.store(0, srcWord);
                         
                         break;
                     case Spu:
@@ -205,9 +171,9 @@ void Interconnect::dmaBlock(Port port) {
                     
                     case Port::MdecOut: {
                         if (!mdec.dataOutRequest())
-                            break;
+                            return;
                         
-                        srcWord = mdec.load(0x1F801820);
+                        srcWord = mdec.load(0);
                         
                         break;
                     }

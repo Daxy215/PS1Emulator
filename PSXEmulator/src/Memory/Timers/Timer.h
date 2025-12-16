@@ -47,117 +47,122 @@ namespace Emulator {
 		};
 		
 		class Timer {
-		public:
-			Timer(TimerType type);
-			
-			void step(uint32_t cycles);
-			void syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot);
-			
-			void handleInterrupt();
-			
-			void setMode(uint16_t val);
-			uint16_t getMode();
-			
-			void reset();
-			
-		public:
-			uint32_t _cycles = 0;
-			
-			//uint32_t t = 0;
-			uint32_t counter = 0;
-			uint16_t target = 0;
-			
-			bool ignoreTargetUntilWrap = false;
-			int holdAtZero = 0;
-			
-			/*// 0 = Free Run, 1 = Sync via Bit1-2
-			bool sync = false;
-			
-			/**
-			 * For timer 0 (GPU dotclock)
-				 * 0 = Pause counter during Hblank(s)
-				 * 1 = Reset counter to 0000h at HBlank
-				 * 2 = Reset counter to 0000h at HBlank and pause outside HBlank
-				 * 3 = Pause until HBlank occurs once, then switch to Free Run (turn off sync)
-				 
-			 * For timer 1 (GPU hBlank)
-				* Same as timer 0 but uses VBlank instead of HBlank
+			public:
+				Timer(TimerType type);
 				
-			 * For timer 2 (System clock / 8)
-				* 0 or 3 = Stop counter at current value (forever, no h/v-blank start)
-				* 1 or 2 = Free Run (Same as when Sync is disabled)
-			 #1#
-			uint8_t syncMode = 0;
-			
-			/**
-			 * Reset after:
-				 * 0 = Counter reaches FFFFh
-				 * 1 = Counter reaches Target
-			 #1#
-			bool resetType = false;
-			
-			/**
-			 * Causes an interrupt if,
-			 * counter reaches target
-			 #1#
-			bool interruptTarget = false;
-			
-			/**
-			 * Causes an interrupt if,
-			 * counter reaches FFFFh
-			 #1#
-			bool interruptWrap = false;
-			
-			/**
-			 * 0 = One-shot
-			 * 1 = Repeatedly
-			 #1#
-			bool interruptMode = false;
-			
-			/**
-			 * 0 = Short Bit 10 = 0 Pulse
-			 * 1 = Toggle Bit 10 on/off
-			 #1#
-			bool interruptToggleMode = false;
-			
-			/**
-			 *  For Counter 0: 0 or 2 = System Clock, 1 or 3 = Dotclock
-			 *  For Counter 1: 0 or 2 = System Clock, 1 or 3 = HBlank
-			 *  For Counter 2: 0 or 1 = System Clock, 2 or 3 = System Clock / 8
-			 #1#
-			uint8_t source = 0;
-			
-			/**
-			 * 0 = Yes
-			 * 1 = No
-			 * (Set after Writing)
-			 #1#
-			bool interrupt = false;
-			
-			/**
-			 * 0 = No
-			 * 1 = Yes
-			 * (Reset after Reading)
-			 #1#
-			bool reachedTarget = false;
-			bool hasWrapped = false;*/
-			
-			//bool paused = false;
-			
-			Mode mode;
-			
-		private:
-			bool isInHBlank = false;
-			bool isInVBlank = false;
-			uint32_t dot = 1;
-			
-			bool wasInHBlank = false;
-			bool wasInVBlank = false;
-			
-			bool wasIRQ = false;
-			
-		private:
-			TimerType _type;
+				void step(uint32_t cycles);
+				void syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot);
+				
+				void setMode(uint16_t val);
+				uint16_t getMode();
+				
+				void reset();
+				
+			private:
+				void tick();
+				void finishTick(uint32_t cycles);
+				void requestIRQ();
+			public:
+				uint32_t _cycles = 0;
+				uint32_t dotCycleAcc = 0;
+				uint32_t dotClockDivisor = 0;
+				uint32_t sys8Acc = 0;
+				
+				//uint32_t t = 0;
+				uint32_t counter = 0;
+				uint16_t target = 0;
+				
+				bool ignoreTargetUntilWrap = false;
+				int holdAtZero = 0;
+				
+				/*// 0 = Free Run, 1 = Sync via Bit1-2
+				bool sync = false;
+				
+				/**
+				 * For timer 0 (GPU dotclock)
+					 * 0 = Pause counter during Hblank(s)
+					 * 1 = Reset counter to 0000h at HBlank
+					 * 2 = Reset counter to 0000h at HBlank and pause outside HBlank
+					 * 3 = Pause until HBlank occurs once, then switch to Free Run (turn off sync)
+					 
+				 * For timer 1 (GPU hBlank)
+					* Same as timer 0 but uses VBlank instead of HBlank
+					
+				 * For timer 2 (System clock / 8)
+					* 0 or 3 = Stop counter at current value (forever, no h/v-blank start)
+					* 1 or 2 = Free Run (Same as when Sync is disabled)
+				 #1#
+				uint8_t syncMode = 0;
+				
+				/**
+				 * Reset after:
+					 * 0 = Counter reaches FFFFh
+					 * 1 = Counter reaches Target
+				 #1#
+				bool resetType = false;
+				
+				/**
+				 * Causes an interrupt if,
+				 * counter reaches target
+				 #1#
+				bool interruptTarget = false;
+				
+				/**
+				 * Causes an interrupt if,
+				 * counter reaches FFFFh
+				 #1#
+				bool interruptWrap = false;
+				
+				/**
+				 * 0 = One-shot
+				 * 1 = Repeatedly
+				 #1#
+				bool interruptMode = false;
+				
+				/**
+				 * 0 = Short Bit 10 = 0 Pulse
+				 * 1 = Toggle Bit 10 on/off
+				 #1#
+				bool interruptToggleMode = false;
+				
+				/**
+				 *  For Counter 0: 0 or 2 = System Clock, 1 or 3 = Dotclock
+				 *  For Counter 1: 0 or 2 = System Clock, 1 or 3 = HBlank
+				 *  For Counter 2: 0 or 1 = System Clock, 2 or 3 = System Clock / 8
+				 #1#
+				uint8_t source = 0;
+				
+				/**
+				 * 0 = Yes
+				 * 1 = No
+				 * (Set after Writing)
+				 #1#
+				bool interrupt = false;
+				
+				/**
+				 * 0 = No
+				 * 1 = Yes
+				 * (Reset after Reading)
+				 #1#
+				bool reachedTarget = false;
+				bool hasWrapped = false;*/
+				
+				//bool paused = false;
+				
+				Mode mode;
+				
+			private:
+				bool isInHBlank = false;
+				bool isInVBlank = false;
+				uint32_t dot = 1;
+				
+				bool wasInHBlank = false;
+				bool wasInVBlank = false;
+				
+				bool wasIRQ = false;
+				
+			private:
+				TimerType type;
 		};
 	}
 }

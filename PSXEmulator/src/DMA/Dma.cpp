@@ -5,7 +5,7 @@
 #include "../Memory/IRQ.h"
 
 void Dma::step() {
-    for(int i = 0; i < 7; i++) {
+    /*for(int i = 0; i < 7; i++) {
         Channel& channel = channels[i];
         
         if(channel.interruptPending) {
@@ -20,12 +20,12 @@ void Dma::step() {
             bool ir = irq();
             
             // Wtf was I doing??????????
-            if(prvIrq/* && irq()*/) {
+            if(prvIrq/* && irq()#1#) {
                 //interruptPending = true;
                 printf("");
             }
         }
-    }
+    }*/
     
     if(interruptPending) {
         interruptPending = false;

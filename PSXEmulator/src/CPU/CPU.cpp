@@ -9,7 +9,6 @@
 #include <stdexcept>
 #include <string>
 #include <optional>
-#include <stack>
 #include <unordered_set>
 
 #include "imgui.h"
@@ -54,7 +53,7 @@ int CPU::executeNextInstruction() {
     delayJumpSlot = jumpSlot;
     jumpSlot = false;
     
-    auto instruction = Instruction(interconnect.loadInstruction(pc));
+    Instruction instruction{interconnect.loadInstruction(pc)};
     
     if(handleInterrupts(instruction)) {
         // An exception occurred, update instruction based on new PC
@@ -62,7 +61,7 @@ int CPU::executeNextInstruction() {
     }
     
     // increment the PC
-    this->pc = nextpc;
+    pc = nextpc;
     nextpc += 4;
     
     // Executes the instruction
@@ -80,102 +79,8 @@ int CPU::executeNextInstruction() {
     //checkForTTY();
 }
 
-int CPU::decodeAndExecute(Instruction& instruction) {
-    // Gotta decode the instructions using the;
-    // Playstation R3000 processor
-    // https://en.wikipedia.org/wiki/R3000
-    
-    // TODO; Handle cycles correctly - Currently all instructions are 2 cycles:
-    // https://gist.github.com/allkern/b6ab6db6ac32f1489ad571af6b48ae8b
-    
-    static constexpr size_t TABLE_SIZE = 64;
-    
-    static std::array<std::function<int(CPU&, Instruction&)>, TABLE_SIZE> lookupTable = [] {
-        std::array<std::function<int(CPU&, Instruction&)>, TABLE_SIZE> table = {};
-        
-        table.fill([](CPU& cpu, Instruction& inst) { cpu.opillegal(inst); return 1; });
-        
-        table[0b000000] = [](CPU& cpu, Instruction& inst) { return cpu.decodeAndExecuteSubFunctions(inst); }; // SPECIAL
-        
-        table[0b000001] = [](CPU& cpu, Instruction& inst) { cpu.opbxx(inst);  return 1; };      // Branch variants
-        table[0b000010] = [](CPU& cpu, Instruction& inst) { cpu.opj(inst);    return 1; };      // j
-        table[0b000011] = [](CPU& cpu, Instruction& inst) { cpu.opjal(inst);  return 1; };      // jal
-        table[0b000100] = [](CPU& cpu, Instruction& inst) { cpu.opbeq(inst);  return 1; };      // beq
-        table[0b000101] = [](CPU& cpu, Instruction& inst) { cpu.opbne(inst);  return 1; };      // bne
-        table[0b000110] = [](CPU& cpu, Instruction& inst) { cpu.opbltz(inst); return 1; };      // bltz
-        table[0b000111] = [](CPU& cpu, Instruction& inst) { cpu.opbqtz(inst); return 1; };      // bgtz
-        
-        table[0b001000] = [](CPU& cpu, Instruction& inst) { cpu.addi(inst); return 1; };        // addi
-        table[0b001001] = [](CPU& cpu, Instruction& inst) { cpu.addiu(inst); return 1; };       // addiu
-        table[0b001010] = [](CPU& cpu, Instruction& inst) { cpu.opslti(inst); return 1; };      // slti
-        table[0b001011] = [](CPU& cpu, Instruction& inst) { cpu.opsltiu(inst); return 1; };     // sltiu
-        table[0b001100] = [](CPU& cpu, Instruction& inst) { cpu.opandi(inst); return 1; };      // andi
-        table[0b001101] = [](CPU& cpu, Instruction& inst) { cpu.opori(inst); return 1; };       // ori
-        table[0b001110] = [](CPU& cpu, Instruction& inst) { cpu.opxori(inst); return 1; };      // xori
-        table[0b001111] = [](CPU& cpu, Instruction& inst) { cpu.oplui(inst); return 1; };       // lui
-        
-        // Coprocessors — TODO;
-        table[0b010000] = [](CPU& cpu, Instruction& inst) { return cpu.opcop0(inst); };         // cop0
-        table[0b010001] = [](CPU& cpu, Instruction& inst) { return cpu.opcop1(inst); };         // cop1 (Not used in PS1)
-        table[0b010010] = [](CPU& cpu, Instruction& inst) { return cpu.opcop2(inst); };         // GTE
-        table[0b010011] = [](CPU& cpu, Instruction& inst) { return cpu.opcop3(inst); };         // Not used
-        
-        // Loads (2 cycles)
-        table[0b100000] = [](CPU& cpu, Instruction& inst) { cpu.oplb(inst); return 2; };        // lb
-        table[0b100001] = [](CPU& cpu, Instruction& inst) { cpu.oplh(inst); return 2; };        // lh
-        table[0b100011] = [](CPU& cpu, Instruction& inst) { cpu.oplw(inst); return 2; };        // lw
-        table[0b100100] = [](CPU& cpu, Instruction& inst) { cpu.oplbu(inst); return 2; };       // lbu
-        table[0b100101] = [](CPU& cpu, Instruction& inst) { cpu.oplhu(inst); return 2; };       // lhu
-        table[0b100010] = [](CPU& cpu, Instruction& inst) { cpu.oplwl(inst); return 2; };       // lwl
-        table[0b100110] = [](CPU& cpu, Instruction& inst) { cpu.oplwr(inst); return 2; };       // lwr
-        
-        // Stores (1 cycle)
-        table[0b101000] = [](CPU& cpu, Instruction& inst) { cpu.opsb(inst); return 1; };        // sb
-        table[0b101001] = [](CPU& cpu, Instruction& inst) { cpu.opsh(inst); return 1; };        // sh
-        table[0b101011] = [](CPU& cpu, Instruction& inst) { cpu.opsw(inst); return 1; };        // sw
-        table[0b101010] = [](CPU& cpu, Instruction& inst) { cpu.opswl(inst); return 1; };       // swl
-        table[0b101110] = [](CPU& cpu, Instruction& inst) { cpu.opswr(inst); return 1; };       // swr
-        
-        // Load/Store Coprocessor - TODO;
-        table[0b110000] = [](CPU& cpu, Instruction& inst) { cpu.oplwc0(inst); return 2; };
-        table[0b110001] = [](CPU& cpu, Instruction& inst) { cpu.oplwc1(inst); return 2; };
-        table[0b110010] = [](CPU& cpu, Instruction& inst) { cpu.oplwc2(inst); return 2; };
-        table[0b110011] = [](CPU& cpu, Instruction& inst) { cpu.oplwc3(inst); return 2; };
-        table[0b111000] = [](CPU& cpu, Instruction& inst) { cpu.opswc0(inst); return 2; };
-        table[0b111001] = [](CPU& cpu, Instruction& inst) { cpu.opswc1(inst); return 2; };
-        table[0b111010] = [](CPU& cpu, Instruction& inst) { cpu.opswc2(inst); return 2; };
-        table[0b111011] = [](CPU& cpu, Instruction& inst) { cpu.opswc3(inst); return 2; };
-        
-        return table;
-    }();
-    
-    int cycles = 0;
-    uint32_t func = instruction.func();
-    
-    if (TABLE_SIZE > func) {
-        cycles = lookupTable[func](*this, instruction);
-    } else {
-        opillegal(instruction);
-    }
-    
-    return cycles;
-    
-    if(!paused)
-        return cycles;
-    
-    for (auto it = disasmState.cache.begin(); it != disasmState.cache.end(); ) {
-        if (it->first > pc) {
-            it = disasmState.cache.erase(it);
-        } else {
-            ++it;
-        }
-    }
-    
-    return cycles;
-}
-
 int CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
-    switch (instruction.subfunction()) {
+    /*switch (instruction.subfunc) {
         case 0b000000:
             opsll(instruction);
             return 1;
@@ -192,20 +97,20 @@ int CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
             opsltu(instruction);
             return 1;
         case 0b100001:
-            addu(instruction);
+            opaddu(instruction);
             return 1;
         case 0b001000:
             opjr(instruction);
-            return 1;
+            return 2;
         case 0b100100:
             opand(instruction);
             return 1;
         case 0b100000:
-            add(instruction);
+            opadd(instruction);
             return 1;
         case 0b001001:
             opjalr(instruction);
-            return 1;
+            return 2;
         case 0b100011:
             opsubu(instruction);
             return 1;
@@ -232,16 +137,16 @@ int CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
             return 1;
         case 0b001100:
             opSyscall(instruction);
-            return 1;
+            return 2;
         case 0b001101:
             opbreak(instruction);
-            return 1;
+            return 2;
         case 0b010011:
             opmtlo(instruction);
-            return 1;
+            return 2;
         case 0b010001:
             opmthi(instruction);
-            return 1;
+            return 2;
         case 0b000100:
             opsllv(instruction);
             return 1;
@@ -250,22 +155,64 @@ int CPU::decodeAndExecuteSubFunctions(Instruction& instruction) {
             return 1;
         case 0b011001:
             opmultu(instruction);
-            return 36; // Fixed latency for MULTU
+            return 12;
         case 0b000110:
             opsrlv(instruction);
             return 1;
         case 0b011000:
             opmult(instruction);
-            return 36; // Fixed latency for MULT
+            return 12;
         case 0b100010:
             opsub(instruction);
             return 1;
         default:
             opillegal(instruction); // Illegal instruction
-            printf("Unhandled sub instruction %0x8. Function call was: %x\n", instruction.op, instruction.subfunction());
+            printf("Unhandled sub instruction %0x8. Function call was: %x\n", instruction.op, instruction.subfunc);
             std::cerr << "";
             return 0;
-    }
+    }*/
+    
+    using OpHandler = int (CPU::*)(Instruction&);
+    static const std::unordered_map<uint32_t, OpHandler> table = {
+        {0b000000, &CPU::opsll},
+        {0b100101, &CPU::opor},
+        {0b000111, &CPU::opsrav},
+        {0b100111, &CPU::opnor},
+        {0b101011, &CPU::opsltu},
+        {0b100001, &CPU::opaddu},
+        {0b001000, &CPU::opjr},
+        {0b100100, &CPU::opand},
+        {0b100000, &CPU::opadd},
+        {0b001001, &CPU::opjalr},
+        {0b100011, &CPU::opsubu},
+        {0b000011, &CPU::opsra},
+        {0b011010, &CPU::opdiv},
+        {0b010010, &CPU::opmflo},
+        {0b010000, &CPU::opmfhi},
+        {0b000010, &CPU::opsrl},
+        {0b011011, &CPU::opdivu},
+        {0b101010, &CPU::opslt},
+        {0b001100, &CPU::opSyscall},
+        {0b001101, &CPU::opbreak},
+        {0b010011, &CPU::opmtlo},
+        {0b010001, &CPU::opmthi},
+        {0b000100, &CPU::opsllv},
+        {0b100110, &CPU::opxor},
+        {0b011001, &CPU::opmultu},
+        {0b000110, &CPU::opsrlv},
+        {0b011000, &CPU::opmult},
+        {0b100010, &CPU::opsub}
+    };
+    
+    auto it = table.find(instruction.subfunc);
+    if (it != table.end())
+        return (this->*it->second)(instruction);
+    
+    opillegal(instruction);
+    printf("Unhandled sub instruction %0x8. Function call was: %x\n", instruction.op, instruction.subfunc);
+    std::cerr << "";
+    
+    return 0;
 }
 
 void CPU::showDisassembler() {
@@ -583,14 +530,14 @@ void CPU::showDisassembler() {
 DisassembledInstruction CPU::disassemble(Instruction& inst, uint32_t address) {
     DisassembledInstruction result;
     uint32_t opcode = inst.op;
-    uint32_t funct = inst.subfunction();
-    uint32_t rs = inst.s();
-    uint32_t rt = inst.t();
-    uint32_t rd = inst.d();
-    uint32_t imm = inst.imm_se();
-    uint32_t uimm = inst.imm();
-    uint32_t jump_target = inst.imm_jump() << 2;
-    uint32_t shift = inst.shift();
+    uint32_t funct = inst.subfunc;
+    uint32_t rs = inst.rs;
+    uint32_t rt = inst.rt;
+    uint32_t rd = inst.rd;
+    uint32_t imm = inst.imm_se;
+    uint32_t uimm = inst.imm;
+    uint32_t jump_target = inst.jump << 2;
+    uint32_t shift = inst.shamt;
     
     result.opcode = opcode;
     
@@ -654,7 +601,7 @@ DisassembledInstruction CPU::disassemble(Instruction& inst, uint32_t address) {
     
     bool taken = false;
     
-    switch (inst.func()) {
+    switch (inst.func) {
         case 0x00: // SPECIAL
             switch (funct) {
             case 0x00: ss << "SLL    " << regname(rd) << ", " << regname(rt) << ", " << shift; break;
@@ -896,11 +843,11 @@ DisassembledInstruction CPU::disassemble(Instruction& inst, uint32_t address) {
     case 0x0f: ss << "LUI    " << regname(rt) << ", 0x" << std::hex << (uimm << 16); break;
     
     case 0x10: case 0x11: case 0x12: case 0x13: // COP0-3
-        ss << "COP" << (inst.func() & 0x03) << "    ";
-        switch (inst.copOpcode()) {
-        case 0x00: ss << "MFC" << (inst.func() & 0x03) << "  " << regname(rt) << ", $" << rd; break;
-        case 0x04: ss << "MTC" << (inst.func() & 0x03) << "  " << regname(rt) << ", $" << rd; break;
-        default:   ss << "COP" << (inst.func() & 0x03) << "  " << std::hex << inst.copOpcode();
+        ss << "COP" << (inst.func & 0x03) << "    ";
+        switch (inst.rs) {
+        case 0x00: ss << "MFC" << (inst.func & 0x03) << "  " << regname(rt) << ", $" << rd; break;
+        case 0x04: ss << "MTC" << (inst.func & 0x03) << "  " << regname(rt) << ", $" << rd; break;
+        default:   ss << "COP" << (inst.func & 0x03) << "  " << std::hex << inst.rs;
     }
     
     break;
@@ -921,13 +868,13 @@ DisassembledInstruction CPU::disassemble(Instruction& inst, uint32_t address) {
     
     case 0x30: case 0x31: case 0x32: case 0x33: // LWC0-LWC3
     case 0x38: case 0x39: case 0x3a: case 0x3b: // SWC0-SWC3
-        ss << (inst.func() >= 0x30 && inst.func() <= 0x33 ? "LWC" : "SWC")
-           << (inst.func() & 0x03) << "   " << regname(rt)
+        ss << (inst.func >= 0x30 && inst.func <= 0x33 ? "LWC" : "SWC")
+           << (inst.func & 0x03) << "   " << regname(rt)
            << ", 0x" << std::hex << imm << "(" << regname(rs) << ")";
         break;
     
     default:
-        ss << "UNKNOWN OPCODE 0x" << std::hex << inst.func();
+        ss << "UNKNOWN OPCODE 0x" << std::hex << inst.func;
     }
     
     result.text = ss.str();
@@ -976,165 +923,195 @@ bool CPU::handleInterrupts(Instruction& instruction) {
     return false;
 }
 
-void CPU::opsll(Instruction& instruction) {
-    uint32_t i = instruction.shift();
-    uint32_t t = instruction.t();
-    uint32_t d = instruction.d();
+int CPU::opsll(Instruction& instruction) {
+    uint32_t i = instruction.shamt;
+    uint32_t t = instruction.rt;
+    uint32_t d = instruction.rd;
     
     uint32_t v = reg(t) << i;
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opsllv(Instruction& instruction) {
-    uint32_t d = instruction.d();
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+int CPU::opsllv(Instruction& instruction) {
+    uint32_t d = instruction.rd;
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
     
     // Shift amount is truncated to 5 bits
     uint32_t v = reg(t) << (reg(s) & 0x1F);
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opsra(Instruction& instruction) {
-    uint32_t i = instruction.shift();
-    uint32_t t = instruction.t();
-    uint32_t d = instruction.d();
+int CPU::opsra(Instruction& instruction) {
+    uint32_t i = instruction.shamt;
+    uint32_t t = instruction.rt;
+    uint32_t d = instruction.rd;
     
     int32_t v = static_cast<int32_t>(reg(t)) >> i;
     
     set_reg(d, static_cast<uint32_t>(v));
+    
+    return 1;
 }
 
-void CPU::opsrav(Instruction& instruction) {
-    auto d = instruction.d();
-    auto s = instruction.s();
-    auto t = instruction.t();
+int CPU::opsrav(Instruction& instruction) {
+    auto d = instruction.rd;
+    auto s = instruction.rs;
+    auto t = instruction.rt;
     
     // Shift amount is truncated to 5 bits
     // I just... Another issue here was that I was converting the entire result into an int32_t
     auto v = static_cast<int32_t>(reg(t)) >> (reg(s) & 0x1F);
     
     set_reg(d, static_cast<uint32_t>(v));
+    
+    return 1;
 }
 
-void CPU::opsrl(Instruction& instruction) {
-    auto i = instruction.shift();
-    auto t = instruction.t();
-    auto d = instruction.d();
+int CPU::opsrl(Instruction& instruction) {
+    auto i = instruction.shamt;
+    auto t = instruction.rt;
+    auto d = instruction.rd;
     
     uint32_t v = reg(t) >> i;
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opsrlv(Instruction& instruction) {
-    auto d = instruction.d();
-    auto s = instruction.s();
-    auto t = instruction.t();
+int CPU::opsrlv(Instruction& instruction) {
+    auto d = instruction.rd;
+    auto s = instruction.rs;
+    auto t = instruction.rt;
     
     // Shift amount is truncated to 5 bits
     uint32_t v = reg(t) >> (reg(s) & 0x1F);
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opsltiu(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto s = instruction.s();
-    auto t = instruction.t();
+int CPU::opsltiu(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto s = instruction.rs;
+    auto t = instruction.rt;
     
     auto v = reg(s) < i;
     
     set_reg(t, static_cast<uint32_t>(v));
+    
+    return 1;
 }
 
 // Load Upper Immediate(LUI)
-void CPU::oplui(Instruction& instruction) {
-    auto i = instruction.imm();
-    auto t = instruction.t();
+int CPU::oplui(Instruction& instruction) {
+    auto i = instruction.imm;
+    auto t = instruction.rt;
     
     auto v = i << 16;
     
     set_reg(t, v);
+    
+    return 1;
 }
 
-void CPU::opori(Instruction& instruction) {
-    uint32_t i = instruction.imm();
-    uint32_t t = instruction.t();
-    uint32_t s = instruction.s();
+int CPU::opori(Instruction& instruction) {
+    uint32_t i = instruction.imm;
+    uint32_t t = instruction.rt;
+    uint32_t s = instruction.rs;
     
     uint32_t v = reg(s) | i;
     
     set_reg(t, v);
+    
+    return 1;
 }
 
-void CPU::opor(Instruction& instruction) {
-    auto d = instruction.d();
-    auto s = instruction.s();
-    auto t = instruction.t();
+int CPU::opor(Instruction& instruction) {
+    auto d = instruction.rd;
+    auto s = instruction.rs;
+    auto t = instruction.rt;
     
     auto v = reg(s) | reg(t);
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opnor(Instruction& instruction) {
-    uint32_t d = instruction.d();
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+int CPU::opnor(Instruction& instruction) {
+    uint32_t d = instruction.rd;
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
     
     // Was doing '!' instead of '~' :)
     uint32_t v = ~(reg(s) | reg(t));
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opxor(Instruction& instruction) {
-    auto d = instruction.d();
-    auto s = instruction.s();
-    auto t = instruction.t();
+int CPU::opxor(Instruction& instruction) {
+    auto d = instruction.rd;
+    auto s = instruction.rs;
+    auto t = instruction.rt;
     
     auto v = reg(s) ^ reg(t);
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opxori(Instruction& instruction) {
-    auto i = instruction.imm();
-    auto t = instruction.t();
-    auto s = instruction.s();
+int CPU::opxori(Instruction& instruction) {
+    auto i = instruction.imm;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
     uint32_t v = reg(s) ^ i;
     
     set_reg(t, v);
+    
+    return 1;
 }
 
-void CPU::opsltu(Instruction& instruction) {
-    uint32_t d = instruction.d();
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+int CPU::opsltu(Instruction& instruction) {
+    uint32_t d = instruction.rd;
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
     
     bool v = reg(s) < reg(t);
     
     set_reg(d, static_cast<uint32_t>(v)); // V gets converted into a uint32
+    
+    return 1;
 }
 
-void CPU::opslti(Instruction& instruction) {
-    auto i = static_cast<int32_t>(instruction.imm_se());
-    uint32_t s = instruction.s(); 
-    uint32_t t = instruction.t();
+int CPU::opslti(Instruction& instruction) {
+    auto i = static_cast<int32_t>(instruction.imm_se);
+    uint32_t s = instruction.rs; 
+    uint32_t t = instruction.rt;
     
     bool v = (static_cast<int32_t>(reg(s))) < i;
     
     set_reg(t, v);
+    
+    return 1;
 }
 
-void CPU::opslt(Instruction& instruction) {
-    uint32_t d = instruction.d();
-    uint32_t sReg = instruction.s();
-    uint32_t tReg = instruction.t();
+int CPU::opslt(Instruction& instruction) {
+    uint32_t d = instruction.rd;
+    uint32_t sReg = instruction.rs;
+    uint32_t tReg = instruction.rt;
     
     int32_t s = static_cast<int32_t>(reg(sReg));
     int32_t t = static_cast<int32_t>(reg(tReg));
@@ -1142,10 +1119,12 @@ void CPU::opslt(Instruction& instruction) {
     bool v = s < t;
     
     set_reg(d, static_cast<uint32_t>(v));
+    
+    return 1;
 }
 
 // Store word
-void CPU::opsw(Instruction& instruction) {
+int CPU::opsw(Instruction& instruction) {
     // Can't write if we are in cache isolation mode!
     /*if((sr & 0x10000) != 0) {
         //std::cerr << "Ignoring store-word while cache is isolated!\n";
@@ -1153,11 +1132,11 @@ void CPU::opsw(Instruction& instruction) {
         return;
     }*/
     
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = (reg(s) + i) & 0xFFFFFFFF;
     
     if(addr % 4 == 0) {
         uint32_t v    = reg(t);
@@ -1167,12 +1146,14 @@ void CPU::opsw(Instruction& instruction) {
         _cop0.badVaddr = addr;
         exception(StoreAddressError);
     }
+    
+    return 1;
 }
 
-void CPU::opswl(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+int CPU::opswl(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
     uint32_t addr = reg(s) + i;
     uint32_t v    = reg(t);
@@ -1185,31 +1166,33 @@ void CPU::opswl(Instruction& instruction) {
     uint32_t mem;
     
     switch (addr & 3) {
-    case 0:
-        mem = (curMem & 0xFFFFFF00) | (v >> 24);
-        break;
-    case 1:
-        mem = (curMem & 0xFFFF0000) | (v >> 16);
-        break;
-    case 2:
-        mem = (curMem & 0xFF000000) | (v >> 8);
-        break;
-    case 3:
-        mem = (curMem & 0x00000000) | (v >> 0);
-        break;
-    default:
-        throw std::runtime_error("Unreachable code!");
+        case 0:
+            mem = (curMem & 0xFFFFFF00) | (v >> 24);
+            break;
+        case 1:
+            mem = (curMem & 0xFFFF0000) | (v >> 16);
+            break;
+        case 2:
+            mem = (curMem & 0xFF000000) | (v >> 8);
+            break;
+        case 3:
+            mem = (curMem & 0x00000000) | (v >> 0);
+            break;
+        default:
+            throw std::runtime_error("Unreachable code!");
     }
     
     store32(alignedAddr, mem);
+    
+    return 1;
 }
 
-void CPU::opswr(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+int CPU::opswr(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = (reg(s) + i) & 0xFFFFFFFF;
     uint32_t v    = reg(t);
     
     uint32_t alignedAddr = addr & ~3;
@@ -1220,36 +1203,38 @@ void CPU::opswr(Instruction& instruction) {
     uint32_t mem;
     
     switch (addr & 3) {
-    case 0:
-        mem = (curMem & 0x0000000) | (v << 0);
-        break;
-    case 1:
-        mem = (curMem & 0x000000FF) | (v << 8);
-        break;
-    case 2:
-        mem = (curMem & 0x0000FFFF) | (v << 16);
-        break;
-    case 3:
-        mem = (curMem & 0x00FFFFFF) | (v << 24);
-        break;
-    default:
-        throw std::runtime_error("Unreachable code!");
+        case 0:
+            mem = (curMem & 0x0000000) | (v << 0);
+            break;
+        case 1:
+            mem = (curMem & 0x000000FF) | (v << 8);
+            break;
+        case 2:
+            mem = (curMem & 0x0000FFFF) | (v << 16);
+            break;
+        case 3:
+            mem = (curMem & 0x00FFFFFF) | (v << 24);
+            break;
+        default:
+            throw std::runtime_error("Unreachable code!");
     }
     
     store32(alignedAddr, mem);
+    
+    return 1;
 }
 
 // Store halfword
-void CPU::opsh(Instruction& instruction) {
+int CPU::opsh(Instruction& instruction) {
     /*if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store-halfword while cache is isolated!\n";
         
         return;
     }*/
     
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
     uint32_t addr = reg(s) + i;
     
@@ -1261,30 +1246,34 @@ void CPU::opsh(Instruction& instruction) {
         _cop0.badVaddr = addr;
        exception(StoreAddressError); 
     }
+    
+    return 1;
 }
 
-void CPU::opsb(Instruction& instruction) {
+int CPU::opsb(Instruction& instruction) {
     /*if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store-byte while cache is isolated!\n";
         
         return;
     }*/
     
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
     uint32_t addr = reg(s) + i;
     uint32_t v    = reg(t);
     
     store8(addr, static_cast<uint8_t>(v));
+    
+    return 1;
 }
 
 // Load word
-void CPU::oplw(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+int CPU::oplw(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
     auto addr = reg(s) + i;
     
@@ -1296,12 +1285,14 @@ void CPU::oplw(Instruction& instruction) {
     } else {
         exception(LoadAddressError);
     }
+    
+    return 2;
 }
 
-void CPU::oplwl(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    uint32_t t = instruction.t();
-    uint32_t s = instruction.s();
+int CPU::oplwl(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    uint32_t t = instruction.rt;
+    uint32_t s = instruction.rs;
     
     uint32_t addr = reg(s) + i;
     
@@ -1346,14 +1337,16 @@ void CPU::oplwl(Instruction& instruction) {
     // Put the load in the delay slot
     //load = {t, v};
     setLoad(t, v);
+    
+    return 2;
 }
 
-void CPU::oplwr(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    uint32_t t = instruction.t();
-    uint32_t s = instruction.s();
+int CPU::oplwr(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    uint32_t t = instruction.rt;
+    uint32_t s = instruction.rs;
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = (reg(s) + i) & 0xFFFFFFFF;
     
     // This instruction bypasses the load delay restriction:
     // this instruction will merge the new contents,
@@ -1377,28 +1370,30 @@ void CPU::oplwr(Instruction& instruction) {
     uint32_t v = addr & 3;
     
     switch (v) {
-    case 0:
-        v = (rt & 0x00000000) | (alignedWord >> 0);
-        break;
-    case 1:
-        v = (rt & 0xFF000000) | (alignedWord >> 8);
-        break;
-    case 2:
-        v = (rt & 0xFFFF0000) | (alignedWord >> 16);
-        break;
-    case 3:
-        v = (rt & 0xFFFFFF00) | (alignedWord >> 24);
-        break;
-    default:
-        throw std::runtime_error("Unreachable code!");
+        case 0:
+            v = (rt & 0x00000000) | (alignedWord >> 0);
+            break;
+        case 1:
+            v = (rt & 0xFF000000) | (alignedWord >> 8);
+            break;
+        case 2:
+            v = (rt & 0xFFFF0000) | (alignedWord >> 16);
+            break;
+        case 3:
+            v = (rt & 0xFFFFFF00) | (alignedWord >> 24);
+            break;
+        default:
+            throw std::runtime_error("Unreachable code!");
     }
     
     // Put the load in the delay slot
     //load = {t, v};
     setLoad(t, v);
+    
+    return 2;
 }
 
-void CPU::oplh(Instruction& instruction) {
+int CPU::oplh(Instruction& instruction) {
     // Can't write if we are in cache isolation mode!
     /*if((sr & 0x10000) != 0) {
         std::cout << "Ignoring store-word while cache is isolated!\n";
@@ -1406,11 +1401,11 @@ void CPU::oplh(Instruction& instruction) {
         return;
     }*/
     
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = (reg(s) + i) & 0xFFFFFFFF;
     
     if(addr % 2 == 0) {
         // Cast as i16 to force sign extension
@@ -1422,14 +1417,16 @@ void CPU::oplh(Instruction& instruction) {
         _cop0.badVaddr = addr;
         exception(LoadAddressError);
     }
+    
+    return 2;
 }
 
-void CPU::oplhu(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    uint32_t t = instruction.t();
-    uint32_t s = instruction.s();
+int CPU::oplhu(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    uint32_t t = instruction.rt;
+    uint32_t s = instruction.rs;
     
-    uint32_t addr = wrappingAdd(reg(s), i);
+    uint32_t addr = (reg(s) + i) & 0xFFFFFFFF;
     
     // Address must be 16bit aligned
     if(addr % 2 == 0) {
@@ -1440,25 +1437,29 @@ void CPU::oplhu(Instruction& instruction) {
         _cop0.badVaddr = addr;
         exception(LoadAddressError);
     }
+    
+    return 2;
 }
 
 // Load byte
-void CPU::oplb(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+int CPU::oplb(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
-    auto addr = wrappingAdd(reg(s), i);
+    auto addr = (reg(s) + i) & 0xFFFFFFFF;
     int8_t v = static_cast<int8_t>(load8(addr));
     
     // Put the load in the delay slot
     setLoad(t, static_cast<uint32_t>(v));
+    
+    return 2;
 }
 
-void CPU::oplbu(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+int CPU::oplbu(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
     uint32_t addr = reg(s) + i;
     
@@ -1466,23 +1467,27 @@ void CPU::oplbu(Instruction& instruction) {
     
     // Put the load in the delay slot
     setLoad(t, static_cast<uint32_t>(v));
+    
+    return 2;
 }
 
 // addiu $8, $zero, 0xb88
-void CPU::addiu(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+int CPU::addiu(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
-    uint32_t v = wrappingAdd(reg(s), i);
+    uint32_t v = (reg(s) + i) & 0xFFFFFFFF;
     
     set_reg(t, v);
+    
+    return 1;
 }
 
-void CPU::addi(Instruction& instruction) {
-    auto i = static_cast<int32_t>(instruction.imm_se());
-    uint32_t t = instruction.t();
-    uint32_t sReg = instruction.s();
+int CPU::addi(Instruction& instruction) {
+    auto i = static_cast<int32_t>(instruction.imm_se);
+    uint32_t t = instruction.rt;
+    uint32_t sReg = instruction.rs;
     
     int32_t s = static_cast<int32_t>(reg(sReg));
     
@@ -1491,11 +1496,13 @@ void CPU::addi(Instruction& instruction) {
     } else {
         exception(Overflow);
     }
+    
+    return 1;
 }
 
-void CPU::opmultu(Instruction& instruction) {
-    auto s = instruction.s();
-    auto t = instruction.t();
+int CPU::opmultu(Instruction& instruction) {
+    auto s = instruction.rs;
+    auto t = instruction.rt;
     
     uint64_t a = static_cast<uint64_t>(reg(s));
     uint64_t b = static_cast<uint64_t>(reg(t));
@@ -1504,11 +1511,13 @@ void CPU::opmultu(Instruction& instruction) {
     
     hi = static_cast<uint32_t>(v >> 32);
     lo = static_cast<uint32_t>(v);
+    
+    return 12;
 }
 
-void CPU::opmult(Instruction& instruction) {
-    auto s = instruction.s();
-    auto t = instruction.t();
+int CPU::opmult(Instruction& instruction) {
+    auto s = instruction.rs;
+    auto t = instruction.rt;
     
     int64_t a = static_cast<int64_t>(static_cast<int32_t>(reg(s)));
     int64_t b = static_cast<int64_t>(static_cast<int32_t>(reg(t)));
@@ -1517,11 +1526,13 @@ void CPU::opmult(Instruction& instruction) {
     
     hi = static_cast<uint32_t>(v >> 32);
     lo = static_cast<uint32_t>(v);
+    
+    return 12;
 }
 
-void CPU::opdiv(Instruction& instruction) {
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+int CPU::opdiv(Instruction& instruction) {
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
     
     int32_t n = static_cast<int32_t>(reg(s));
     int32_t d = static_cast<int32_t>(reg(t));
@@ -1542,11 +1553,13 @@ void CPU::opdiv(Instruction& instruction) {
         hi = static_cast<uint32_t>(n % d);
         lo = static_cast<uint32_t>(n / d);
     }
+    
+    return 36; // TODO; Confirm?
 }
 
-void CPU::opdivu(Instruction& instruction) {
-    auto s = instruction.s();
-    auto t = instruction.t();
+int CPU::opdivu(Instruction& instruction) {
+    auto s = instruction.rs;
+    auto t = instruction.rt;
     
     auto n = reg(s);
     auto d = reg(t);
@@ -1559,46 +1572,60 @@ void CPU::opdivu(Instruction& instruction) {
         hi = n % d;
         lo = n / d;
     }
+    
+    return 36;
 }
 
-void CPU::opmfhi(Instruction& instruction) {
-    auto d = instruction.d();
+int CPU::opmfhi(Instruction& instruction) {
+    auto d = instruction.rd;
     
     set_reg(d, hi);
+    
+    return 1;
 }
 
-void CPU::opmthi(Instruction& instruction) {
-    auto s = instruction.s();
+int CPU::opmthi(Instruction& instruction) {
+    auto s = instruction.rs;
     
     hi = reg(s);
+    
+    return 2; // TODO; CONFIRM??
 }
 
-void CPU::opmflo(Instruction& instruction) {
-    uint32_t d = instruction.d();
+int CPU::opmflo(Instruction& instruction) {
+    uint32_t d = instruction.rd;
     
     set_reg(d, lo);
+    
+    return 1;
 }
 
-void CPU::opmtlo(Instruction& instruction) {
-    auto s = instruction.s();
+int CPU::opmtlo(Instruction& instruction) {
+    auto s = instruction.rs;
     
     lo = reg(s);
+    
+    return 2;
 }
 
-void CPU::oplwc0(Instruction& instruction) {
+int CPU::oplwc0(Instruction& instruction) {
     // Not supported by this COP
     exception(CoprocessorError);
+    
+    return 2;
 }
 
-void CPU::oplwc1(Instruction& instruction) {
+int CPU::oplwc1(Instruction& instruction) {
     // Not supported by this COP
     exception(CoprocessorError);
+    
+    return 2;
 }
 
-void CPU::oplwc2(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto t = instruction.t();
-    auto s = instruction.s();
+int CPU::oplwc2(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto t = instruction.rt;
+    auto s = instruction.rs;
     
     auto addr = reg(s) + i;
     
@@ -1610,29 +1637,37 @@ void CPU::oplwc2(Instruction& instruction) {
     } else {
         exception(LoadAddressError);
     }
-}
-
-void CPU::oplwc3(Instruction& instruction) {
-    // Not supported by this COP
-    exception(CoprocessorError);
-}
-
-void CPU::opswc0(Instruction& instruction) {
-    // Not supported by this COP
-    exception(CoprocessorError);
-}
-
-void CPU::opswc1(Instruction& instruction) {
-    // Not supported by this COP
-    exception(CoprocessorError);
-}
-
-void CPU::opswc2(Instruction& instruction) {
-    auto s = instruction.s();
-    auto t = instruction.t();
-    auto i = instruction.imm_se();
     
-    auto addr = wrappingAdd(reg(s), i);
+    return 2;
+}
+
+int CPU::oplwc3(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+    
+    return 2;
+}
+
+int CPU::opswc0(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+    
+    return 2;
+}
+
+int CPU::opswc1(Instruction& instruction) {
+    // Not supported by this COP
+    exception(CoprocessorError);
+    
+    return 2;
+}
+
+int CPU::opswc2(Instruction& instruction) {
+    auto s = instruction.rs;
+    auto t = instruction.rt;
+    auto i = instruction.imm_se;
+    
+    auto addr = (reg(s) + i) & 0xFFFFFFFF;
     
     if(addr % 4 == 0) {
         auto v = gte.read(t);//_cop2.getData(t);
@@ -1641,29 +1676,34 @@ void CPU::opswc2(Instruction& instruction) {
     } else {
         exception(LoadAddressError);
     }
+    
+    return 2;
 }
 
-void CPU::opswc3(Instruction& instruction) {
+int CPU::opswc3(Instruction& instruction) {
     // Not supported by this COP
     exception(CoprocessorError);
+    
+    return 2;
 }
 
-void CPU::opsubu(Instruction& instruction) {
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
-    uint32_t d = instruction.d();
+int CPU::opsubu(Instruction& instruction) {
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
+    uint32_t d = instruction.rd;
     
     // I CANT BELIEVE I HAD THIS AS WRAPPINGADD AND NOT WRAPPINGSUB!!!!!
-    uint32_t v = wrappingSub(reg(s), reg(t));
-    //uint32_t v = reg(s) - reg(t);
+    uint32_t v = (reg(s) - reg(t)) & 0xFFFFFFFF;
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opsub(Instruction& instruction) {
-    auto sReg = instruction.s();
-    auto tReg = instruction.t();
-    auto d = instruction.d();
+int CPU::opsub(Instruction& instruction) {
+    auto sReg = instruction.rs;
+    auto tReg = instruction.rt;
+    auto d = instruction.rd;
     
     int32_t s = static_cast<int32_t>(reg(sReg));
     int32_t t = static_cast<int32_t>(reg(tReg));
@@ -1674,33 +1714,39 @@ void CPU::opsub(Instruction& instruction) {
     } else {
         exception(Overflow);
     }
+    
+    return 1;
 }
 
-void CPU::opand(Instruction& instruction) {
-    uint32_t d = instruction.d();
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+int CPU::opand(Instruction& instruction) {
+    uint32_t d = instruction.rd;
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
     
     uint32_t v = reg(s) & reg(t);
     
     set_reg(d, v);
+    
+    return 1;
 }
 
-void CPU::opandi(Instruction& instruction){
-    uint32_t i = instruction.imm();
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+int CPU::opandi(Instruction& instruction){
+    uint32_t i = instruction.imm;
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
     
     uint32_t v = reg(s) & i;
     
     set_reg(t, v);
+    
+    return 1;
 }
 
 int CPU::opcop0(Instruction& instruction) {
     // Formation goes as:
     // 0b0100nn where nn is the coprocessor number.
     
-    switch (instruction.copOpcode()) {
+    switch (instruction.rs) {
     case 0b000000:
         opmfc0(instruction);
         return 1;
@@ -1725,7 +1771,7 @@ int CPU::opcop1(Instruction& instruction) {
 }
 
 int CPU::opcop2(Instruction& instruction) {
-    auto opcode = instruction.copOpcode();
+    auto opcode = instruction.rs;
     
     if (instruction.op & (1 << 25)) {
         // GTE command
@@ -1734,25 +1780,25 @@ int CPU::opcop2(Instruction& instruction) {
     }
     
     switch (opcode) {
-    case 0b000000:
-        // Move from GTE to Data register
-        opmfc2(instruction);
-        return 1;
-    case 0b000010:
-        // From GTE to Control register
-        opcfc2(instruction);
-        return 1;
-    case 0b00100:
-        // Data Register to GTE
-        opmtc2(instruction);
-        return 1;
-    case 0b00110:
-        // Data Register to GTE Control register
-        opctc2(instruction);
-        return 1;
-    default:
-        std::cerr << "Unhandled COP2 instruction: " + std::to_string((instruction.copOpcode())) << "\n";
-        throw std::runtime_error("Unhandled COP instruction: " + std::to_string((instruction.copOpcode())));
+        case 0b000000:
+            // Move from GTE to Data register
+            opmfc2(instruction);
+            return 1;
+        case 0b000010:
+            // From GTE to Control register
+            opcfc2(instruction);
+            return 1;
+        case 0b00100:
+            // Data Register to GTE
+            opmtc2(instruction);
+            return 1;
+        case 0b00110:
+            // Data Register to GTE Control register
+            opctc2(instruction);
+            return 1;
+        default:
+            std::cerr << "Unhandled COP2 instruction: " + std::to_string((instruction.rs)) << "\n";
+            throw std::runtime_error("Unhandled COP instruction: " + std::to_string((instruction.rs)));
     }
 }
 
@@ -1765,8 +1811,8 @@ int CPU::opcop3(Instruction& instruction) {
 void CPU::opmtc0(Instruction& instruction) {
     // This basically makes it so that all the data,
     // goes to the cache instead of the main memory.
-    uint32_t cpur = instruction.t();
-    uint32_t copr = instruction.d();
+    uint32_t cpur = instruction.rt;
+    uint32_t copr = instruction.rd;
     
     uint32_t v = reg(cpur);
     
@@ -1830,8 +1876,8 @@ void CPU::opmtc0(Instruction& instruction) {
 }
 
 void CPU::opmfc0(Instruction& instruction) {
-    auto cpur = instruction.t();
-    uint32_t copr = instruction.d();
+    auto cpur = instruction.rt;
+    uint32_t copr = instruction.rd;
     
     uint32_t v = 0;
     
@@ -1911,8 +1957,8 @@ void CPU::oprfe(Instruction& instruction) {
 }
 
 void CPU::opmfc2(Instruction& instruction) {
-    auto t = instruction.t();
-    auto d = instruction.d();
+    auto t = instruction.rt;
+    auto d = instruction.rd;
     
     auto v = gte.read(d);//_cop2.getData(d);
     
@@ -1920,8 +1966,8 @@ void CPU::opmfc2(Instruction& instruction) {
 }
 
 void CPU::opcfc2(Instruction& instruction) {
-    auto t = instruction.t();
-    auto d = instruction.d();
+    auto t = instruction.rt;
+    auto d = instruction.rd;
     
     auto v = gte.read(d + 32);//_cop2.getControl(d);
     
@@ -1929,8 +1975,8 @@ void CPU::opcfc2(Instruction& instruction) {
 }
 
 void CPU::opmtc2(Instruction& instruction) {
-    auto t = instruction.t();
-    auto d = instruction.d();
+    auto t = instruction.rt;
+    auto d = instruction.rd;
     
     auto v = reg(t);
     
@@ -1939,8 +1985,8 @@ void CPU::opmtc2(Instruction& instruction) {
 }
 
 void CPU::opctc2(Instruction& instruction) {
-    auto t = instruction.t();
-    auto d = instruction.d();
+    auto t = instruction.rt;
+    auto d = instruction.rd;
     
     auto v = reg(t);
     
@@ -1983,7 +2029,7 @@ void CPU::exception(const Exception exception) {
      *          a coprocessor which wasn't enabled in SR.
      */
     Instruction load = load32(currentpc);
-    uint8_t coprocessorNumber = load.func() & 0x3;
+    uint8_t coprocessorNumber = load.func & 0x3;
     
     _cop0.cause &= ~(0x3 << 28);
     _cop0.cause |= (coprocessorNumber << 28);
@@ -2014,19 +2060,25 @@ void CPU::exception(const Exception exception) {
         std::cerr << "EXCEPTION OCCURRED!!" << exception << "\n";
 }
 
-void CPU::opSyscall(Instruction& instruction) {
+int CPU::opSyscall(Instruction& instruction) {
     exception(SysCall);
+    
+    return 2;
 }
 
-void CPU::opbreak(Instruction& instruction) {
+int CPU::opbreak(Instruction& instruction) {
     exception(Break);
+    
+    return 2;
 }
 
-void CPU::opillegal(Instruction& instruction) {
+int CPU::opillegal(Instruction& instruction) {
     paused = true;
-    printf("Illegal instruction %d %d PC; %d\n", instruction.func(), instruction.subfunction(), currentpc);
+    printf("Illegal instruction %d %d PC; %d\n", instruction.func, instruction.subfunc, currentpc);
     std::cerr << "Illegal instruction " << instruction.op << " PC; " << currentpc << "\n";
     exception(IllegalInstruction);
+    
+    return 1;
 }
 
 // Take from; https://github.com/allkern/psxe/blob/master/psx/cpu_debug.h#L3
@@ -2448,20 +2500,22 @@ void CPU::reset() {
     gte.reset();
 }
 
-void CPU::opj(Instruction& instruction) {
-    if(pc == 0x80031dbc)
-        return;
+int CPU::opj(Instruction& instruction) {
+    //if(pc == 0x80031dbc)
+    //    return;
     
-    uint32_t i = instruction.imm_jump();
+    uint32_t i = instruction.jump;
     
     nextpc = (pc & 0xf0000000) | (i << 2);
     
     branchSlot = true;
     jumpSlot = true;
+    
+    return 2;
 }
 
-void CPU::opjr(Instruction& instruction) {
-    uint32_t s = instruction.s();
+int CPU::opjr(Instruction& instruction) {
+    uint32_t s = instruction.rs;
     uint32_t addr = reg(s);
     
     branchSlot = true;
@@ -2470,23 +2524,25 @@ void CPU::opjr(Instruction& instruction) {
         _cop0.badVaddr = addr;
         exception(LoadAddressError);
         
-        return;
+        return 2;
     }
     
     nextpc = addr;
     jumpSlot = true;
+    
+    return 2;
 }
 
-void CPU::opjal(Instruction& instruction) {
+int CPU::opjal(Instruction& instruction) {
     // Store return address in £31($ra)
     set_reg(31, nextpc);
     
-    opj(instruction);
+    return opj(instruction);
 }
 
-void CPU::opjalr(Instruction& instruction) {
-    uint32_t d = instruction.d();
-    uint32_t s = instruction.s();
+int CPU::opjalr(Instruction& instruction) {
+    uint32_t d = instruction.rd;
+    uint32_t s = instruction.rs;
     
     uint32_t addr = reg(s);
     
@@ -2509,16 +2565,18 @@ void CPU::opjalr(Instruction& instruction) {
         _cop0.badVaddr = addr;
         exception(LoadAddressError);
         
-        return;
+        return 2;
     }
     
     nextpc = addr;
     jumpSlot = true;
+    
+    return 2;
 }
 
-void CPU::opbxx(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto s = instruction.s();
+int CPU::opbxx(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto s = instruction.rs;
     
     uint32_t op = instruction.op;
     
@@ -2544,19 +2602,25 @@ void CPU::opbxx(Instruction& instruction) {
         set_reg(31, nextpc);
     }
     
+    branchSlot = true;
+    
     if(test != 0) {
         int32_t offset = (int32_t((pc) + (i * 4)));
         
         branch(offset);
+        
+        return 3;
     }
     
-    branchSlot = true;
+    return 1;
 }
 
-void CPU::opbne(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+int CPU::opbne(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
+    
+    branchSlot = true;
     
     // Check if not equal
     if(reg(s) != reg(t)) {
@@ -2564,15 +2628,17 @@ void CPU::opbne(Instruction& instruction) {
         int32_t offset = (int32_t((pc) + (i * 4)));
         
         branch(offset);
+        
+        return 3;
     }
     
-    branchSlot = true;
+    return 1;
 }
 
-void CPU::opbeq(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    uint32_t s = instruction.s();
-    uint32_t t = instruction.t();
+int CPU::opbeq(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    uint32_t s = instruction.rs;
+    uint32_t t = instruction.rt;
     
     // 0x80031614 -> Checks for GPU bit 14, just always never take it I suppose
     // 0x80031624 -> Checks for another bit from the GPU
@@ -2591,9 +2657,11 @@ void CPU::opbeq(Instruction& instruction) {
      */
     
     // CPU stuck here?
-    if(pc == 0x80031614) {
-        printf("");
-    }
+    //if(pc == 0x80031614) {
+    //    printf("");
+    //}
+    
+    branchSlot = true;
     
     // 0x801db49c - Checks something from the GPU's bit 24?
     
@@ -2602,42 +2670,50 @@ void CPU::opbeq(Instruction& instruction) {
         int32_t offset = (int32_t((pc) + (i * 4)));
         
         branch(offset);
+        
+        return 3;
     }
     
-    branchSlot = true;
+    return 1;
 }
 
-void CPU::opbqtz(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    uint32_t s = instruction.s();
+int CPU::opbqtz(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    uint32_t s = instruction.rs;
     
     int32_t v = static_cast<int32_t>(reg(s));
+    
+    branchSlot = true;
     
     if(v > 0) {
         int32_t offset = (int32_t((pc) + (i * 4)));
         
         branch(offset);
-    } else {
-        printf("");
+        
+        return 3;
     }
     
-    branchSlot = true;
+    return 1;
 }
 
 // TODO; Rename to blez(branch on less than or equal to zero)
-void CPU::opbltz(Instruction& instruction) {
-    auto i = instruction.imm_se();
-    auto s = instruction.s();
+int CPU::opblez(Instruction& instruction) {
+    auto i = instruction.imm_se;
+    auto s = instruction.rs;
     
     int32_t v = static_cast<int32_t>(reg(s));
+    
+    branchSlot = true;
     
     if(v <= 0) {
         int32_t offset = (int32_t((pc) + (i * 4)));
         
         branch(offset);
+        
+        return 3;
     }
     
-    branchSlot = true;
+    return 1;
 }
 
 void CPU::branch(uint32_t offset) {
@@ -2651,10 +2727,10 @@ void CPU::branch(uint32_t offset) {
     jumpSlot = true;
 }
 
-void CPU::add(Instruction& instruction) {
-    auto sReg = instruction.s();
-    auto tReg = instruction.t();
-    auto d = instruction.d();
+int CPU::opadd(Instruction& instruction) {
+    auto sReg = instruction.rs;
+    auto tReg = instruction.rt;
+    auto d = instruction.rd;
     
     int32_t s = static_cast<int32_t>(reg(sReg));
     int32_t t = static_cast<int32_t>(reg(tReg));
@@ -2664,16 +2740,20 @@ void CPU::add(Instruction& instruction) {
     } else {
         exception(Overflow);
     }
+    
+    return 1;
 }
 
-void CPU::addu(Instruction& instruction) {
-    auto s = instruction.s();
-    auto t = instruction.t();
-    auto d = instruction.d();
+int CPU::opaddu(Instruction& instruction) {
+    auto s = instruction.rs;
+    auto t = instruction.rt;
+    auto d = instruction.rd;
     
-    auto v = wrappingAdd(reg(s), reg(t));
+    auto v = (reg(s) + reg(t)) & 0xFFFFFFFF;
     
     set_reg(d, v);
+    
+    return 1;
 }
 
 uint32_t CPU::load32(uint32_t addr) {
@@ -2740,57 +2820,6 @@ void CPU::handleCache(uint32_t addr, uint32_t val) {
     uint32_t tag = (addr & 0xFFFFF000) >> 12;
     uint16_t index = (addr & 0xFFC) >> 2;
     interconnect.icache[index] = ICache(tag, val);
-}
-
-uint32_t CPU::wrappingAdd(uint32_t a, uint32_t b) {
-    // Perform wrapping addition (wrap around upon overflow)
-    //return a + b < a ? UINT32_MAX : a + b;
-    
-    // Turns out.. Mr C++ already does wrapping add
-    // ty C++ so much.
-    
-    // I had to get a Rust IDE and learn it's basics to make sure
-    // that they are both are outputting the same results,
-    // and they were somehow after crying for days.
-    return (a + b) & 0xFFFFFFFF;
-    
-    /*uint64_t temp = static_cast<uint64_t>(a) + b;
-    
-    if (temp > UINT32_MAX) {
-        // Overflow occurred, wrap around
-        temp -= UINT32_MAX + 1;
-    }
-    
-    return static_cast<uint32_t>(temp);*/
-    
-    // Perform regular addition
-    unsigned int sum = a + b;
-    
-    // Check for overflow
-    if (sum < a || sum < b) {
-        // Overflow occurred, wrap around
-        return ~a; // This will effectively wrap around due to unsigned arithmetic
-        //return sum;
-    }
-    
-    return sum;
-}
-
-uint32_t CPU::wrappingSub(uint32_t a, uint32_t b) {
-    // Perform wrapping subtraction (wrap around upon underflow)
-    //return a - b > a ? 0 : a - b;
-    return a - b;
-    
-    // Perform regular subtraction
-    unsigned int diff = a - b;
-    
-    // Check for underflow
-    if (diff > a) {
-        // Underflow occurred, wrap around
-        return (~b) + 1; // This will effectively wrap around due to unsigned arithmetic
-    }
-    
-    return diff;
 }
 
 //https://stackoverflow.com/questions/3944505/detecting-signed-overflow-in-c-c

@@ -1,4 +1,4 @@
-#version 330 core
+#version 420 core
 
 in vec3 color;
 
@@ -31,7 +31,8 @@ flat in int attr;
 
 out vec4 fragColor;
 
-uniform sampler2D texture_sample4;
+layout(binding = 0) uniform sampler2D texture_sample4;
+layout(binding = 1) uniform sampler2D sceneTex;
 
 //uniform int texture_depth;
 uniform vec4 textureWindow;
@@ -46,13 +47,13 @@ const int TEXTURE_DEPTH_MASK = 0x3;
 
 vec2 calculateTexel() {
     uvec2 texel = uvec2(uint(UVs.x) % 256u, uint(UVs.y) % 256u);
-    
+
     uvec2 mask = uvec2(textureWindow.x, textureWindow.y);
     uvec2 offset = uvec2(textureWindow.z, textureWindow.w);
-    
+
     texel.x = (texel.x & ~(mask.x * 8u)) | ((offset.x & mask.x) * 8u);
     texel.y = (texel.y & ~(mask.y * 8u)) | ((offset.y & mask.y) * 8u);
-    
+
     return vec2(texel);
 }
 
@@ -61,12 +62,12 @@ uint internalToPsxColor(vec4 c) {
     uint r = uint(floor(c.r * 31.0 + 0.5));
     uint g = uint(floor(c.g * 31.0 + 0.5));
     uint b = uint(floor(c.b * 31.0 + 0.5));
-    
+
     return (a << 15) | (b << 10) | (g << 5) | r;
 }
 
 vec4 read(int x, int y) {
-    //y = 512 - 1 - y;
+    y = 512 - 1 - y;
     
     return texelFetch(texture_sample4, ivec2(x, y), 0);
 }
@@ -74,10 +75,10 @@ vec4 read(int x, int y) {
 vec4 clut4bit(vec2 coords, ivec2 clut, ivec2 page) {
     int texX = int(coords.x / 4.0) + page.x;
     int texY = int(coords.y)       + page.y;
-    
+
     uint index = internalToPsxColor(read(texX, texY));
     uint which = (index >> ((uint(coords.x) & 3u) * 4u)) & 0xfu;
-    
+
     return read(clut.x + int(which), clut.y);
 }
 
@@ -101,12 +102,12 @@ vec4 sample_texel(int textureDepth) {
      */
     float clutX = int(UVs.z) >> 16;
     float clutY = int(UVs.w) >> 16;
-    
+
     float pageX = int(UVs.z) & 0xFFFF;
     float pageY = int(UVs.w) & 0xFFFF;
-    
+
     vec2 texel = calculateTexel();
-    
+
     /**
      * T4Bit = 0,
      * T8Bit = 1,
@@ -119,11 +120,16 @@ vec4 sample_texel(int textureDepth) {
     } else if(textureDepth == 2) {
         return clut16bit(texel, ivec2(pageX, pageY));
     }
-    
+
     return vec4(1, 0, 0, 1);
 }
 
 void main() {
+    //int y = int(VRAMPos.y);
+    //fragColor = read(int(VRAMPos.x), y);
+    
+    //return;
+    
     // Crop
     if (any(lessThan(VRAMPos, drawingAreaMinIn)) ||
         any(greaterThanEqual(VRAMPos, drawingAreaMaxIn))) {
@@ -152,12 +158,6 @@ void main() {
             discard;
         }
     }
-    
-    /*if(textureMode == 0 || textureMode == 1) {
-        if(blendTexture == 1) {
-            discard;
-        }
-    }*/
     
     // textureMode ( 0 = No texture, 1 = Only texture, 2 = Texture + Color)
     if (textureMode == 0) {
@@ -193,17 +193,6 @@ void main() {
         }
     }
     
-    /*if (textureMode == 0) {
-        // untextured
-        F = vec4(color, 1.0);
-    } else if (textureMode == 1) {
-        // texture only
-        F = samp;
-    } else if (textureMode == 2) {
-        // texture * vertex color
-        F = samp * vec4(color, 1.0);
-    }*/
-    
     /*
      * B=Back  (the old pixel read from the image in the frame buffer)
      * F=Front (the new halftransparent pixel)
@@ -213,20 +202,23 @@ void main() {
      * 1.0 x B +0.25 x F    ;aka B+F/4
      */
     if(isSemiTransparent == 1) {
-        float gamma = 1.0;
+        float gamma = 2.0;
         float invGamma = 1.0 / gamma;
-
-        vec4 B = read(int(VRAMPos.x), int(VRAMPos.y));
-        //vec4 B = texelFetch(sceneColor, ivec2(int(VRAMPos.x), int(VRAMPos.y)), 0);
-
+        
+        //int y = int(VRAMPos.y);
+        int y = drawingAreaMaxIn.y - int(VRAMPos.y);
+        //vec4 B = read(int(VRAMPos.x), y);
+        //vec4 B = texelFetch(sceneTex, ivec2(int(VRAMPos.x), y), 0);
+        vec4 B = vec4(0, 0, 0, 1);
+        
         vec3 Blinear = pow(B.rgb, vec3(gamma));
         vec3 Flinear = pow(F.rgb, vec3(gamma));
-
+        
         vec3 Bi = floor(Blinear * 31.0 + 0.5);
         vec3 Fi = floor(Flinear * 31.0 + 0.5);
-
+        
         vec3 O;
-
+        
         if (semiTransparencyMode == 0)
             O = (Bi + Fi) * 0.5;
         else if (semiTransparencyMode == 1)
@@ -239,24 +231,6 @@ void main() {
         // Convert back to display gamma
         vec3 final = pow(O / 31.0, vec3(invGamma));
         outColor = vec4(final, 1.0);
-        
-        /*// (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
-         if(semiTransparencyMode == 0) {
-            // 0.5 x B + 0.5 x F    ;aka B/2+F/2
-            outColor = (0.5 * B) + (0.5 * F);
-        } else if(semiTransparencyMode == 1) {
-            // 1.0 x B + 1.0 x F    ;aka B+F
-            outColor = B + F;
-        }  else if(semiTransparencyMode == 2) {
-            // 1.0 x B - 1.0 x F    ;aka B-F
-            outColor = B - F;
-        }  else if(semiTransparencyMode == 3) {
-            // 1.0 x B +0.25 x F    ;aka B+F/4
-            outColor = B + (0.25 * F);
-        }
-        
-        outColor = clamp(outColor, 0.0, 1.0);*/
-        //outColor = F * 0.5;
     } else {
         // No transparency
         outColor = F;

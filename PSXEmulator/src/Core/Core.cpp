@@ -391,8 +391,8 @@ void handleLoadExe(std::string path) {
 	
 	// GPU - 16 BPP
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/MemoryTransfer/MemoryTransfer16BPP.exe"); // Passed ig?
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/PSX-master/GPU/16BPP/RenderLine/RenderLine16BPP.exe"); // TODO; Don't have line rendering support
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); // TODO; Wrong colors(implement dither)
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // Passed
@@ -403,12 +403,12 @@ void handleLoadExe(std::string path) {
 	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Unsupported format
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 	
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/psxtest_cpu.exe");
 	
 	// Requires controller
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/psxtest_cpx.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/PSX-master/psxtest_cpx.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/psxtest_gpu.exe");
 	
 	// It's drawing the cube(obviously no textures),
@@ -425,7 +425,7 @@ void handleLoadExe(std::string path) {
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu->cop/cop.exe"); // TODO; Fails some tests?
 	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cpu->io-access-bitwidth/io-access-bitwidth.exe"); // TODO; Fails many tests
 	
-	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/dma/otc-test/otc-test.exe"); // TODO; Fails many tests
+	std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/dma/otc-test/otc-test.exe"); // TODO; Fails many tests
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/gpu/animated-triangle/animated-triangle.exe"); // TODO; Needs GTE
 	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/gpu/bandwidth/bandwidth.exe"); // TODO; speed: 20000-30000 MB/s lol
@@ -436,13 +436,12 @@ void handleLoadExe(std::string path) {
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/ps1-tests/gpu/triangle/triangle.exe");
 	//std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../ROMS/Tests/ps1-tests/gpu/lines/lines.exe");
 	
-	//std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/input/pad/pad.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/input/pad/pad.exe");
 	
 	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/4bit/4bit.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/step-by-step-log/step-by-step-log.exe");
 	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/frame/frame-15bit.exe");
-	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/frame/frame-15bit.exe");
-	std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/movie/movie-24bit.exe");
+	//std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/ps1-tests/mdec/movie/movie-24bit.exe");
 	
 	/**
 	 * Idk where exactly the cause but,
@@ -495,10 +494,114 @@ void rest(const std::string& biosPath) {
 }
 
 static int x = 0;
+using Clock = std::chrono::high_resolution_clock;
+using TimePoint = std::chrono::time_point<Clock>;
+
+double secondsSince(const TimePoint& t) {
+	return std::chrono::duration<double>(Clock::now() - t).count();
+}
+
+static TimePoint lastSecond = Clock::now();
+static uint64_t instructionsExecuted = 0;
+static uint64_t cyclesExecuted = 0;
+
+// 53693175?
+const uint32_t PSX_CPU_CLOCK = 33868800;
+// NTSC runs at ~59.94 Hz
+const uint32_t CYCLES_PER_FRAME_NTSC = PSX_CPU_CLOCK / 60;  // ≈ 564,480
+// PAL runs at ~49.76 Hz
+const uint32_t CYCLES_PER_FRAME_PAL  = PSX_CPU_CLOCK / 50;  // ≈ 677,376
 
 void runFrame() {
+	uint32_t frameCycles = 0;
+	
+	auto cyclesPerFrame = gpu->vmode == Emulator::VMode::Pal ? CYCLES_PER_FRAME_PAL : CYCLES_PER_FRAME_NTSC;
+	
+	while (frameCycles < cyclesPerFrame) {
+		int cycles = cpu->executeNextInstruction();
+		frameCycles += cycles;
+		
+		/*cyclesExecuted += cycles;
+		instructionsExecuted++;
+		
+		if (secondsSince(lastSecond) >= 1.0) {
+			printf("IPS: %llu | CPS: %llu\n", (uint64_t)instructionsExecuted, (uint64_t)cyclesExecuted);
+			
+			instructionsExecuted = 0;
+			cyclesExecuted = 0;
+			lastSecond = Clock::now();
+		}*/
+		
+		if (cpu->pc == 0x80030000) {
+			if (false) {
+				printf("Skipping bootrom\n");
+				cpu->pc = cpu->reg(31);
+				cpu->nextpc = cpu->pc + 4;
+			} else {
+				//handleLoadExe("");
+			}
+		}
+		
+		if (cpu->interconnect.step(cycles)) {
+			IRQ::trigger(IRQ::VBlank);
+		}
+	}
+	
+	return;
+	
+	while (true) {
+		int cycles = 0;
+		
+		cycles += cpu->executeNextInstruction();
+		
+		/*if (!cpu->paused) {
+			cycles += cpu->executeNextInstruction();
+		} else if (cpu->stepRequested) {
+			cycles += cpu->executeNextInstruction();
+			
+			cpu->stepRequested = false;
+			printf("X; %d\n", x);
+		} else if (cpu->stepUntilBranchTakenRequested) {
+			auto pc = cpu->pc;
+			
+			cycles += cpu->executeNextInstruction();
+			
+			if (pc + 4 != cpu->pc) {
+				cpu->stepUntilBranchTakenRequested = false;
+				printf("X; %d\n", x);
+			}
+		} else if (cpu->stepUntilBranchNotTakenRequested) {
+			auto pc = cpu->pc;
+			
+			cycles += cpu->executeNextInstruction();
+			
+			if (pc + 4 == cpu->pc) {
+				cpu->stepUntilBranchNotTakenRequested = false;
+				printf("X; %d\n", x);
+			}
+		}*/
+		
+		if (cpu->pc == 0x80030000) {
+			if (true) {
+				printf("Skipping bootrom\n");
+				cpu->pc = cpu->reg(31);
+				cpu->nextpc = cpu->pc + 4;
+			} else
+				handleLoadExe(""/*testPaths[currentIndex]*/);
+		}
+		
+		if (cpu->interconnect.step(cycles)) {
+			IRQ::trigger(IRQ::VBlank);
+			//return;
+		}
+	}
+	
+	return;
+	
 	while(true) {
 		bool cpuStepped = false;
+		
+		int cycles = 0;
 		
 		for(int i = 0; i < 100; i++) {
 			//if (cpu->pc != 0x80030000) {
@@ -513,10 +616,10 @@ void runFrame() {
 				//printf("PC; %x - %d\n", cpu->pc, x);
 				
 				if (!cpu->paused) {
-					cpu->executeNextInstruction();
+					cycles += cpu->executeNextInstruction();
 					cpuStepped = true;
 				} else if (cpu->stepRequested) {
-					cpu->executeNextInstruction();
+					cycles += cpu->executeNextInstruction();
 					cpuStepped = true;
 					
 					cpu->stepRequested = false;
@@ -524,7 +627,7 @@ void runFrame() {
 				} else if (cpu->stepUntilBranchTakenRequested) {
 					auto pc = cpu->pc;
 					
-					cpu->executeNextInstruction();
+					cycles += cpu->executeNextInstruction();
 					cpuStepped = true;
 					
 					if (pc + 4 != cpu->pc) {
@@ -534,7 +637,7 @@ void runFrame() {
 				} else if (cpu->stepUntilBranchNotTakenRequested) {
 					auto pc = cpu->pc;
 					
-					cpu->executeNextInstruction();
+					cycles += cpu->executeNextInstruction();
 					cpuStepped = true;
 					
 					if (pc + 4 == cpu->pc) {
@@ -557,11 +660,29 @@ void runFrame() {
 			}
 		}
 		
-		if(cpuStepped && cpu->interconnect.step(300)) {
+		bool frameDone = false;
+		int remaining = cycles;
+		
+		while (remaining > 0) {
+			int step = std::min(remaining, 20);
+			if (cpu->interconnect.step(step)) {
+				IRQ::trigger(IRQ::VBlank);
+				frameDone = true;
+				
+				break;
+			}
+			
+			remaining -= step;
+		}
+		
+		if (frameDone)
+			break;
+		
+		/*if(cpuStepped && cpu->interconnect.step(cycles)) {
 			IRQ::trigger(IRQ::VBlank);
 			
 			break;
-		}
+		}*/
 		
 		if (!cpuStepped)
 			break;
@@ -577,106 +698,130 @@ struct FileInfo {
 };
 
 static void ShowFileBrowser(bool* p_open, CPU* cpu) {
-    static std::string current_dir = fs::current_path().string();
+    static std::string current_dir;
     static std::vector<FileInfo> files;
-    static std::string selected_file;
-    static std::vector<std::string> history;
+    static std::string selected_path;
+    static bool initialized = false;
 	
-	Refresh:
-		files.clear();
-    		
-		try {
-			for (const auto& entry : fs::directory_iterator(current_dir)) {
-				files.push_back({
-					entry.path().filename().string(),
-					entry.path().string(),
-					entry.is_directory()
-				});
-			}
-
-			std::sort(files.begin(), files.end(), [](const FileInfo& a, const FileInfo& b) {
-				if (a.is_directory != b.is_directory) 
-					return a.is_directory > b.is_directory;
-				return a.name < b.name;
-			});
-		} catch (...) {
-				
-		}
-    
-    // Refresh directory contents
-    if (ImGui::Button("Refresh")) {
-        goto Refresh;
+    const char* state_file = ".filebrowser_lastdir";
+	
+    auto save_dir = [&]() {
+        std::ofstream f(state_file, std::ios::trunc);
+        if (f) f << current_dir;
+    };
+	
+    auto load_dir = [&]() {
+        std::ifstream f(state_file);
+        if (f) std::getline(f, current_dir);
+        if (current_dir.empty() || !fs::exists(current_dir))
+            current_dir = fs::current_path().string();
+    };
+	
+    auto refresh = [&]() {
+        files.clear();
+    	
+        try {
+            for (const auto& e : fs::directory_iterator(current_dir)) {
+                files.push_back({
+                    e.path().filename().string(),
+                    e.path().string(),
+                    e.is_directory()
+                });
+            }
+        	
+            std::sort(files.begin(), files.end(), [](auto& a, auto& b) {
+                if (a.is_directory != b.is_directory)
+                    return a.is_directory > b.is_directory;
+                return a.name < b.name;
+            });
+        } catch (...) {}
+        save_dir();
+    };
+	
+    if (!initialized) {
+        load_dir();
+        refresh();
+        initialized = true;
     }
-    
-    // Navigation buttons
+	
+    // toolbar
+    if (ImGui::Button("⬅ Up")) {
+        fs::path p = fs::path(current_dir).parent_path();
+        if (!p.empty()) {
+            current_dir = p.string();
+            refresh();
+        }
+    }
+	
     ImGui::SameLine();
-    if (ImGui::Button("Up") && current_dir != fs::path(current_dir).root_path()) {
-        history.push_back(current_dir);
-        current_dir = fs::path(current_dir).parent_path().string();
-		
-        goto Refresh;
+    if (ImGui::Button("🏠 Home")) {
+        current_dir = fs::current_path().root_path().string();
+        refresh();
     }
-    
+	
     ImGui::SameLine();
-    if (ImGui::Button("Home")) {
-        history.push_back(current_dir);
-        current_dir = fs::path(fs::current_path().root_path()).string();
-		
-        goto Refresh;
-    }
-
-    // Current directory path
-    ImGui::Text("Current Directory: %s", current_dir.c_str());
-    
-    // File list
-    if (ImGui::BeginListBox("##FileList", ImVec2(-FLT_MIN, 20 * ImGui::GetTextLineHeightWithSpacing()))) {
-        for (const auto& file : files) {
-            const bool is_selected = (selected_file == file.path);
-            ImGui::PushID(file.path.c_str());
-            
-            if (ImGui::Selectable(file.name.c_str(), is_selected)) {
-                selected_file = file.path;
+    ImGui::TextUnformatted(current_dir.c_str());
+	
+    ImGui::Separator();
+	
+    // file list
+    if (ImGui::BeginTable("files", 2,
+        ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_BordersInnerV |
+        ImGuiTableFlags_ScrollY,
+        ImVec2(-FLT_MIN, 300))) {
+    	
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableHeadersRow();
+    	
+        for (const auto& f : files) {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+        	
+            bool selected = (selected_path == f.path);
+            ImGuiSelectableFlags flags =
+                ImGuiSelectableFlags_SpanAllColumns |
+                ImGuiSelectableFlags_AllowDoubleClick;
+        	
+            if (ImGui::Selectable(f.name.c_str(), selected, flags)) {
+                selected_path = f.path;
             	
-                if (file.is_directory) {
-                    history.push_back(current_dir);
-                    current_dir = file.path;
-					
-					goto Refresh;
+                if (ImGui::IsMouseDoubleClicked(0)) {
+                    if (f.is_directory) {
+                        current_dir = f.path;
+                        refresh();
+                    } else {
+                        fs::path p(f.path);
+                    	auto extension = p.extension();
+                    	
+                        cpu->reset();
+                    	
+                        if (extension == ".exe") {
+                            handleLoadExe(f.path);
+                            *p_open = false;
+                        } else if (extension == ".cue" || extension == ".bin") {
+                            cpu->interconnect._cdrom.swapDisk(f.path);
+                            *p_open = false;
+                        }
+                    }
                 }
             }
-            
-            if (file.is_directory) {
-                ImGui::SameLine();
-                ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "[DIR]");
-            }
-            
-            ImGui::PopID();
+        	
+            ImGui::TableNextColumn();
+            if (f.is_directory)
+                ImGui::TextUnformatted("Folder");
+            else
+                ImGui::TextUnformatted(fs::path(f.path).extension().string().c_str());
         }
-        ImGui::EndListBox();
+    	
+        ImGui::EndTable();
     }
-
-    // File filter
-    static char filter[32] = ".exe,.bin";
-    ImGui::InputText("Filter", filter, IM_ARRAYSIZE(filter));
-
-    // Load buttons
-    if (ImGui::Button("Load Selected") && !selected_file.empty()) {
-        fs::path path(selected_file);
-        cpu->reset();
-        
-        if (path.extension() == ".exe") {
-            handleLoadExe(selected_file);
-        } else if (path.extension() == ".bin") {
-            cpu->interconnect._cdrom.swapDisk(selected_file);
-        }
-        
+	
+    ImGui::Separator();
+	
+    if (ImGui::Button("Cancel"))
         *p_open = false;
-    }
-    
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
-        *p_open = false;
-    }
 }
 
 static bool show_file_browser = false;
@@ -729,25 +874,27 @@ int main(int argc, char* argv[]) {
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Run Crash/Desire_-_Run_Crash_(PSX).cue");
 	
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot (Europe, Australia)/Crash Bandicoot (Europe, Australia).cue");
-	//cpu->interconnect._cdrom.swapDisk("ROMS/Battle Arena Toshinden (Europe)/Battle Arena Toshinden (Europe).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Battle Arena Toshinden (Europe)/Battle Arena Toshinden (Europe).cue");
 	//cpu->interconnect._cdrom.swapDisk("ROMS/Sonic Wings Special (Europe)/Sonic Wings Special (Europe)/Sonic Wings Special (Europe).cue");
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Tetris X/Tetris X (Japan).cue");
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Ridge Racer (Europe)/Ridge Racer (Europe).cue");
 	
 	// Uhh works somehow idek how BUT obviously GPU bug but I think it's actually GTE
+	// TODO; It works until it calls 0x0D CDROM command then everything goes red and freezes
+	// TODO; Correction.. it calls GP0 0x29.. Through DMA, as it get cancelled,
+	// TODO; It calls VRAMFill with bogos colors causing everything to go bogos
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Tekken 3 (USA)/Tekken 3 (USA).cue");
 	
 	/**
 	 * Had an issue with the controller but now it's fixed,
-	 * TODO; Missing some GP0 commands
-	 * GP0(48h) - Monochrome Poly-line, opaque
+	 * FIXED; Missing; GP0(48h) - Monochrome Poly-line, opaque
 	 */
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
 	
 	/**
 	 * Also had controller issues.
 	 */
-	cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
+	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bandicoot - Warped (USA)/Crash Bandicoot - Warped (USA).cue");
 	
 	// Works but need to skip all cut scenes to see anything(dont have MDEC)
 	// TODO; Uses line rendering but doesn't crash
@@ -759,11 +906,10 @@ int main(int argc, char* argv[]) {
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/This Is Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
 	
-	// TODO; MDEC_in_sync timeout:
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1)/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1).cue");
 	
 	// Works but with some GPU bugs
-	//cpu->interconnect._cdrom.swapDisk("../ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue");
+	cpu->interconnect._cdrom.swapDisk("../ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue");
 	
 	// TODO; Works completely fine BUT with so many GPU bugs XD
 	//cpu->interconnect._cdrom.swapDisk("../ROMS/Twisted Metal 4 (USA) (Rev 1)/Twisted Metal 4 (USA) (Rev 1).cue");
@@ -796,7 +942,7 @@ int main(int argc, char* argv[]) {
 	std::chrono::steady_clock::time_point lastTime = std::chrono::steady_clock::now();
 	double passedTime = 0;
 	double unprocessedTime = 0;
-	const double UPDATE_CAP = 1.0/165.0;
+	const double UPDATE_CAP = 1.0/160.0;
 	
 	bool render = false;
 	
@@ -805,7 +951,7 @@ int main(int argc, char* argv[]) {
 		runFrame();
 	}*/
 	
-	glfwSwapInterval(0);
+	glfwSwapInterval(1);
 	
 	while(!glfwWindowShouldClose(gpu->renderer->window)) {
 		render = false;
@@ -826,6 +972,10 @@ int main(int argc, char* argv[]) {
 				frameTime = 0;
 				fps = frames;
 				frames = 0;
+				
+				int width, height;
+				glfwGetFramebufferSize(gpu->renderer->window, &width, &height);
+				glViewport(0, 0, width, height);
 				
 				std::cerr << "FPS: " << std::to_string(fps) << " - " << std::to_string(gpu->frames) << "\n";
 				
@@ -849,12 +999,11 @@ int main(int argc, char* argv[]) {
 			
 			runFrame();
 			
-			static bool f = false;
+			static bool f = true;
+			
 			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_PRESS && f) {
 				f = false;
-				
-				gpu->vram->endTransfer();
-				printf("Updated\n");
+				gpu->renderer->renderVRAM = !gpu->renderer->renderVRAM;
 			}
 			
 			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_RELEASE) {
@@ -877,19 +1026,15 @@ int main(int argc, char* argv[]) {
 			if(glfwGetKey(gpu->renderer->window, GLFW_KEY_N) == GLFW_RELEASE) {
 				loadNextTest = true;
 			}*/
-			
-			int width, height;
-			glfwGetFramebufferSize(gpu->renderer->window, &width, &height);
-			glViewport(0, 0, width, height);
 		}
 		
 		//cpu->showDisassembler();
 		
-		//static bool show = true;
-		//if (ImGui::Begin("VRAM", &show)) {
-		//	ImGui::Image((ImTextureID)(intptr_t)gpu->renderer->sceneTex, ImVec2(1024, 512));
-		//}
-		//ImGui::End();
+		/*static bool show = true;
+		if (ImGui::Begin("VRAM", &show)) {
+			ImGui::Image((ImTextureID)(intptr_t)gpu->vram->tex, ImVec2(1024, 512));
+		}
+		ImGui::End();*/
 		
 		/*int winW, winH;
 		glfwGetFramebufferSize(gpu->renderer->window, &winW, &winH);
@@ -975,6 +1120,10 @@ int main(int argc, char* argv[]) {
 		ImGui::Render();
 		
 		if (render) {
+			gpu->vram->endTransfer();
+			gpu->renderer->renderFrame();
+			
+			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 			glfwSwapBuffers(gpu->renderer->window);
 			

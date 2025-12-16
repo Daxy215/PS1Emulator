@@ -1,59 +1,105 @@
 ﻿#include "VRAM.h"
+#include "Gpu.h"
 
 #include <iostream>
 
-#include "Gpu.h"
-#include "Rendering/Renderer.h"
-
 Emulator::VRAM::VRAM(Gpu& gpu) : gpu(gpu) {
-	ptr16 = new uint16_t[MAX_WIDTH * MAX_HEIGHT];
-	std::fill(ptr16, ptr16 + (MAX_WIDTH * MAX_HEIGHT), 0);
+	tilesX = MAX_WIDTH / TILE_SIZE;
+	tilesY = MAX_HEIGHT / TILE_SIZE;
+	tileDirty.resize(tilesX * tilesY);
 	
-	glGenTextures(1, &texture16);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture16);
+	glCreateTextures(GL_TEXTURE_2D, 1, &tex);
+	glTextureStorage2D(tex, 1, /*GL_RGB5_A1*/GL_RGB5_A1, MAX_WIDTH, MAX_HEIGHT);
 	
-	glGenerateMipmap(GL_TEXTURE_2D);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTextureParameteri(tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTextureParameteri(tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, nullptr);
+	glCreateBuffers(1, &pbo);
 	
-	GLenum error = glGetError();
-	if(error != GL_NO_ERROR) {
-		std::cerr << "OpenGL error22 after glTexSubImage2D: " << error << '\n';
-	}
+	GLsizeiptr size = MAX_WIDTH * MAX_HEIGHT * sizeof(uint16_t);
+	
+	glNamedBufferStorage(
+		pbo,
+		size,
+		nullptr,
+		GL_MAP_WRITE_BIT |
+		GL_MAP_PERSISTENT_BIT |
+		GL_MAP_COHERENT_BIT
+	);
+	
+	gpuPtr = (uint16_t*)glMapNamedBufferRange(
+		pbo,
+		0,
+		size,
+		GL_MAP_WRITE_BIT |
+		GL_MAP_PERSISTENT_BIT |
+		GL_MAP_COHERENT_BIT
+	);
+	
+	reset();
+}
+
+Emulator::VRAM::~VRAM() {
+	glDeleteTextures(1, &tex);
+	glDeleteBuffers(1, &pbo);
 }
 
 void Emulator::VRAM::endTransfer() {
-	glBindTexture(GL_TEXTURE_2D, texture16);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 512, GL_RGBA, 
-					GL_UNSIGNED_SHORT_1_5_5_5_REV, ptr16);
-    
-	GLenum error = glGetError();
-	if(error != GL_NO_ERROR) {
-		std::cerr << "OpenGL error after glTexSubImage2D: " << error << '\n';
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, MAX_WIDTH);
+	
+	for (uint32_t ty = 0; ty < tilesY; ty++) {
+		for (uint32_t tx = 0; tx < tilesX; tx++) {
+			uint32_t i = ty * tilesX + tx;
+			if (!tileDirty[i]) continue;
+			tileDirty[i] = 0;
+			
+			uint32_t x = tx * TILE_SIZE;
+			uint32_t y = ty * TILE_SIZE;
+			
+			glTextureSubImage2D(
+				tex,
+				0,
+				x,
+				y,
+				TILE_SIZE,
+				TILE_SIZE,
+				GL_RGBA,
+				GL_UNSIGNED_SHORT_1_5_5_5_REV,
+				(void*)((y * MAX_WIDTH + x) * sizeof(uint16_t))
+			);
+		}
 	}
+	
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
-/*void Emulator::VRAM::endTransfer() {
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//glBindTexture(GL_TEXTURE_2D, texture16);
-	//glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 512, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, ptr16);
+void Emulator::VRAM::flushRegion(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
 	
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glBindTexture(GL_TEXTURE_2D, texture16);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 512, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV, ptr16);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, MAX_WIDTH);
 	
-	GLenum error = glGetError();
-	if(error != GL_NO_ERROR) {
-		std::cerr << "OpenGL error after glTexSubImage2D: " << error << '\n';
-	}
-}*/
+	uint32_t srcY    = (MAX_HEIGHT - (y + h));
+	uint32_t destY = (MAX_HEIGHT - y) - h;
+	
+	glTextureSubImage2D(
+		tex,
+		0,
+		x, destY,
+		w, h,
+		GL_RGBA,
+		GL_UNSIGNED_SHORT_1_5_5_5_REV,
+		(void*)((srcY * MAX_WIDTH + x) * sizeof(uint16_t))
+	);
+	
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+}
 
 void Emulator::VRAM::writePixel(uint32_t x, uint32_t y, uint16_t pixel) {
 	uint16_t pixel0 = (pixel & 0xFFFF);
@@ -62,26 +108,40 @@ void Emulator::VRAM::writePixel(uint32_t x, uint32_t y, uint16_t pixel) {
 		return;
 	}
 	
+	x &= (MAX_WIDTH - 1);
+	y &= (MAX_HEIGHT - 1);
+	
 	uint16_t mask = (gpu.forceSetMaskBit << 15);
 	setPixel(x, y, pixel0 | mask);
 }
 
 void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
-	x %= MAX_WIDTH;
-	y %= MAX_HEIGHT;
+	y = MAX_HEIGHT - y - 1;
 	
-	size_t index = y * MAX_WIDTH + x;
+	uint16_t ps1 = color;
 	
-	/* Write data as 16bit. */
-	ptr16[index] = (static_cast<uint16_t>(color));
+	uint16_t b = (ps1 >> 10) & 0x1F;
+	uint16_t g = (ps1 >> 5)  & 0x1F;
+	uint16_t r = (ps1 >> 0)  & 0x1F;
+	uint16_t a = (ps1 >> 15) & 1;
+	
+	uint16_t gl =
+		(r << 0) |
+		(g << 5) |
+		(b << 10) |
+		(a << 15);
+	
+	gpuPtr[y * MAX_WIDTH + x] = gl;
+	markTile(x, y);
 }
 
 uint16_t Emulator::VRAM::getPixel(uint32_t x, uint32_t y) const {
-	/*x %= MAX_WIDTH;
-	y %= MAX_HEIGHT;*/
-
-	const size_t index = y * MAX_WIDTH + x;
-	return ptr16[index];
+	x %= MAX_WIDTH;
+	y %= MAX_HEIGHT;
+	
+	y = MAX_HEIGHT - y - 1;
+	
+	return gpuPtr[y * MAX_WIDTH + x];
 }
 
 uint16_t Emulator::VRAM::getPixel4(uint32_t x, uint32_t y, uint32_t clutX, uint32_t clutY, uint32_t pageX, uint32_t pageY) {
@@ -115,5 +175,12 @@ uint16_t Emulator::VRAM::RGB555_to_RGB565(uint16_t color) {
 }
 
 void Emulator::VRAM::reset() {
-	//std::fill(ptr16, ptr16 + (1024 * 512), 0);
+	std::fill(gpuPtr, gpuPtr + MAX_WIDTH * MAX_HEIGHT, 0);
+	std::fill(tileDirty.begin(), tileDirty.end(), 1);
+}
+
+void Emulator::VRAM::markTile(uint32_t x, uint32_t y) {
+	uint32_t tx = x / TILE_SIZE;
+	uint32_t ty = y / TILE_SIZE;
+	tileDirty[ty * tilesX + tx] = 1;	
 }

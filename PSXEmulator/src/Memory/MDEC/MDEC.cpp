@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -12,7 +13,7 @@ MDEC::MDEC() {
     
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
-            scaleZag[zigzag[x+y*8]] = scaleFactor[x] * scaleFactor[y] / 8;
+            scaleZag[zigzag[x + y * 8]] = scaleFactor[x] * scaleFactor[y] / 8;
         }
     }
     
@@ -21,40 +22,65 @@ MDEC::MDEC() {
     }
 }
 
-int part = 0;
+uint32_t outputWordsExpected = 0;
+uint32_t outputWordsRead = 0;
+uint32_t amount = 0;
 uint32_t MDEC::load(uint32_t addr) {
-    if (addr == 0x1F801820) {
-        // 1F801824h - MDEC1 - MDEC Status Register (R)
-        
-        // (or Garbage if there's no data available)c
-        // Idk what 'garbage' would be but ig a random value
-        // I'm assuming it just returns a random memory address
-        // so this is 100% not needed, but I'm bored
-        if (output.empty())
-            return rand() | 0xFFFF0000;
-        
-        // UHH TODO; ;-; Only part left but im so confused
-        
-        uint16_t data = 0;
-        
-        data = output[outputIndex++];
-        
-        if (outputIndex > output.size()) {
-            output.clear();
+    if (addr < 4) {
+        // 1F801820h.Read - MDEC Data/Response Register (R)
+        if (outputWordsRead >= outputWordsExpected) {
+            //printf("OUT OF BOUNDS! MODE; %d\n", status.DataOutputDepth);
+            return 0;
         }
         
-        return data;
-    } else if (addr == 0x1f801824) {
+        // (or Garbage if there's no data available)
+        if (output.empty() || outputIndex >= output.size())
+            return 0;
+        
+        //assert(status.DataOutputDepth == 2);
+        
+        uint32_t v = 0;
+        
+        if (status.DataOutputDepth == 3) {
+            if (outputIndex + 1 >= output.size())
+                return 0;
+            
+            uint32_t lo = output[outputIndex++] & 0xFFFF;
+            uint32_t hi = output[outputIndex++] & 0xFFFF;
+            
+            v = lo | (hi << 16);
+        } else if (status.DataOutputDepth == 2) {
+            v = output[outputIndex];
+            outputIndex++;
+        }
+        
+        outputWordsRead++;
+        
+        if (outputWordsRead >= outputWordsExpected) {
+            //printf("OUT OF2 BOUNDS! MODE; %d %d times. Data left; %lu\n", status.DataOutputDepth, amount++, (output.size() - outputIndex));
+            output.clear();
+            outputIndex = 0;
+        }
+        
+        if (outputIndex >= output.size()) output.clear();
+        
+        //return 0x7C007C00; // BLUE
+        //return 0x001F001F; // RED
+        return v;
+    } else if (addr == 4) {
         // 1F801824h - MDEC1 - MDEC Status Register (R)
         
+        status.DataOutFifoEmpty = (outputWordsRead >= outputWordsExpected);
+        status.CommandBusy     = !status.DataOutFifoEmpty;
+        
         // Data-Out Fifo Empty (0=No, 1=Empty)
-        status.DataOutFifoEmpty = output.empty();
+        //status.DataOutFifoEmpty = output.empty();
         
         // Data-In Fifo Full   (0=No, 1=Full, or Last word received)
         status.DataInFifoFull   = !input.empty();
         
         // (0=Ready, 1=Busy receiving or processing parameters)
-        status.CommandBusy      = !output.empty();
+        //status.CommandBusy      = !output.empty();
         //printf("RETURND; %x\n", status.reg);
         
         return status.reg;
@@ -68,25 +94,25 @@ uint32_t MDEC::load(uint32_t addr) {
 void MDEC::store(uint32_t addr, uint32_t val) {
     //printf("MDEC::store %x - %x\n", addr, val);
     
-    if (addr == 0x1f801820) {
+    if (addr < 4) {
         // 1F801820h - MDEC0 - MDEC Command/Parameter Register (W)
         if (paramCount != 0) {
             if (paramCount == 1) {
-                int jhyg = this->command.Op;
-                printf("sadg\n");
+                //int jhyg = this->command.Op;
+                //printf("sadg\n");
             }
             
             handleCommandProcessing(val);
             
-            counter++;
             paramCount--;
-            status.ParameterWordsRemaining = (paramCount - 1) & 0xFFFF;
+            status.ParameterWordsRemaining = (paramCount/* - 1*/) & 0xFFFF;
         } else {
+            amount = 0;
             command.reg = val;
             handleCommand();
             counter = 0;
         }
-    } else if (addr == 0x1f801824) {
+    } else if (addr == 4) {
         /**
          * 1F801824h - MDEC1 - MDEC Control/Reset Register (W)
          * 31    Reset MDEC (0=No change, 1=Abort any command, and set status=80040000h)
@@ -139,7 +165,6 @@ void MDEC::handleCommand() {
      * 24-16 Not used (should be zero)
      * 15-0  Number of Parameter Words (size of compressed data)
      */
-    
     const uint32_t cmd = command.Op;
     
     status.CommandBusy = true;
@@ -165,9 +190,9 @@ void MDEC::handleCommand() {
             
             paramCount = command.NumberOfParameterWords;
             
-            input.resize(paramCount * 2);
+            input.clear();
+            input.reserve(paramCount*2);
             output.resize(0);
-            part = 0;
             outputIndex = 0;
             
             break;
@@ -251,8 +276,9 @@ void MDEC::handleCommandProcessing(uint32_t val) {
     switch (command.Op) {
         case 1: {
             // MDEC(1) - Decode Macroblock(s)
-            input[counter * 2] = val & 0xFFFF;
-            input[counter * 2 + 1] = (val >> 16) & 0xFFFF;
+            input.push_back(val         & 0xFFFF);
+            input.push_back((val >> 16) & 0xFFFF);
+            counter += 2;
             
             if (paramCount == 1) {
                 decodeBlocks();
@@ -265,39 +291,38 @@ void MDEC::handleCommandProcessing(uint32_t val) {
         case 2: {
             // MDEC(2) - Set Quant Table(s)
             
-            uint8_t base = counter * 4;
-            uint8_t* table = luminanceQuantTable.data();
+            int tableWord = counter;          // 0..31
+            bool chroma = (tableWord >= 16);
             
-            /*if (counter < 64 / 4) {
-                // Use Luminance Quant Table
+            uint8_t* table = chroma
+                ? colorQuantTable.data()
+                : luminanceQuantTable.data();
+            
+            int zz = (tableWord % 16) * 4;
+            
+            table[zigzag[zz + 0]] = (val      ) & 0xFF;
+            table[zigzag[zz + 1]] = (val >>  8) & 0xFF;
+            table[zigzag[zz + 2]] = (val >> 16) & 0xFF;
+            table[zigzag[zz + 3]] = (val >> 24) & 0xFF;
+            
+            counter++;
+            
+            /*uint8_t* table = luminanceQuantTable.data();
+            int idx = counter * 4;
+            
+            if (counter < 16) {
                 
-            } else */if (counter < 128 / 4) {
-                // Use Color Quant Table
-                
-                // It does say if this was set,
-                // THEN.. it'll send another 64?
-                // or does it not matter? idk ;-;
-                // OK ig confirmed in their pseudocode;
-                /* 
-                 * iqtab_core(iq_y,src), src=src+64       ;luminance quant table
-                 * if command_word.bit0=1
-                 *     iqtab_core(iq_uv,src), src=src+64    ;color quant table (optional)
-                 * endif
-                 */
-                assert(color);
-                
+            } else if (counter < 128 / 4 && color) {
                 table = colorQuantTable.data();
-                base = (counter - (64 / 4)) * 4;
-            } else {
-                // Shouldn't happen ig?
-                assert(false);
-                break;
+                idx -= 64;
             }
             
-            // Uhh each value in table is 4 bytes?
-            for (int i = 0; i < 4; i++) {
-                table[base + i] = val >> (i * 8);
-            }
+            table[zigzag[idx+0]] = (val      ) & 0xFF;
+            table[zigzag[idx+1]] = (val >>  8) & 0xFF;
+            table[zigzag[idx+2]] = (val >> 16) & 0xFF;
+            table[zigzag[idx+3]] = (val >> 24) & 0xFF;
+            
+            counter++;*/
             
             break;
         }
@@ -307,7 +332,7 @@ void MDEC::handleCommandProcessing(uint32_t val) {
             
             // This command defines the IDCT scale matrix, which should be usually/always:
             /**
-             *  5A82 5A82 5A82 5A82 5A82 5A82 5A82 5A82
+             * 5A82 5A82 5A82 5A82 5A82 5A82 5A82 5A82
              * 7D8A 6A6D 471C 18F8 E707 B8E3 9592 8275
              * 7641 30FB CF04 89BE 89BE CF04 30FB 7641
              * 6A6D E707 8275 B8E3 471C 7D8A 18F8 9592
@@ -316,11 +341,12 @@ void MDEC::handleCommandProcessing(uint32_t val) {
              * 30FB 89BE 7641 CF04 CF04 7641 89BE 30FB
              * 18F8 B8E3 6A6D 8275 7D8A 9592 471C E707
              */
+            
             /*for (int i = 0; i < 2; i++) {
                 scaleTable[counter * 2 + i] = val >> (i * 16);
             }*/
-            scaleTable[counter*2 + 0] = (val & 0xFFFF);
-            scaleTable[counter*2 + 1] = (val >> 16);
+            scaleTable[counter++] = static_cast<int16_t>(val & 0xFFFF);
+            scaleTable[counter++] = static_cast<int16_t>((val >> 16) & 0xFFFF);
             
             break;
         }
@@ -346,34 +372,48 @@ void MDEC::reset() {
     output.clear();
     input.clear();
     blocks.fill(DCTBlock());
+    counter = 0;
 }
 
 void MDEC::decodeBlocks() {
-    for (auto src = input.begin(); src != input.end();) {
-        // Uhh
-        std::optional<DCTBlock> block = decodeMarcoBlocks(src);
+    auto src = input.begin();
+    
+    while (src != input.end()) {
+        auto block = decodeMarcoBlocks(src);
         if (!block.has_value())
             continue;
         
-        /*for (auto rle : block.data) {
-            output.push_back(rle.reg);
-        }*/
-        
-        // Just to look like ik what I'm doing
-        std::transform(block.value().data.begin(), block.value().data.end(),
-                std::back_inserter(output),
-                [](const RLE& r) { return r.reg; });
+        for (uint32_t px : block.value().data)
+            output.push_back(px);
     }
+    
+    if (status.DataOutputDepth == 3) {
+        outputWordsExpected = output.size() / 2;
+    } else if (status.DataOutputDepth == 2) {
+        outputWordsExpected = output.size();
+    }
+    
+    outputWordsRead = 0;
 }
 
 std::optional<MDEC::DCTBlock> MDEC::decodeMarcoBlocks(std::vector<uint16_t>::iterator &src) {
     DCTBlock block;
     
+    block.data.clear();
+    block.data.assign(256, 0);
+    
+    /*Cbblk.fill(0);
+    Crblk.fill(0);
+    Yblk0.fill(0);
+    Yblk1.fill(0);
+    Yblk2.fill(0);
+    Yblk3.fill(0);*/
+    
     if (command.DataOutputDepth > 1) {
         // 15bpp or 24bpp depth
         // decode_colored_macroblock
-        if (!rl_decode_block(Cbblk, src, colorQuantTable)) return std::nullopt; // ;Cb (low resolution)
         if (!rl_decode_block(Crblk, src, colorQuantTable)) return std::nullopt; // ;Cr (low resolution)
+        if (!rl_decode_block(Cbblk, src, colorQuantTable)) return std::nullopt; // ;Cb (low resolution)
         
         // ;Y1 (and upper-left  Cr,Cb)
         if (!rl_decode_block(Yblk0, src, luminanceQuantTable)) return std::nullopt;
@@ -387,10 +427,15 @@ std::optional<MDEC::DCTBlock> MDEC::decodeMarcoBlocks(std::vector<uint16_t>::ite
         // ;Y4 (and lower-right Cr,Cb)
         if (!rl_decode_block(Yblk3, src, luminanceQuantTable)) return std::nullopt;
         
-        yuv_to_rgb(block, 0, 0, Yblk0);
-        yuv_to_rgb(block, 0, 8, Yblk1);
-        yuv_to_rgb(block, 8, 0, Yblk2);
-        yuv_to_rgb(block, 8, 8, Yblk3);
+        yuv_to_rgb(block, 0, 0,  Yblk0); // top-left
+        yuv_to_rgb(block, 8, 0,  Yblk1); // top-right
+        yuv_to_rgb(block, 0, 8,  Yblk2); // bottom-left
+        yuv_to_rgb(block, 8, 8,  Yblk3); // bottom-right
+        
+        /*yuv_to_rgb(block, 0, 0,  Yblk0); // Y1
+        yuv_to_rgb(block, 0, 8,  Yblk1); // Y2
+        yuv_to_rgb(block, 8, 0,  Yblk2); // Y3
+        yuv_to_rgb(block, 8, 8,  Yblk3); // Y4*/
     } else {
         // 4bpp or 8bpp depth
         // decode_monochrome_macroblock
@@ -403,7 +448,68 @@ std::optional<MDEC::DCTBlock> MDEC::decodeMarcoBlocks(std::vector<uint16_t>::ite
     return block;
 }
 
-bool MDEC::rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt) {
+template <size_t bit_size, typename T = int16_t>
+T extend_sign(uint64_t n) {
+    static_assert(bit_size > 0 && bit_size < 63, "bit_size out of range");
+    
+    T mask = ((1LL << (bit_size - 1)) - 1);
+    bool sign = (n & (1LL << (bit_size - 1))) != 0;
+    
+    T val = n & mask;
+    if (sign) val |= ~mask;
+    return val;
+}
+
+template <typename T>
+T clamp(T v, T min, T max) {
+    if (v > max) {
+        return max;
+    } else if (v < min) {
+        return min;
+    } else {
+        return v;
+    }
+}
+
+bool MDEC::rl_decode_block(std::array<int16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt) {
+    blk.fill(0);
+    
+    while (src != input.end() && *src == 0xFE00) {
+        src++;
+    }
+    
+    if (src == input.end()) return false;
+    const auto dct = DCT(*src++);
+    int32_t cur = extend_sign<10>(dct.DC);
+    int32_t val = cur * qt[0];
+    
+    for (int k = 0; k < 64;) {
+        if (dct.Q == 0) {
+            val = cur * 2;
+        }
+        
+        val = clamp<int32_t>(val, -0x400, 0x3FF);
+        
+        if (dct.Q > 0) {
+            blk.at(zagzig[k]) = val;
+        } else {
+            blk.at(k) = val;
+        }
+        
+        if (src == input.end()) break;
+        RLE rle = RLE(*src++);
+        cur = extend_sign<10>(rle.AC);
+        k += rle.LEN + 1;
+        
+        val = (cur * qt[k] * dct.Q + 4) / 8;
+    }
+    
+    real_idct_core(blk);
+    
+    return true;
+}
+
+/*bool MDEC::rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>::iterator &src, const std::array<uint8_t, 64> &qt) {
     blk.fill(0);
     
     uint16_t n, k = 0;
@@ -438,7 +544,7 @@ bool MDEC::rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>:
         val = (val * qt[0]) / 8;
     
     // TODO; Uhh this is wrong
-    for (int i = 0; i < 64; i++) {
+    while (true) {
         lop:
             if (q_scale == 0) {
                 // Breh
@@ -493,68 +599,221 @@ bool MDEC::rl_decode_block(std::array<uint16_t, 64> &blk, std::vector<uint16_t>:
     //src++;
     
     return true;
-}
-
-void MDEC::fast_idct_core(uint16_t *blk) {
-    
-}
-
-/*
-void MDEC::real_idct_core(uint16_t *blk) {
-    std::array<uint16_t, 64> tmp {};
-    
-    uint16_t* src = blk;
-    uint16_t* dst = tmp.data();
-    
-    for (int pass = 0; pass < 2; pass++) {
-        for (int x = 0; x < 8; x++) {
-            for (int y = 0; y < 8; y++) {
-                int32_t sum = 0;
-                
-                for (int z = 0; z < 8; z++) {
-                    sum += src[y + z*8] * (scaleTable[x + z*8] /#1# 8#1#);
-                }
-                
-                dst[x+y*8] = (sum + 0x0FFF) / 0x2000;
-            }
-        }
-        
-        // Swap src(blk) -> dst (temp buffer)
-        std::swap(src, dst);
-    }
-    
-    if (src != blk) {
-        std::memcpy(blk, src, 64 * sizeof(uint16_t));
-    }
 }*/
-void MDEC::real_idct_core(uint16_t *blk) {
-    int32_t tmp[64];
 
-    // Pass 1: process columns
+void MDEC::fast_idct_core(int16_t *blk) {
+    
+}
+
+void MDEC::real_idct_core(std::array<int16_t, 64> &blk) const {
+    int64_t tmp[64];
+    
     for (int x = 0; x < 8; x++) {
         for (int y = 0; y < 8; y++) {
-            int32_t sum = 0;
-            for (int z = 0; z < 8; z++) {
-                sum += blk[z*8 + x] * scaleTable[y*8 + z];
+            int64_t sum = 0;
+            
+            for (int i = 0; i < 8; i++) {
+                sum += scaleTable[i * 8 + y] * blk[x + i * 8];
             }
-            tmp[y*8 + x] = sum;
+            
+            tmp[x + y * 8] = sum;
         }
     }
-
-    // Pass 2: process rows
-    for (int y = 0; y < 8; y++) {
-        for (int x = 0; x < 8; x++) {
-            int32_t sum = 0;
-            for (int z = 0; z < 8; z++) {
-                sum += tmp[y*8 + z] * scaleTable[x*8 + z];
+    
+    for (int x = 0; x < 8; x++) {
+        for (int y = 0; y < 8; y++) {
+            int64_t sum = 0;
+            
+            for (int i = 0; i < 8; i++) {
+                sum += tmp[i + y * 8] * scaleTable[x + i * 8];
             }
-            // PS1 shifts after both passes
-            blk[y*8 + x] = (sum + 0x2000) >> 14;
+            
+            /*int round = (sum >> 31) & 1;
+            blk[x + y * 8] = (uint16_t)((sum >> 32) + round);*/
+            sum += (1LL << 31);
+            int32_t v = sum >> 32;
+            
+            if (v < -128) v = -128;
+            if (v >  127) v =  127;
+            
+            blk[y * 8 + x] = static_cast<int16_t>(v);
         }
     }
 }
 
-void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<uint16_t, 64> &blk) {
+struct RGB { uint8_t r, g, b; };
+std::vector<RGB> blockRGB(256);
+void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<int16_t, 64> &blk) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            int px = xx + x;
+            int py = yy + y;
+            
+            int16_t Y = blk[y * 8 + x];
+            /*int16_t Y = 0;
+            if (px < 8 && py < 8) Y = Yblk0[py*8 + px];       // top-left
+            if (px >=8 && py < 8) Y = Yblk1[py*8 + (px-8)];   // top-right
+            if (px < 8 && py >=8) Y = Yblk2[(py-8)*8 + px];   // bottom-left
+            if (px >=8 && py >=8) Y = Yblk3[(py-8)*8 + (px-8)]; // bottom-right*/
+            
+            int uv_x = (xx + x) >> 1;
+            int uv_y = (yy + y) >> 1;
+            const int16_t Cb = Cbblk[uv_y * 8 + uv_x]; // 8×8 chroma
+            const int16_t Cr = Crblk[uv_y * 8 + uv_x];
+            
+            /*int R = y + ((1436 * Cr) >> 10);
+            int G = y - ((352 * Cb + 731 * Cr) >> 10);
+            int B = y + ((1815 * Cb) >> 10);*/
+            int R = Y + ((1436 * Cr + 512) >> 10);
+            int G = Y - ((352 * Cb + 731 * Cr + 512) >> 10);
+            int B = Y + ((1815 * Cb + 512) >> 10);
+            
+            R = std::clamp(R, -128, 127);
+            G = std::clamp(G, -128, 127);
+            B = std::clamp(B, -128, 127);
+            
+            if (command.DataOutputDepth == 2) {
+                /*R = std::clamp(R/* + 128#1#, 0, 255);
+                G = std::clamp(G/* + 128#1#, 0, 255);
+                B = std::clamp(B/* + 128#1#, 0, 255);*/
+                /*R = std::clamp(R, 0, 255);
+                G = std::clamp(G, 0, 255);
+                B = std::clamp(B, 0, 255);*/
+                /*R += 128;
+                G += 128;
+                B += 128;*/
+            } else {
+                //R = std::clamp(R, -128, 127);
+                //G = std::clamp(G, -128, 127);
+                //B = std::clamp(B, -128, 127);
+            }
+            
+            auto r = static_cast<uint8_t>(R & 0xFF);
+            auto g = static_cast<uint8_t>(G & 0xFF);
+            auto b = static_cast<uint8_t>(B & 0xFF);
+            
+            if (!command.DataOutputSigned && command.DataOutputDepth == 3) {
+                r ^= 0x80;
+                g ^= 0x80;
+                b ^= 0x80;
+            }
+            
+            blockRGB[py * 16 + px] = { r, g, b };
+        }
+    }
+    
+    if (command.DataOutputDepth == 3) {
+        block.data.resize(256);
+        
+        //uint16_t bit15 = command.DataOutputBit15 ? 0x8000 : 0;
+        //uint16_t bit15 = 0x8000;
+        
+        for (int i = 0; i < 256; i++) {
+            auto& p = blockRGB[i];
+            
+            uint16_t r5 = (p.r >> 3) & 0x1F;
+            uint16_t g5 = (p.g >> 3) & 0x1F;
+            uint16_t b5 = (p.b >> 3) & 0x1F;
+            
+            block.data[i] =
+                /*(1 << 15) |*/
+                (b5 << 10) |
+                (g5 << 5)  |
+                (r5);
+        }
+        
+        return;
+    }
+    
+    block.data.clear();
+    block.data.reserve(256 * 3 / 4);
+    
+    for (int i = 0; i < 256; i += 4) {
+        auto& p0 = blockRGB[i + 0];
+        auto& p1 = blockRGB[i + 1];
+        auto& p2 = blockRGB[i + 2];
+        auto& p3 = blockRGB[i + 3];
+        
+        uint32_t c0 = (p0.r << 16) | (p0.g << 8) | p0.b;
+        uint32_t c1 = (p1.r << 16) | (p1.g << 8) | p1.b;
+        uint32_t c2 = (p2.r << 16) | (p2.g << 8) | p2.b;
+        uint32_t c3 = (p3.r << 16) | (p3.g << 8) | p3.b;
+        
+        uint32_t w0 = (c0 & 0x00FFFFFF) | ((c1 & 0x000000FF) << 24);
+        uint32_t w1 = ((c1 & 0x00FFFF00) >> 8) | ((c2 & 0x0000FFFF) << 16);
+        uint32_t w2 = ((c2 & 0x00FF0000) >> 16) | ((c3 & 0x00FFFFFF) << 8);
+        
+        block.data.push_back(w0);
+        block.data.push_back(w1);
+        block.data.push_back(w2);
+        
+        /*uint32_t w0 =
+            (p0.r << 16) | (p0.g << 8) | (p0.b) |
+            (p1.r << 16) | (p1.g << 8) | (p1.b) << 24;
+        
+        uint32_t w1 =
+            (p1.g)        |
+            (p1.r << 8)  |
+            (p2.b << 16) |
+            (p2.g << 24);
+        
+        uint32_t w2 =
+            (p2.r)        |
+            (p3.b << 8)  |
+            (p3.g << 16) |
+            (p3.r << 24);
+        
+        block.data.push_back(w0);
+        block.data.push_back(w1);
+        block.data.push_back(w2);*/
+    }
+}
+
+/*void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<int16_t, 64> &blk) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            int px = xx + x;
+            int py = yy + y;
+            
+            int uv_x = px >> 1;
+            int uv_y = py >> 1;
+            
+            int16_t Y  = blk[y * 8 + x];
+            int16_t Cb = Cbblk[uv_y * 8 + uv_x];
+            int16_t Cr = Crblk[uv_y * 8 + uv_x];
+            
+            int R = Y + ((1436 * Cr) >> 10);
+            int G = Y - ((352 * Cb + 731 * Cr) >> 10);
+            int B = Y + ((1815 * Cb) >> 10);
+            
+            uint8_t r = std::clamp(R + 128, 0, 255);
+            uint8_t g = std::clamp(G + 128, 0, 255);
+            uint8_t b = std::clamp(B + 128, 0, 255);
+            
+            if (command.DataOutputDepth == 3) {
+                // 15-bit RGB555
+                uint16_t rgb555 =
+                    ((r >> 3) << 10) |
+                    ((g >> 3) << 5)  |
+                    (b >> 3);
+                
+                block.data[py * 16 + px] = rgb555;
+            } else {
+                // 24-bit RGB888 → two halfwords
+                uint32_t rgb24 = (r << 16) | (g << 8) | b;
+                
+                uint16_t lo = rgb24 & 0xFFFF;   // RR GG
+                uint16_t hi = rgb24 >> 16;      // BB 00
+                
+                block.data.push_back(lo);
+                block.data.push_back(hi);
+            }
+        }
+    }
+}
+*/
+
+/*void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<uint16_t, 64> &blk) {
     for (int y = 0; y < 8; y++) {
         for (int x = 0; x < 8; x++) {
             double R = Crblk[(x + xx) / 2 + ((y + yy) / 2) * 8];
@@ -600,21 +859,17 @@ void MDEC::yuv_to_rgb(DCTBlock& block, uint16_t xx, uint16_t yy, std::array<uint
         }
     }
 }
+*/
 
-void MDEC::y_to_mono(DCTBlock &block, std::array<uint16_t, 64> &blk) {
+void MDEC::y_to_mono(DCTBlock &block, std::array<int16_t, 64> &blk) {
     for (int i = 0; i < 64; i++) {
-        uint16_t Y = blk[i];
+        int v = blk[i] & 0x1FF;
+        if (v & 0x100) v |= ~0x1FF;
+        v = std::clamp(v, -128, 127);
         
-        Y = Y & 0x1FF; // Clip to signed 9bit range
+        if (!command.DataOutputSigned)
+            v ^= 0x80;
         
-        // Saturate from 9bit to signed 8bit range
-        Y = std::min(127, std::max(-128, static_cast<int>(Y)));
-        
-        // Data Output Signed (0=Unsigned, 1=Signed)
-        if (command.DataOutputSigned == 0) {
-            Y ^= 0x80;
-        }
-        
-        block.data[i] = RLE(Y);
+        block.data[i] = (uint16_t)(v & 0xFF);
     }
 }

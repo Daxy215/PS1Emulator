@@ -67,6 +67,16 @@ void CDROM::handleSector() {
 	if(!_stats.read/* && !_stats.play*/)
 		return;
 	
+	/**
+	 * Mode2/Form1 (CD-XA)
+	 * 000h 0Ch  Sync   (00h,FFh,FFh,FFh,FFh,FFh,FFh,FFh,FFh,FFh,FFh,00h)
+	 * 00Ch 4    Header (Minute,Second,Sector,Mode=02h)
+	 * 010h 4    Sub-Header (File, Channel, Submode AND DFh, Codinginfo)
+	 * 014h 4    Copy of Sub-Header
+	 * 018h 800h Data (2048 bytes)
+	 * 818h 4    EDC (checksum across [010h..817h])
+	 * 81Ch 114h ECC (error correction codes)
+	 */
 	const std::array<uint8_t, 12> sync = {{0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00}};
 	
 	Location pos = Location::fromLBA(readLocation);
@@ -78,7 +88,8 @@ void CDROM::handleSector() {
 	addResponse(_stats._reg);
 	
 	if (memcmp(_readSector.data(), sync.data(), sync.size()) != 0) {
-		assert(false);
+		// TODO; This.. does happen on Tekken 3
+		//assert(false);
 		return;
 	}
 	
@@ -89,8 +100,8 @@ void CDROM::handleSector() {
 	
 	uint8_t file = _readSector.loadAt(16);
 	uint8_t channel = _readSector.loadAt(17);
-	//auto submode = static_cast<cd::Submode>(_readSector.loadAt(18));
-	//auto codinginfo = static_cast<cd::Codinginfo>(_readSector.loadAt(19));
+	//auto submode = (_readSector.loadAt(18));
+	//auto codinginfo = (_readSector.loadAt(19));
 	
 	assert(mode == 2);
 	
@@ -401,21 +412,21 @@ void CDROM::decodeAndExecute(uint8_t command) {
 				assert(false);
 				return;
 			}
-
+			
 			auto toBinary = [](uint8_t b) -> uint8_t {
 				int hi = (b >> 4) & 0xF;
 				int lo = b & 0xF;
-
+				
 				return hi * 10 + lo;
 			};
-
+			
 			int trackNo = 0;
 			if (parameters.size() == 1) {
 				trackNo = toBinary(getParamater());
 			}
-
+			
 			Location pos = Location::fromLBA(readLocation);
-
+			
 			// Start playing track n
 			if (trackNo > 0) {
 				int track = std::min(trackNo - 1, (int) _disk.tracks.size() - 1);
@@ -444,12 +455,12 @@ void CDROM::decodeAndExecute(uint8_t command) {
 		addResponse(0); // sector (disc)
 		
 		// TODO;
-		//assert(false);
+		assert(false);
 	} else if (command == 0x13) {
 		auto toBcd = [](uint8_t b) -> uint8_t {
 			return ((b / 10) << 4) | (b % 10);
 		};
-
+		
 		INT3();
 		addResponse(toBcd(0x01));
 		addResponse(toBcd(_disk.tracks.size()));
@@ -458,20 +469,20 @@ void CDROM::decodeAndExecute(uint8_t command) {
 		auto toBinary = [](uint8_t b) -> uint8_t {
 			int hi = (b >> 4) & 0xF;
 			int lo = b & 0xF;
-
+			
 			return hi * 10 + lo;
 		};
-
+		
 		auto toBcd = [](uint8_t b) -> uint8_t {
 			return ((b / 10) << 4) | (b % 10);
 		};
-
+		
 		auto track = toBinary(getParamater());
-
+		
 		if (track == 0) {
 			// end of last track
 			auto diskSize = _disk.getSize();
-
+			
 			INT(3);
 			addResponse(_stats._reg);
 			addResponse(toBcd(diskSize.minutes));
@@ -479,7 +490,7 @@ void CDROM::decodeAndExecute(uint8_t command) {
 		} else if (track <= _disk.tracks.size()) {
 			// Start of n track
 			auto start = _disk.getTrackStart(track - 1);
-
+			
 			INT(3);
 			addResponse(_stats._reg);
 			addResponse(toBcd(start.minutes));
@@ -488,7 +499,7 @@ void CDROM::decodeAndExecute(uint8_t command) {
 			// error
 			INT(5);
 			addResponse(0x10);
-
+			
 			return;
 		}
 	} else if (command == 0x16) {
@@ -521,7 +532,7 @@ void CDROM::decodeAndExecute(uint8_t command) {
 		INT3();
 		
 		//assert(false);
-		if (command != 0x0C && command != 0x0B) {
+		if (command != 0x0C && command != 0x0B && command != 0x0D) {
 			// ReadTOC - Command 1Eh --> INT3(stat) --> INT2(stat)
 			// ReadN - Command 06h --> INT3(stat) --> INT1(stat) --> datablock
 			// Mute - Command 0Bh --> INT3(stat)

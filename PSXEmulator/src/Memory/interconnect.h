@@ -70,11 +70,82 @@ public:
         //_bios = Bios("../BIOS/openbios-unirom.bin");
         
         _dma = Dma();
+        
+        if (false) {
+            mdec.reset();
+            mdec.luminanceQuantTable.fill(1);
+            mdec.colorQuantTable.fill(1);
+            mdec.scaleTable.fill(1);
+            
+            // Using 10-bit DC values only, AC=0, simple test
+            // Structure: DCT(DC=Y, Q=1), RLE(AC=0, LEN=0)
+            std::vector<uint16_t> testInput;
+            
+            mdec.command.DataOutputSigned = 1;
+            // For colored macroblock (DataOutputDepth=3)
+            mdec.command.DataOutputDepth = 3;
+            mdec.command.Op = 1; // Decode macroblock
+            mdec.command.NumberOfParameterWords = 10;
+            
+            auto makeDCT = [](uint16_t dc) -> uint16_t {
+                return (1 << 10) | (dc & 0x3FF); // Q=1, DC in lower 10 bits
+            };
+            
+            for (int i = 0; i < 64; i++) testInput.push_back(makeDCT(512)); // Cr
+            for (int i = 0; i < 64; i++) testInput.push_back(makeDCT(512)); // Cb
+            for (int i = 0; i < 64*4; i++) testInput.push_back(makeDCT(512)); // Yblk0..3
+            
+            mdec.input = testInput;
+            mdec.command.NumberOfParameterWords = testInput.size();
+            
+            mdec.decodeBlocks();
+            
+            std::cout << "Decoded RGB555 pixels (first 16):\n";
+            for (int i = 0; i < 16; i++) {
+                std::cout << std::hex << mdec.output[i] << " ";
+            }
+            std::cout << std::endl;
+        }
     }
     
     bool step(uint32_t cycles);
     
-    uint32_t loadInstruction(uint32_t addr);
+    inline uint32_t loadInstruction(uint32_t addr) {
+        if(_cacheControl.isCacheEnabled() == 0 || addr >= 0xA0000000) {
+            uint32_t abs_addr = map::maskRegion(addr);
+            uint32_t offset = 0;
+            
+            if (map::RAM.contains(abs_addr, offset)) {
+                return _ram.load<uint32_t>(offset);
+            }
+            
+            if (map::BIOS.contains(abs_addr, offset)) {
+                return _bios.load<uint32_t>(offset);
+            }
+            
+            // TODO; Testing
+            return load<uint32_t>(addr);
+        }
+        
+        // I-Cache
+        
+        // Cache is only active in the cached regions (KUSEG and KSEG0).
+        uint32_t tag = ((addr & 0xFFFFF000) >> 12) | 0x80000000;
+        uint16_t index = (addr & 0xFFC) >> 2;
+        
+        ICache& line = icache[index];
+        
+        if (line.tag == tag) {
+            return line.data;
+        }
+        
+        auto data = load<uint32_t>(addr);
+        //icache[index] = ICache(tag, data);
+        line.tag = tag;
+        line.data = data;
+        
+        return data;
+    }
     
     template<typename T>
     T load(uint32_t addr) {
@@ -167,7 +238,7 @@ public:
         
         if (map::MDEC.contains(abs_addr, offset)) {
             //throw std::runtime_error("Unhandled MDEC load at address 0x" + to_hex(addr));
-            return mdec.load(abs_addr);
+            return mdec.load(offset);
         }
         
         if (map::SPU.contains(abs_addr, offset)) {
@@ -308,7 +379,7 @@ public:
         }
         
         if (map::MDEC.contains(abs_addr, offset)) {
-            mdec.store(addr, val);
+            mdec.store(offset, val);
             
             return;
         }

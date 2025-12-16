@@ -16,11 +16,11 @@ class GLFWwindow;
 namespace Emulator {
     class Renderer {
         public:
-            Renderer(Emulator::Gpu& gpu);
+            explicit Renderer(Emulator::Gpu& gpu);
             
             //void init();
             void display();
-            void endFrame();
+            void renderFrame();
             
             void clear();
             
@@ -32,9 +32,6 @@ namespace Emulator {
             void pushTriangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
             void pushQuad(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
             void pushRectangle(Emulator::Gpu::Position positions[], Emulator::Gpu::Color colors[], Emulator::Gpu::UV uvs[], Emulator::Gpu::Attributes attributes);
-            
-        private:
-            bool checkIfWithin(Emulator::Gpu::Position positions[], int length[]);
             
         public:
             void setDrawingOffset(int16_t x, int16_t y);
@@ -60,6 +57,8 @@ namespace Emulator {
             void setupScreenQuad();
             
         public:
+            bool renderVRAM = false;
+            
             // Shader parameters
             GLuint vertexShader;
             GLuint fragmentShader;
