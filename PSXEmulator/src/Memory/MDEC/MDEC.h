@@ -62,25 +62,23 @@ class MDEC {
         union DCT {
             struct {
                 uint16_t DC : 10; // 9-0   DC   Direct Current reference (10 bits, signed)
-                uint16_t Q : 6 ; // 15-10 Q    Quantization factor (6 bits, unsigned)
+                uint16_t Q  : 6 ; // 15-10 Q    Quantization factor (6 bits, unsigned)
             };
             
             uint16_t reg = 0;
             
-            DCT() = default;
-            explicit DCT(const uint16_t reg) : reg(reg) {}
+            DCT(uint16_t reg) : reg(reg) {}
         };
         
         union RLE {
             struct {
-                uint16_t  AC  : 10; // 9-0   AC   Relative AC value (10 bits, signed)
+                uint16_t  AC : 10; // 9-0   AC   Relative AC value (10 bits, signed)
                 uint16_t LEN : 6 ; // 15-10 LEN  Number of zero AC values to be inserted (6 bits, unsigned)
             };
             
             uint16_t reg = 0;
             
-            RLE() = default;
-            explicit RLE(const uint16_t reg) : reg(reg) {}
+            RLE(uint16_t reg) : reg(reg) {}
         };
         
         struct DCTBlock {
@@ -89,7 +87,9 @@ class MDEC {
             std::vector<uint32_t> data;
             uint16_t EOB{}; // Fixed to FE00h
             
-            DCTBlock() = default;
+            DCTBlock() : dct(0) {
+                
+            }
         };
         
     public:
@@ -150,10 +150,10 @@ class MDEC {
         // scalefactor[0..7] = cos((0..7)*90'/8) ;for [1..7]: multiplied by sqrt(2)
         // 1.000000000, 1.387039845, 1.306562965, 1.175875602,
         // 1.000000000, 0.785694958, 0.541196100, 0.275899379
-        std::array<double, 8> scaleFactor = {
+        /*std::array<double, 8> scaleFactor = {
             1.000000000, 1.387039845, 1.306562965, 1.175875602,
             1.000000000, 0.785694958, 0.541196100, 0.275899379
-        };
+        };*/
         
         // Values obtained from https://psx-spx.consoledev.net/macroblockdecodermdec/#1f801824h-mdec1-mdec-status-register-r
         std::array<uint8_t, 64> zigzag = {
@@ -167,7 +167,7 @@ class MDEC {
             35,36,48,49,57,58,62,63
         };
         
-        std::array<double, 64> scaleZag;
+        //std::array<double, 64> scaleZag;
         
         // reversed of zigzag table
         std::array<uint8_t, 64> zagzig;

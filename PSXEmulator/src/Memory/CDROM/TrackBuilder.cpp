@@ -73,7 +73,7 @@ std::vector<Track> TrackBuilder::parseCueFile(const std::string& path) {
             	// "  TRACK 01 MODE2/2352"
                 size_t spacePos = line.find("MODE");
 				
-            	// TODO; im too lazy to handle mulitple tracks
+            	// TODO; im too lazy to handle multiple tracks
             	if (spacePos == std::string::npos) {
             		continue;
             	}

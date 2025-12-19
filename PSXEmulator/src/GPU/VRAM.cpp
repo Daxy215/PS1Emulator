@@ -84,7 +84,7 @@ void Emulator::VRAM::flushRegion(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, MAX_WIDTH);
 	
-	uint32_t srcY    = (MAX_HEIGHT - (y + h));
+	uint32_t srcY  = (MAX_HEIGHT - (y + h));
 	uint32_t destY = (MAX_HEIGHT - y) - h;
 	
 	glTextureSubImage2D(
@@ -101,31 +101,31 @@ void Emulator::VRAM::flushRegion(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
-void Emulator::VRAM::writePixel(uint32_t x, uint32_t y, uint16_t pixel) {
-	uint16_t pixel0 = (pixel & 0xFFFF);
+void Emulator::VRAM::writePixel(uint32_t x, uint32_t y, const uint16_t pixel) {
+	const uint16_t pixel0 = (pixel & 0xFFFF);
+	
+	x &= (MAX_WIDTH - 1);
+	y &= (MAX_HEIGHT - 1);
 	
 	if(gpu.preserveMaskedPixels && (getPixel(x, y) & 0x8000)) {
 		return;
 	}
 	
-	x &= (MAX_WIDTH - 1);
-	y &= (MAX_HEIGHT - 1);
-	
-	uint16_t mask = (gpu.forceSetMaskBit << 15);
+	const uint16_t mask = (gpu.forceSetMaskBit << 15);
 	setPixel(x, y, pixel0 | mask);
 }
 
 void Emulator::VRAM::setPixel(uint32_t x, uint32_t y, uint32_t color) {
 	y = MAX_HEIGHT - y - 1;
 	
-	uint16_t ps1 = color;
+	const uint16_t ps1 = color;
 	
-	uint16_t b = (ps1 >> 10) & 0x1F;
-	uint16_t g = (ps1 >> 5)  & 0x1F;
-	uint16_t r = (ps1 >> 0)  & 0x1F;
-	uint16_t a = (ps1 >> 15) & 1;
+	const uint16_t b = (ps1 >> 10) & 0x1F;
+	const uint16_t g = (ps1 >> 5)  & 0x1F;
+	const uint16_t r = (ps1 >> 0)  & 0x1F;
+	const uint16_t a = (ps1 >> 15) & 1;
 	
-	uint16_t gl =
+	const uint16_t gl =
 		(r << 0) |
 		(g << 5) |
 		(b << 10) |

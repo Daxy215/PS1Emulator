@@ -1075,7 +1075,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
             
             break;
         case VRam: {
-            const auto step = [&]() {
+            /*const auto step = [&]() {
                 if (++curX >= endX) {
                     curX = startX;
                     
@@ -1104,6 +1104,7 @@ void Emulator::Gpu::gp0(uint32_t val) {
                 
                 return false;
             };
+            */
             
             const auto finish = [&] {
                 gp0CommandRemaining = 0;

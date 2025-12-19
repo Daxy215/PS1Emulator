@@ -4,7 +4,6 @@
 #include "Sector.h"
 #include "TrackBuilder.h"
 
-#define _CRT_SECURE_NO_WARNINGS
 #pragma warning(disable : 4996)
 
 class Location;
@@ -29,7 +28,7 @@ private:
 	
 private:
 	TrackBuilder _builder;
-
+	
 public:
 	std::vector<Track> tracks;
 };

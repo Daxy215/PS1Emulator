@@ -36,6 +36,7 @@ std::vector<uint8_t> Disk::read(Location location) {
 }
 
 void Disk::set(const std::string& path) {
+	tracks.clear();
 	tracks = _builder.parseFile(path);
 }
 
