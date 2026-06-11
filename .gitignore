@@ -1,0 +1,9 @@
+ROMS/
+.vs/
+*.bin
+*.cue
+*.iso
+*.img
+*.chd
+*.mp4
+*.db
