@@ -712,6 +712,8 @@ namespace Emulator {
             uint32_t frames = 0;
             uint32_t cyclesPerPixel = 0;
             uint32_t displayedPixels = 0;
+            uint32_t lastDotTicks = 0;
+            uint32_t dotFrac = 0;
 
         public:
             bool isInHBlank = false;

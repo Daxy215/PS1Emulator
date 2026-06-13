@@ -517,6 +517,10 @@ class CPU {
             
             loads[1] = {index, val};
         }
+
+        static bool isCop2Command(uint32_t op) {
+            return (op & 0xFE000000u) == 0x4A000000u;
+        }
         
         // Memory related functions
         uint32_t load32(uint32_t addr);

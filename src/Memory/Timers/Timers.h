@@ -9,7 +9,7 @@ namespace Emulator {
 		public:
 			Timers();
 			
-			void step(uint32_t cycles, uint32_t lastGpuCycles);
+			void step(uint32_t cycles, uint32_t dotTicks);
 			void sync(bool isInHBlank, bool isInVBlank, uint32_t dot, uint8_t dotClockDivisor);
 			
 			uint32_t load(uint32_t addr);

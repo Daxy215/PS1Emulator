@@ -58,9 +58,21 @@ int CPU::executeNextInstruction() {
 
     Instruction instruction{fetchInstruction(pc)};
 
-    if(handleInterrupts(instruction)) {
+    IRQ::step();
+
+    const bool irqPending =
+        ((_cop0.cause & _cop0.sr & 0x400) != 0) &&
+        ((_cop0.sr & 0x1) != 0);
+
+    const bool delayIrqUntilAfterThisInstruction = irqPending && isCop2Command(instruction.op);
+
+    if (irqPending && !delayIrqUntilAfterThisInstruction) {
+        exception(Interrupt);
+
         currentpc = pc;
-        // An exception occurred, update instruction based on new PC
+
+        extraCycles = 0;
+
         instruction = Instruction(fetchInstruction(pc));
     }
 
@@ -81,6 +93,10 @@ int CPU::executeNextInstruction() {
 
     loads[0] = loads[1];
     loads[1].index = 32;
+
+    if (delayIrqUntilAfterThisInstruction) {
+        exception(Interrupt);
+    }
 
     checkForTTY();
 
@@ -716,13 +732,14 @@ std::string CPU::getFunctionLabel(uint32_t addr) {
 // https://github.com/BluestormDNA/ProjectPSX/blob/master/ProjectPSX/Core/CPU.cs#L128
 bool CPU::handleInterrupts(Instruction& instruction) {
     //uint32_t load = interconnect.loadInstruction(pc);
-    uint32_t instr = instruction.op >> 26;
+    //uint32_t instr = instruction.op >> 26;
 
     // Delay instruction
-    if(instr == 0x12) {
+    //if(instr == 0x12) {
+    /*if ((instruction.op & 0xFE000000u) == 0x4A000000u)
         // COP2 MTC2
         return false;
-    }
+    }*/
 
     IRQ::step();
 
@@ -1704,7 +1721,7 @@ void CPU::opmtc0(Instruction& instruction) {
             break;
         case 12: {
             _cop0.sr = v;
-            //IRQ::step();
+            IRQ::step();
 
             /*bool shouldInterrupt = (_cop0.sr & 0x1) == 1;
             bool cur = (v & 0x1) == 1;
@@ -1837,6 +1854,7 @@ void CPU::oprfe(Instruction& instruction) {
      * SR[5:4] unchanged
      */
     _cop0.sr = (_cop0.sr & ~0xFu) | ((_cop0.sr >> 2) & 0xFu);
+    IRQ::step();
 }
 
 void CPU::opmfc2(Instruction& instruction) {
@@ -1911,11 +1929,13 @@ void CPU::exception(const Exception exception, uint32_t handlerOverride) {
      *          occurred because of a coprocessor instuction for
      *          a coprocessor which wasn't enabled in SR.
      */
-    Instruction load = load32(currentpc);
-    uint8_t coprocessorNumber = load.func & 0x3;
+    _cop0.cause &= ~(0x3u << 28);
 
-    _cop0.cause &= ~(0x3 << 28);
-    _cop0.cause |= (coprocessorNumber << 28);
+    if (exception == CoprocessorError) {
+        Instruction load{interconnect.loadInstruction(currentpc)};
+        uint8_t coprocessorNumber = load.func & 0x3;
+        _cop0.cause |= static_cast<uint32_t>(coprocessorNumber) << 28;
+    }
 
     if(delayJumpSlot) {
         _cop0.cause |= (static_cast<uint32_t>(1) << (30));

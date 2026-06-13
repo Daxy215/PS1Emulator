@@ -38,6 +38,7 @@ layout(binding = 1) uniform sampler2D sceneTex;
 uniform vec4 textureWindow;
 uniform int semiTransparencyMode;
 uniform int dithering;
+uniform int setMaskBit;
 
 const int IS_SEMITRANSPARENT_MASK = 0x1;
 const int BLEND_TEXTURE_MASK = 0x2;
@@ -286,5 +287,5 @@ void main() {
         outColor = vec4(psxDither24To15(F.rgb, ivec2(VRAMPos)), F.a);
     }
     
-    fragColor = vec4(outColor.rgb, 1.0);
+    fragColor = vec4(outColor.rgb, setMaskBit != 0 ? 1.0 : 0.0);
 }

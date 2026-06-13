@@ -57,7 +57,8 @@ namespace Emulator {
                                                 GLsizei length, const GLchar *message, const void *userParam);*/
             
             void setupScreenQuad();
-            
+            void setPrimitiveMode(GLenum mode);
+
         public:
             bool renderVRAM = false;
             bool cropToDisplayArea = false;
@@ -100,7 +101,8 @@ namespace Emulator {
             GLint textureWindowUni;
             GLint semiTransparencyModeUni;
             GLint ditheringUni;
-            
+            GLint maskBitUni;
+
             // Buffer contains the vertices positions
             Buffer<Gpu::Position> positions;
             
@@ -150,7 +152,10 @@ namespace Emulator {
             bool horizontal = true;
             
             glm::vec2 drawingArea;
-            
+
+            GLenum primitiveMode = GL_TRIANGLES;
+            GLint pixelCenterModeUni;
+
         private:
             Emulator::Gpu& gpu;
             

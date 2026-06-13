@@ -83,15 +83,15 @@ Emulator::Gpu::Gpu(bool enableRendering)
         reset();
 }
 
-// im lazy
-using u128 = unsigned __int128;
-
 bool Emulator::Gpu::step(uint32_t cpuCycles) {
+    lastDotTicks = 0;
+
     uint64_t num = vmode == VMode::Pal ? PAL_CRTC_NUM : NTSC_CRTC_NUM;
 
     uint64_t n = uint64_t(cpuCycles) * num + _gpuFrac;
     uint32_t ticks = uint32_t(n / CRTC_DEN);
     _gpuFrac = n % CRTC_DEN;
+
     lastGpuCycles = ticks;
 
     return stepCRTC(ticks);
@@ -104,7 +104,9 @@ bool Emulator::Gpu::stepCRTC(uint32_t ticks) {
         uint32_t next = ticksUntilNextCRTCEvent();
         uint32_t run = std::min(ticks, next);
 
-        advanceDotClock(run);
+        dotFrac += run;
+        lastDotTicks += dotFrac / dotClockDivider();
+        dotFrac %= dotClockDivider();
 
         _hpos += run;
         ticks -= run;
@@ -1350,10 +1352,8 @@ void Emulator::Gpu::gp0(uint32_t val) {
                         
                         uint32_t glY = (512 - startY) - h;
                         
-                        if (renderVRamToScreen) {
-                            renderer->flushDrawCommands();
-                            vram->copyToTexture(startX, glY, startX, glY, w, h, renderer->sceneTex[renderer->curTex]);
-                        }
+                        renderer->flushDrawCommands();
+                        vram->copyToTexture(startX, glY, startX, glY, w, h, renderer->sceneTex[renderer->curTex]);
                         
                         return true;
                     }
@@ -1541,10 +1541,10 @@ void Emulator::Gpu::gp0DrawMode(uint32_t val) {
 }
 
 void Emulator::Gpu::gp0DrawingAreaTopLeft(uint32_t val) {
-    drawingAreaTop  = static_cast<int16_t>((val >> 10) & 0x3FF); // Y: bits 10-19
+    drawingAreaTop = static_cast<int16_t>((val >> 10) & 0x3FF); // Y: bits 10-19
     drawingAreaLeft = static_cast<int16_t>(val & 0x3FF);         // X: bits 0-9
-    
-    renderer->setDrawingArea(drawingAreaTop, drawingAreaLeft, drawingAreaRight, drawingAreaBottom);
+
+    renderer->setDrawingArea(drawingAreaLeft, drawingAreaRight, drawingAreaTop, drawingAreaBottom);
 }
 
 void Emulator::Gpu::gp0DrawingAreaBottomRight(uint32_t val) {
@@ -1614,6 +1614,8 @@ void Emulator::Gpu::gp0TextureWindow(uint32_t val) {
 }
 
 void Emulator::Gpu::gp0MaskBitSetting(uint32_t val) {
+    renderer->flushDrawCommands();
+
     forceSetMaskBit = (val & 1) != 0;
     preserveMaskedPixels = (val & 2) != 0;
 }
@@ -1963,8 +1965,17 @@ void Emulator::Gpu::gp0FillVRam(uint32_t val) {
     if (!renderVRamToScreen) return;
     //return; // TODO; Does weird shit
     // TODO; Uhh just copy area instead???
+
+    uint32_t w = endX - startX;
+    uint32_t h = endY - startY;
+
+    vram->flushRegion(startX, startY, w, h);
+
+    uint32_t glY = 512 - startY - h;
+    renderer->flushDrawCommands();
+    vram->copyToTexture(startX, glY, startX, glY, w, h, renderer->sceneTex[renderer->curTex]);
     
-    Position positions[] = {
+    /*Position positions[] = {
         { startX, startY },  // 0 TL
         { endX,   startY },  // 1 TR
         { endX,   endY   },  // 2 BR
@@ -1989,7 +2000,7 @@ void Emulator::Gpu::gp0FillVRam(uint32_t val) {
         Color    c2[3] = { colors[0],    colors[2],    colors[3]    };
         
         renderer->pushTriangle(t2, c2, {}, attr);
-    }
+    }*/
 }
 
 void Emulator::Gpu::gp0TriangleMonoOpaque(uint32_t val) {
@@ -2603,6 +2614,11 @@ void Emulator::Gpu::reset() {
     _gpuFrac = 0;
     _hpos = 0;
     frames = 0;
+
+    lastCmd = 0;
+    lastOp = 0;
+    prvOps.clear();
+    fields.clear();
 
     updateDotClock();
     isInHBlank = calcHBlank();

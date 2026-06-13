@@ -21,7 +21,10 @@ class IRQ {
 	    IRQ() = default;
 
 	    static void step() {
-		    COP0::cause = (IRQ::status & IRQ::mask) ? (COP0::cause | 0x400) : (COP0::cause & ~0x400);
+	        if ((status & mask & 0x07FF) != 0)
+	            COP0::cause |= 0x400;
+	        else
+	            COP0::cause &= ~0x400;
 	    }
 
 	    [[nodiscard]] uint16_t getStatus() const {
@@ -29,34 +32,34 @@ class IRQ {
 	    }
 
 	    void acknowledge(uint16_t ack) noexcept {
-		    status &= ack;
-
-		    step();
+	        status &= ack;
+	        status &= 0x07FF;
+	        step();
 	    }
 
 	    [[nodiscard]] uint16_t getMask() const {
 		    return mask;
 	    }
 
-	    void setMask(uint16_t mask) {
-		    IRQ::mask = mask;
-
-		    step();
+	    void setMask(uint16_t val) {
+	        mask = val & 0x07FF;
+	        step();
 	    }
 
 	    static uint32_t active() {
-		    return (status & mask) != 0;
+	        return (status & mask & 0x07FF) != 0;
 	    }
 
 	    static void trigger(Interrupt interrupt) {
-		    status |= (1 << static_cast<uint16_t>((interrupt)));
-
-		    step();
+	        status |= static_cast<uint16_t>(1u << static_cast<uint16_t>(interrupt));
+	        status &= 0x07FF;
+	        step();
 	    }
 
 	    void reset() {
-		    status = 0;
-		    mask = 0;
+	        status = 0;
+	        mask = 0;
+	        step();
 	    }
 
     public:

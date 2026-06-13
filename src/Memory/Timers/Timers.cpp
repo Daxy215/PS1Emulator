@@ -7,10 +7,10 @@ Emulator::IO::Timers::Timers()
 	
 }
 
-void Emulator::IO::Timers::step(uint32_t cycles, uint32_t lastGpuCycles) {
-	timers[0]->step(cycles, lastGpuCycles);
-	timers[1]->step(cycles, 0);
-	timers[2]->step(cycles, 0);
+void Emulator::IO::Timers::step(uint32_t cycles, uint32_t dotTicks) {
+    timers[0]->step(cycles, dotTicks);
+    timers[1]->step(cycles, 0);
+    timers[2]->step(cycles, 0);
 }
 
 void Emulator::IO::Timers::sync(bool isInHBlank, bool isInVBlank, uint32_t dot, uint8_t dotClockDivisor) {
@@ -57,12 +57,13 @@ void Emulator::IO::Timers::store(uint32_t addr, uint32_t val) {
 	switch (addr & 0xF) {
 		case 0: {
 			// Counter (R/W)
-			timer.counter = static_cast<uint16_t>(val);
-			timer.holdAtZero = 2;
+		    timer.counter = static_cast<uint16_t>(val);
+		    timer._cycles = 0;
+		    timer.resetPending = false;
 			
-			if (timer.counter > timer.target) {
-				timer.ignoreTargetUntilWrap = true;
-			}
+			//if (timer.counter > timer.target) {
+			//	timer.ignoreTargetUntilWrap = true;
+			//}
 			
 			break;
 		}

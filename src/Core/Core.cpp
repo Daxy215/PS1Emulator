@@ -481,7 +481,7 @@ void handleLoadExe(std::string path) {
      * Okay so I found out that the issue IS actually caused by,
      * the timers being wrong or the VBlank interrupt.
      */
-    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/ps1-tests/timers/timers.exe");
+    std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/ps1-tests/timers/timers.exe");
     //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/ps1-tests-master/timers/timers.exe");
 
     /**
@@ -514,6 +514,26 @@ void handleLoadExe(std::string path) {
      * Passes everything after fixing a few issues
      */
     //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/dcache/dcache.ps-exe");
+
+    /**
+     * After 80 years of pulling my hair.
+     *
+     * This is very hard to handle with opengl rendering..
+     */
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase1/gpu-raster-phase1.ps-exe"); // TODO; 13 left.. seems to be due to opengl
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase2/gpu-raster-phase2.ps-exe"); // TODO; 1 left due opengl
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase3/gpu-raster-phase3.ps-exe"); // TODO; Too lazy a few left
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase4/gpu-raster-phase4.ps-exe"); // TODO;
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase5/gpu-raster-phase5.ps-exe"); // TODO;
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase6/gpu-raster-phase6.ps-exe"); // TODO;
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase7/gpu-raster-phase7.ps-exe"); // TODO;
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase8/gpu-raster-phase8.ps-exe"); // TODO;
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase9/gpu-raster-phase9.ps-exe"); // TODO;
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase10/gpu-raster-phase10.ps-exe"); // TODO;
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/gpu-raster-phase11/gpu-raster-phase11.ps-exe"); // TODO;
+
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/psx-hardware-tests-master/_ps-exe/irq_reg.psexe");
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/psx-hardware-tests-master/_ps-exe/timer1_hs_count.psexe");
 
     // https://chenthread.asie.pl/fromage/
     //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/boot.exe");
@@ -557,17 +577,17 @@ static uint64_t  instructionsExecuted = 0;
 static uint64_t  cyclesExecuted       = 0;
 
 // 53693175?
-const uint32_t PSX_CPU_CLOCK = 33868800;
+//const uint32_t PSX_CPU_CLOCK = 33868800;
 
 // NTSC runs at ~59.94 Hz
-const uint32_t CYCLES_PER_FRAME_NTSC = PSX_CPU_CLOCK / 60; // ≈ 564,480
+//const uint32_t CYCLES_PER_FRAME_NTSC = PSX_CPU_CLOCK / 60; // ≈ 564,480
 // PAL runs at ~49.76 Hz
-const uint32_t CYCLES_PER_FRAME_PAL = PSX_CPU_CLOCK / 50; // ≈ 677,376
+//const uint32_t CYCLES_PER_FRAME_PAL = PSX_CPU_CLOCK / 50; // ≈ 677,376
 
 void runFrame() {
     uint32_t frameCycles = 0;
 
-    auto cyclesPerFrame = gpu->vmode == Emulator::VMode::Pal ? CYCLES_PER_FRAME_PAL : CYCLES_PER_FRAME_NTSC;
+    //auto cyclesPerFrame = gpu->vmode == Emulator::VMode::Pal ? CYCLES_PER_FRAME_PAL : CYCLES_PER_FRAME_NTSC;
     bool vblanked       = false;
 
     while (/*frameCycles < cyclesPerFrame*/ !vblanked) {
@@ -607,15 +627,7 @@ void runFrame() {
             }
         }
 
-        /*if ((cpu->pc & 0x1fffffff) >= 0x00000000 &&
-            (cpu->pc & 0x1fffffff) <  0x00200000)
-            cycles += 1;*/
-
         uint32_t nextPC = cpu->pc;
-
-        // TODO; Very heavy
-        // if (stepped || !cpu->paused)
-        //    cpu->trackExecutionLight(currentPC, nextPC);
 
         stepped = false;
 
@@ -636,7 +648,7 @@ void runFrame() {
                 cpu->pc     = cpu->reg(31);
                 cpu->nextpc = cpu->pc + 4;
             } else {
-                handleLoadExe("");
+                //handleLoadExe("");
             }
         }
 
@@ -656,7 +668,7 @@ void runFrame() {
         }
 
         if (didVBlank) {
-            IRQ::trigger(IRQ::VBlank);
+            //IRQ::trigger(IRQ::VBlank);
             vblanked = true;
         }
 
@@ -977,7 +989,7 @@ int main(int argc, char *argv[]) {
     // Correction.. it calls GP0 0x29.. Through DMA, as it get cancelled,
     // It calls VRAMFill with bogos colors causing everything to go bogos
     // Fixed: Had an issue with the GP0 commands being longer than what it was required
-    //cpu->interconnect._cdrom.swapDisk("../ROMS/Tekken 3 (USA)/Tekken 3 (USA).cue");
+    //cpu->interconnect._cdrom.swapDisk("../../ROMS/Tekken 3 (USA)/Tekken 3 (USA).cue");
 
     //cpu->interconnect._cdrom.swapDisk("../../ROMS/Spyro the Dragon (Europe, Australia) (En,Fr,De,Es,It)/Spyro the Dragon (Europe, Australia) (En,Fr,De,Es,It).cue");
 
@@ -985,7 +997,7 @@ int main(int argc, char *argv[]) {
      * Had an issue with the controller but now it's fixed,
      * FIXED; Missing; GP0(48h) - Monochrome Poly-line, opaque
      */
-    //cpu->interconnect._cdrom.swapDisk("../../ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
+    cpu->interconnect._cdrom.swapDisk("../../ROMS/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It)/Pink Panther - Pinkadelic Pursuit (Europe) (En,Fr,De,Es,It).cue");
 
     /**
      * Also had controller issues.
@@ -1000,7 +1012,7 @@ int main(int argc, char *argv[]) {
     // Games that are broken
     //cpu->interconnect._cdrom.swapDisk("../../ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; CDROM(0x10) but it works fine cpu->interconnect._cdrom.swapDisk("../../ROMS/This Is
     //cpu->interconnect._cdrom.swapDisk("../../ROMS/Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
-    cpu->interconnect._cdrom.swapDisk("../../ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
+    //cpu->interconnect._cdrom.swapDisk("../../ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
 
     // cpu->interconnect._cdrom.swapDisk("../ROMS/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1)/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1).cue");
 
@@ -1072,7 +1084,7 @@ int main(int argc, char *argv[]) {
                 glfwGetFramebufferSize(gpu->renderer->window, &width, &height);
                 glViewport(0, 0, width, height);
 
-                std::cerr << "FPS: " << std::to_string(fps) << " - " << std::to_string(gpu->frames) << "\n";
+                //std::cerr << "FPS: " << std::to_string(fps) << " - " << std::to_string(gpu->frames) << "\n";
 
                 gpu->frames = 0;
             }

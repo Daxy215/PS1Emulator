@@ -55,7 +55,7 @@ namespace Emulator {
 			public:
 				Timer(TimerType type);
 				
-				void step(uint32_t cycles,uint32_t lastGpuCycles);
+				void step(uint32_t cycles,uint32_t dotTicks);
 				void syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot, uint8_t dotClockDivisor);
 				
 				void setMode(uint16_t val);
@@ -64,9 +64,9 @@ namespace Emulator {
 				void reset();
 				
 			private:
-				void tick();
 				void finishTick(uint32_t cycles);
 				void requestIRQ();
+
 			public:
 				uint32_t _cycles = 0;
 				uint32_t dotCycleAcc = 0;
@@ -76,9 +76,6 @@ namespace Emulator {
 				//uint32_t t = 0;
 				uint32_t counter = 0;
 				uint16_t target = 0;
-				
-				bool ignoreTargetUntilWrap = false;
-				int holdAtZero = 0;
 				
 				/*// 0 = Free Run, 1 = Sync via Bit1-2
 				bool sync = false;
@@ -156,7 +153,7 @@ namespace Emulator {
 				
 				Mode mode;
 				
-			private:
+			public:
 				bool isInHBlank = false;
 				bool isInVBlank = false;
 				uint32_t dot = 1;

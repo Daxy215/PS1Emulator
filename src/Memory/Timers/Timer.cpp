@@ -2,7 +2,6 @@
 
 #include <GLFW/glfw3native.h>
 
-#include "../../../Avocado/externals/fmt/include/fmt/core.h"
 #include "../../GPU/Gpu.h"
 #include "../IRQ.h"
 
@@ -16,7 +15,7 @@ Emulator::IO::Timer::Timer(TimerType type) : type(type) {
 	
 }
 
-void Emulator::IO::Timer::step(uint32_t cpuCycles, uint32_t lastGpuCycles) {
+void Emulator::IO::Timer::step(uint32_t cpuCycles, uint32_t dotTicks) {
 	// Synchronization
 	if (mode.sync) {
 		switch (type) {
@@ -27,7 +26,7 @@ void Emulator::IO::Timer::step(uint32_t cpuCycles, uint32_t lastGpuCycles) {
 						break;
 
 					case 1: // Reset at HBlank
-				        if (!wasInHBlank && isInHBlank) {
+				        if (wasInHBlank && !isInHBlank) {
 							counter = 0;
 							_cycles = 0;
 						    resetPending = false;
@@ -49,7 +48,7 @@ void Emulator::IO::Timer::step(uint32_t cpuCycles, uint32_t lastGpuCycles) {
 						break;
 
 					case 3: // Pause until next HBlank edge, then free run
-						if (!wasInHBlank && isInHBlank) {
+				        if (wasInHBlank && !isInHBlank) {
 							mode.sync = 0; // disable sync
 						} else {
 							return;
@@ -70,7 +69,7 @@ void Emulator::IO::Timer::step(uint32_t cpuCycles, uint32_t lastGpuCycles) {
 						break;
 
 					case 1: // Reset at VBlank
-				        if (!wasInVBlank && isInVBlank) {
+				        if (wasInVBlank && !isInVBlank) {
 							counter = 0;
 							_cycles = 0;
 				            resetPending = false;
@@ -92,7 +91,7 @@ void Emulator::IO::Timer::step(uint32_t cpuCycles, uint32_t lastGpuCycles) {
 						break;
 
 					case 3: // Pause until VBlank edge, then free-run
-						if (!wasInVBlank && isInVBlank) {
+				        if (wasInVBlank && !isInVBlank) {
 							mode.sync = 0;
 						} else {
 							return;
@@ -115,35 +114,20 @@ void Emulator::IO::Timer::step(uint32_t cpuCycles, uint32_t lastGpuCycles) {
 				break;
 		}
 	}
+    
+    if (type == TimerType::Timer0_DotClock && (mode.source & 1)) {
+        finishTick(dotTicks);
+        return;
+    }
 
-    //if (type == TimerType::Timer0_DotClock && mode.source & 1)
-    if (type == TimerType::Timer0_DotClock && (mode.source & 1))
-        _cycles += lastGpuCycles;
-    else
-	    _cycles += cpuCycles;
+    _cycles += cpuCycles;
 
 	// Clock source
 	switch (type) {
 		case TimerType::Timer0_DotClock: {
-		    // TODO: This should use the dots per scanline and not gpu cycles?
-		    if ((mode.source & 1) != 0) {
-		        /**
-		         * Dotclocks:
-                 * PSX.256-pix Dotclock =  5.322240MHz (44100Hz*300h*11/7/10)
-                 * PSX.320-pix Dotclock =  6.652800MHz (44100Hz*300h*11/7/8)
-                 * PSX.368-pix Dotclock =  7.603200MHz (44100Hz*300h*11/7/7)
-                 * PSX.512-pix Dotclock = 10.644480MHz (44100Hz*300h*11/7/5)
-                 * PSX.640-pix Dotclock = 13.305600MHz (44100Hz*300h*11/7/4)
-                 * Namco GunCon 385-pix =  8.000000MHz (from 8.00MHz on lightgun PCB) idc about this
-		         */
-
-		        finishTick(_cycles / dotClockDivisor);
-		        _cycles %= dotClockDivisor;
-		    } else {
-		        // System clock
-		        finishTick(_cycles);
-		        _cycles = 0;
-		    }
+		    // System clock
+		    finishTick(_cycles);
+		    _cycles = 0;
 
 	        break;
 		}
@@ -180,33 +164,40 @@ void Emulator::IO::Timer::step(uint32_t cpuCycles, uint32_t lastGpuCycles) {
 	}
 }
 
-void Emulator::IO::Timer::tick() {
-	counter++;
+void Emulator::IO::Timer::finishTick(uint32_t ticks) {
+    while (ticks--) {
+        if (resetPending) {
+            counter = 0;
+            resetPending = false;
+            continue;
+        }
 
-	if (counter == target) {
-		mode.reachedTarget = true;
+        counter++;
 
-		if (mode.resetType) {
-			counter = 0;
-			holdAtZero = 2;
-		}
+        bool hitTarget = (target == 0) || (counter == target);
 
-		if (mode.interruptTarget)
-			requestIRQ();
-	}
+        if (hitTarget) {
+            mode.reachedTarget = true;
 
-	if (counter == 0x10000) {
-		mode.hasWrapped = true;
-		counter = 0;
+            if (mode.interruptTarget)
+                requestIRQ();
 
-		if (!mode.resetType)
-			holdAtZero = 1;
+            if (mode.resetType && target != 0)
+                resetPending = true;
+        }
 
-		if (mode.interruptWrap)
-			requestIRQ();
-	}
+        if (counter > 0xffff) {
+            mode.hasWrapped = true;
+
+            if (mode.interruptWrap)
+                requestIRQ();
+
+            counter = 0;
+        }
+    }
 }
 
+/*
 void Emulator::IO::Timer::finishTick(uint32_t ticks) {
     while (ticks--) {
         if (resetPending) {
@@ -219,7 +210,7 @@ void Emulator::IO::Timer::finishTick(uint32_t ticks) {
         //counter = (counter + 1) & 0xffff;
         counter++;
 
-        if (counter >= target) {
+        if (counter == target) {
             mode.reachedTarget = true;
 
             if (mode.interruptTarget)
@@ -234,17 +225,18 @@ void Emulator::IO::Timer::finishTick(uint32_t ticks) {
 
         if (counter > 0xffff) {
             mode.hasWrapped = true;
+            counter = 0;
 
             if (mode.interruptWrap)
                 requestIRQ();
 
             if (!mode.resetType) {
-                counter = 0;
                 resetPending = false;
             }
         }
     }
 }
+*/
 
 void Emulator::IO::Timer::requestIRQ() {
 	if (mode.interruptMode == 0) {
@@ -281,21 +273,6 @@ void Emulator::IO::Timer::syncGpu(bool isInHBlank, bool isInVBlank, uint32_t dot
     this->dotClockDivisor = dotClockDivisor;
 	
 	this->dot = dot;
-
-    /*if (!this->wasInHBlank && this->isInHBlank && this->type == TimerType::Timer0_DotClock) {
-        printf(
-            "[HBLANK-RISE] timer=%d sync=%d syncMode=%d source=%d counter=%u cycles=%u dot=%u div=%u vblank=%d\n",
-            static_cast<int>(type),
-            mode.sync,
-            mode.syncMode,
-            mode.source,
-            counter,
-            _cycles,
-            this->dot,
-            this->dotClockDivisor,
-            this->isInVBlank
-        );
-    }*/
 }
 
 void Emulator::IO::Timer::setMode(uint16_t val) {
@@ -341,21 +318,18 @@ void Emulator::IO::Timer::setMode(uint16_t val) {
 	//counter = 0;
 	//holdAtZero = 2;
 
-    const bool oldReachedTarget = mode.reachedTarget;
-    const bool oldHasWrapped    = mode.hasWrapped;
-
     mode._reg = static_cast<uint16_t>(val & 0x03FF);
 
     mode.interrupt = true;
-    mode.reachedTarget = oldReachedTarget;
-    mode.hasWrapped    = oldHasWrapped;
+    mode.reachedTarget = false;
+    mode.hasWrapped = false;
 
     wasIRQ = false;
     resetPending = false;
 
     counter = 0;
-    holdAtZero = 2;
- }
+    _cycles = 0;
+}
 
 uint16_t Emulator::IO::Timer::getMode() {
     const auto f = mode._reg;

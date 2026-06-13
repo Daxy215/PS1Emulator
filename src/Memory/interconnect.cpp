@@ -1,6 +1,5 @@
 ﻿#include "interconnect.h"
 
-#include <bitset>
 #include <string>
 
 #include "Memories/Ram.h"
@@ -17,33 +16,18 @@ bool Interconnect::step(uint32_t cycles) {
     }
     
     _sio.step(cycles);
-    
     _dma.step();
     spu.step(cycles);
 
     bool didVBlank = _gpu->step(cycles);
 
-    uint8_t dotClockDivisor = 0;
+    _timers.step(cycles, _gpu->lastDotTicks);
+    _timers.sync(_gpu->isInHBlank, _gpu->isInVBlank, _gpu->dot, _gpu->dotClockDivider());
 
-    /**
-     * Dotclocks:
-     * PSX.256-pix Dotclock =  5.322240MHz (44100Hz*300h*11/7/10)
-     * PSX.320-pix Dotclock =  6.652800MHz (44100Hz*300h*11/7/8)
-     * PSX.368-pix Dotclock =  7.603200MHz (44100Hz*300h*11/7/7)
-     * PSX.512-pix Dotclock = 10.644480MHz (44100Hz*300h*11/7/5)
-     * PSX.640-pix Dotclock = 13.305600MHz (44100Hz*300h*11/7/4)
-     */
-    switch (_gpu->hres.getResolution()) {
-        case 256: dotClockDivisor = 10; break;
-        case 320: dotClockDivisor = 8;  break;
-        case 368: dotClockDivisor = 7;  break;
-        case 512: dotClockDivisor = 5;  break;
-        case 640: dotClockDivisor = 4;  break;
+    if (didVBlank) {
+        IRQ::trigger(IRQ::VBlank);
     }
 
-    _timers.sync(_gpu->isInHBlank, _gpu->isInVBlank, _gpu->dot, dotClockDivisor);
-    _timers.step(cycles, _gpu->lastGpuCycles);
-    
     return didVBlank;
 }
 
@@ -271,7 +255,7 @@ void Interconnect::dmaLinkedList(Port port) {
             if (next != 0x00ffffff) {
                 _dma.forceIrq = true;
             }
-            
+
             break;
         }
 

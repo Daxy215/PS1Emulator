@@ -22,6 +22,7 @@ flat out ivec2 drawingAreaMaxIn;
 uniform vec2 offset;
 uniform ivec2 drawingAreaMin;
 uniform ivec2 drawingAreaMax;
+uniform int pixelCenterMode;
 
 out vec2 VRAMPos;
 
@@ -33,8 +34,13 @@ void main() {
     float y1 = (drawingAreaMin.y);
     float x2 = (drawingAreaMax.x);
     float y2 = (drawingAreaMax.y);
-    
+
     vec2 position = vertexPosition;
+
+    if (pixelCenterMode != 0) {
+        position += vec2(0.5, 0.5);
+    }
+
     //vec2 position = vec2(x1, y1) + vertexPosition;
     vec2 lPos = position/* - vec2(drawingAreaMin)*/;
     
@@ -62,12 +68,6 @@ void main() {
     
     // Set the final position
     gl_Position = vec4(xPos, yPos, 0.0, 1.0);
-    
-    // Snap vertices to PS1's low precision
-    //gl_Position.xy = floor(gl_Position.xy * 64.0 + 0.5) / 64.0;
-    
-    // Force manual depth sorting (PS1-style)
-    //gl_Position.z = -1.0 + (vertexID % 1024) * 0.001; // Fake depth
     
     // Convert the components from [0;255] to [0;1]
     color = vec3(float(vertexColor.r) / 255.0,
