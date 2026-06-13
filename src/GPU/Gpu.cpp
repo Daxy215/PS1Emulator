@@ -150,16 +150,27 @@ bool Emulator::Gpu::stepCRTC(uint32_t ticks) {
 uint32_t Emulator::Gpu::ticksUntilNextCRTCEvent() const {
     uint32_t total = htotal();
     
-    uint32_t start = std::min<uint32_t>(displayHorizStart, htotal());
-    uint32_t end   = std::min<uint32_t>(displayHorizEnd,   htotal());
+    uint32_t hblankS = hblankStart();
+    uint32_t hblankE = hblankEnd();
 
     uint32_t next = total - _hpos;
 
-    if (_hpos < start)
-        next = std::min(next, start - _hpos);
+    if (_hpos < hblankE)
+        next = std::min(next, hblankE - _hpos);
 
-    if (_hpos < end)
-        next = std::min(next, end - _hpos);
+    if (_hpos < hblankS)
+        next = std::min(next, hblankS - _hpos);
+
+    uint32_t vstart = std::min<uint32_t>(displayLineStart, vtotal());
+    uint32_t vend   = std::min<uint32_t>(displayLineEnd,   vtotal());
+
+    if (_hpos == 0) {
+        if (_scanLine < vstart)
+            next = std::min(next, 1u);
+
+        if (_scanLine < vend)
+            next = std::min(next, 1u);
+    }
 
     return std::max(next, 1u);
 }
@@ -273,75 +284,75 @@ uint32_t Emulator::Gpu::status() {
     uint32_t status = 0;
     
     // Bits 0-3: Texture page X base (N * 64)
-    status |= static_cast<uint32_t>(pageBaseX) << 0;
-    
+    status |= (static_cast<uint32_t>(pageBaseX) & 0x0F) << 0;
+
     // Bit 4: Texture page Y base 1 (N * 256)
-    status |= static_cast<uint32_t>(pageBaseY) << 4;
-    
+    status |= (static_cast<uint32_t>(pageBaseY) & 0x01) << 4;
+
     // Bits 5-6: Semi-transparency mode
-    status |= static_cast<uint32_t>(semiTransparency) << 5; // Mask to 2 bits
-    
+    status |= (static_cast<uint32_t>(semiTransparency) & 0x03) << 5; // Mask to 2 bits
+
     // Bits 7-8: Texture page color depth
-    status |= (static_cast<uint32_t>(textureDepth)) << 7; // Mask to 2 bits
-    
+    status |= (static_cast<uint32_t>(textureDepth) & 0x03) << 7; // Mask to 2 bits
+
     // Bit 9: Dither 24bit to 15bit (0=Off, 1=Enabled)
-    status |= static_cast<uint32_t>(dithering) << 9;
-    
-    // Bit 10: Drawing to display area (0=Prohibited, 1=Allowed)
-    status |= static_cast<uint32_t>(drawToDisplay) << 10;
-    
+    status |= static_cast<uint32_t>(dithering ? 1 : 0) << 9;
+
+    // Bit 10: Interlace Drawing (0=All Lines, 1=Inactive Lines)
+    status |= static_cast<uint32_t>(drawToDisplay ? 1 : 0) << 10;
+
     // Bit 11: Set Mask-bit when drawing (0=No, 1=Yes)
-    status |= (forceSetMaskBit ? 1 : 0) << 11;
-    
+    status |= static_cast<uint32_t>(forceSetMaskBit ? 1 : 0) << 11;
+
     // Bit 12: Don't draw to masked areas (0=Always, 1=Not to masked areas)
-    status |= static_cast<uint32_t>(preserveMaskedPixels) << 12;
-    
+    status |= static_cast<uint32_t>(preserveMaskedPixels ? 1 : 0) << 12;
+
     // Bit 13: Interlace Field (0 = Top, 1 = Bottom)
     // (or, always 1 when GP1(08h).5=0)
     //status |= (interlaced ? 1 : static_cast<uint8_t>(field)) << 13;
     //status |= (static_cast<uint8_t>(field)) << 13;
-    status |= 1 << 13;
-    
+    status |= static_cast<uint32_t>(interlaced ? (frames & 1u) : 1u) << 13;
+
     // Bit 14: Flip screen horizontally (0=Off, 1=On, v1 only)
-    status |= static_cast<uint32_t>(displayHorizFlip) << 14;
-    
+    status |= static_cast<uint32_t>(displayHorizFlip ? 1 : 0) << 14;
+
     // GPUSTAT.15: bit1 of texpage Y base on 2 MB VRAM GPUs.
-    status |= static_cast<uint32_t>(textureDisable) << 15;
+    status |= static_cast<uint32_t>(textureDisable ? 1 : 0) << 15;
 
     status |= hres.intoStatus();
-    
-    status |= (static_cast<uint32_t>(vres)) << 19;
-    
+
+    status |= (static_cast<uint32_t>(vres) & 0x01) << 19;
+
     // Bit 20: Video mode (0=NTSC, 1=PAL)
-    status |= static_cast<uint32_t>(vmode) << 20;
-    
+    status |= (static_cast<uint32_t>(vmode) & 0x01) << 20;
+
     // Bit 21: Display area color depth (0=15bit, 1=24bit)
-    status |= static_cast<uint32_t>(displayDepth) << 21;
-    
+    status |= (static_cast<uint32_t>(displayDepth) & 0x01) << 21;
+
     // Bit 22: Vertical Interlace (0=Off, 1=On)
-    status |= static_cast<uint32_t>(interlaced) << 22;
-    
+    status |= static_cast<uint32_t>(interlaced ? 1 : 0) << 22;
+
     // Bit 23: Display enable (0=Enabled, 1=Disabled)
-    status |= static_cast<uint32_t>(!displayEnabled) << 23;
-    
+    status |= static_cast<uint32_t>(displayEnabled ? 0 : 1) << 23;
+
     // Bit 24: Interrupt request (0=Off, 1=IRQ)
-    status |= static_cast<uint32_t>(interrupt) << 24;
-    
+    status |= static_cast<uint32_t>(interrupt ? 1 : 0) << 24;
+
     const uint32_t readyForCommand = readyToReceiveCommandWord() ? 1u : 0u;
     const uint32_t readyToReadVram = readyToSendVramToCpu() ? 1u : 0u;
     const uint32_t readyForDmaBlock = readyToReceiveDmaBlock() ? 1u : 0u;
-    
+
     // Bit 26: Ready to receive command word (0=No, 1=Ready)
     // Cleared while the GPU is receiving parameters/image data or serving GPUREAD image data.
     status |= readyForCommand << 26;
-    
+
     // Bit 27: Ready to send VRAM to CPU (0=No, 1=Ready)
     /**
      * Bit27: Gets set after sending GP0(C0h) and its parameters,
      * and stays set until all data words are received; used as DMA request in DMA Mode 3.
      */
     status |= readyToReadVram << 27;
-    
+
     // Bit 28: Ready to receive DMA block (0=No, 1=Ready)
     /**
      * Bit28: Normally, this bit gets cleared when the command execution is busy
@@ -354,12 +365,13 @@ uint32_t Emulator::Gpu::status() {
      * are transferred in a separate DMA block (ie. the DMA probably starts ONLY on command words).
      */
     status |= readyForDmaBlock << 28;
-    
+
     // Bits 29-30: DMA Direction (0=Off, 1=?, 2=CPUtoGP0, 3=GPUREADtoCPU)
-    status |= (static_cast<uint32_t>(dmaDirection)) << 29;
-    
+    status |= (static_cast<uint32_t>(dmaDirection) & 0x03) << 29;
+
     // Bit 31: Drawing even/odd lines in interlace mode (0=Even, 1=Odd)
-    status |= uint32_t(isOddLine ? 1 : 0) << 31;
+    if (!isInVBlank)
+        status |= uint32_t(isOddLine ? 1 : 0) << 31;
 
     /**
     * A(4Eh) - gpu_sync()
@@ -372,13 +384,13 @@ uint32_t Emulator::Gpu::status() {
     if (dmaDirection == DmaDirection::Off) {
         dma = 0;
     } else if (dmaDirection == DmaDirection::Fifo) {
-        dma = readyForCommand; // FIFO not full enough for at least one command word.
+        dma = (readMode != VRam) ? 1u : 0u; // FIFO not more than half full. Approx until real FIFO level exists.
     } else if (dmaDirection == DmaDirection::CpuToGp0) {
         dma = readyForDmaBlock;
     } else if (dmaDirection == DmaDirection::VRamToCpu) {
         dma = readyToReadVram;
     }
-    
+
     status |= dma << 25;
 
     return status;
@@ -2478,8 +2490,24 @@ void Emulator::Gpu::gp1DisplayHorizontalRange(uint32_t val) {
     /*displayHorizStart = static_cast<uint16_t>(val & 0x3FF);
     displayHorizEnd = static_cast<uint16_t>((val >> 12) & 0x3FF);*/
 
-    displayHorizStart = static_cast<uint16_t>(val & 0xFFF);
-    displayHorizEnd = static_cast<uint16_t>((val >> 12) & 0xFFF);
+    displayHorizStart = static_cast<uint16_t>(val & 0x0FFF);
+    displayHorizEnd = static_cast<uint16_t>((val >> 12) & 0x0FFF);
+
+    /**
+     * The number of displayed pixels per line is "(((X2-X1)/cycles_per_pix)+2) AND NOT 3"
+     * (ie. the hardware is rounding the width up/down to a multiple of 4 pixels).
+     */
+    uint32_t range = displayHorizEnd - displayHorizStart;
+
+    switch (hres.getResolution()) {
+        case 256: cyclesPerPixel = 10; break;
+        case 320: cyclesPerPixel = 8;  break;
+        case 368: cyclesPerPixel = 7;  break;
+        case 512: cyclesPerPixel = 5;  break;
+        case 640: cyclesPerPixel = 4;  break;
+    }
+
+    displayedPixels = (((range / cyclesPerPixel) + 2) & ~3);
 }
 
 void Emulator::Gpu::gp1DisplayVerticalRange(uint32_t val) {

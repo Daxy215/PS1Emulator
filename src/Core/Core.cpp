@@ -321,7 +321,7 @@ struct Exe {
         uint32_t tAddr;
         uint32_t tSize;
 
-        // Both of those are unnkown
+        // Both of those are unkown
         uint32_t dAddr;
         uint32_t dSize;
 
@@ -412,22 +412,22 @@ void handleLoadExe(std::string path) {
     // FileManager::loadFile("../ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygon/RenderPolygon16BPP.exe"); // Passed
     // std::vector<uint8_t> data =
     // FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderPolygonDither/RenderPolygonDither16BPP.exe"); //
-    // TODO; Wrong colors(implement dither) std::vector<uint8_t> data =
-    // Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
+    // TODO; Wrong colors(implement dither)
+    // std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderRectangle/RenderRectangle16BPP.exe"); // Passed
     // std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/GPU/16BPP/RenderTexturePolygon/15BPP/RenderTexturePolygon15BPP.exe"); // Passed
 
     // Other stuff
     // std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/PSX-master/Demo/printgpu/PRINTGPU.exe");
     //std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/PSX-master/HELLOWORLD/16BPP/HelloWorld16BPP.exe"); // Passed
     // std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/PSX-master/HELLOWORLD/24BPP/HelloWorld24BPP.exe"); // TODO; Unsupported format
-    // std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
+    //std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/PSX-master/Demo/vblank/VBLANK.exe");
 
     // std::vector<uint8_t> data = FileManager::loadFile("../ROMS/Tests/PSX-master/ImageLoad/ImageLoad.exe"); // Passed
 
     //std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/psxtest_cpu.exe");
     //std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/redux_cpu.exe");
 
-    // Requires controller (what?)
+    // Requires controller
     //std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/PSX-master/psxtest_cpx.exe");
     //std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/psxtest_gpu.exe");
 
@@ -435,7 +435,7 @@ void handleLoadExe(std::string path) {
     // though, idk where im messing up bc its never checking,
     // for the controller's inputs. So, I can't really fully test it..
     // Future me; I was causing the wrong interrupt
-    std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/PSX-master/CUBE/CUBE.exe");
+    //std::vector<uint8_t> data = FileManager::loadFile("../../ROMS/Tests/PSX-master/CUBE/CUBE.exe");
 
     // CDROM Tests
     // std::vector<uint8_t> data = FileManager::loadFile("ROMS/Tests/ps1-tests/cdrom/getloc/getloc.exe"); // TODO;
@@ -483,6 +483,40 @@ void handleLoadExe(std::string path) {
      */
     //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/ps1-tests/timers/timers.exe");
     //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/ps1-tests-master/timers/timers.exe");
+
+    /**
+     * Failing timerIrqPulseModeBit10 passing rest
+     *
+     * Had a stupid issue..
+     */
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/timers/timers.ps-exe");
+
+    /**
+     * Failing every test..
+     *
+     * Fixed now passes all tests
+     */
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/dma/dma.ps-exe");
+
+    /**
+     * Passes all tests
+     */
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/cpu/cpu.ps-exe");
+
+    /**
+     * Failing some tests
+     *
+     * Fixed: Wasn't causing an exception for breakpoints
+     */
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/cop0/cop0.ps-exe");
+
+    /**
+     * Passes everything after fixing a few issues
+     */
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/Tests/pcsx-redux-tests/tests/dcache/dcache.ps-exe");
+
+    // https://chenthread.asie.pl/fromage/
+    //std::vector<uint8_t> data = Emulator::Utils::FileManager::loadFile("../../ROMS/boot.exe");
 
     Exe exe;
     memcpy(&exe, data.data(), sizeof(exe));
@@ -964,19 +998,17 @@ int main(int argc, char *argv[]) {
     //cpu->interconnect._cdrom.swapDisk("../ROMS/Pepsiman (Japan)/Pepsiman (Japan).cue");
 
     // Games that are broken
-    // cpu->interconnect._cdrom.swapDisk("../../ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; CDROM(0x10) but it works fine cpu->interconnect._cdrom.swapDisk("../../ROMS/This Is
-    //Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
-    //cpu->interconnect._cdrom.swapDisk("../../ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
+    //cpu->interconnect._cdrom.swapDisk("../../ROMS/Yu-Gi-Oh! Forbidden Memories (Europe)/Yu-Gi-Oh! Forbidden Memories (Europe).cue"); // TODO; CDROM(0x10) but it works fine cpu->interconnect._cdrom.swapDisk("../../ROMS/This Is
+    //cpu->interconnect._cdrom.swapDisk("../../ROMS/Football (Europe)/This Is Football (Europe).cue"); // TODO; CDROM(0x11)
+    cpu->interconnect._cdrom.swapDisk("../../ROMS/Crash Bash (Europe) (En,Fr,De,Es,It)/Crash Bash (Europe) (En,Fr,De,Es,It).cue"); // TODO; CDROM(0x11)
 
-    // cpu->interconnect._cdrom.swapDisk("../ROMS/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1)/Final Fantasy IX (USA,
-    // Canada) (Disc 1) (Rev 1).cue");
+    // cpu->interconnect._cdrom.swapDisk("../ROMS/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1)/Final Fantasy IX (USA, Canada) (Disc 1) (Rev 1).cue");
 
     // Works but with some GPU bugs
-    // cpu->interconnect._cdrom.swapDisk("../ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe)
-    // (En,Fr,De,Es,It).cue");
+    //cpu->interconnect._cdrom.swapDisk("../ROMS/Grudge Warriors (Europe) (En,Fr,De,Es,It)/Grudge Warriors (Europe) (En,Fr,De,Es,It).cue");
 
     // TODO; Works completely fine BUT with so many GPU bugs XD
-    // cpu->interconnect._cdrom.swapDisk("../ROMS/Twisted Metal 4 (USA) (Rev 1)/Twisted Metal 4 (USA) (Rev 1).cue");
+    //cpu->interconnect._cdrom.swapDisk("../../ROMS/Twisted Metal 4 (USA) (Rev 1)/Twisted Metal 4 (USA) (Rev 1).cue");
 
     /*namespace fs = std::filesystem;
 
@@ -1040,7 +1072,7 @@ int main(int argc, char *argv[]) {
                 glfwGetFramebufferSize(gpu->renderer->window, &width, &height);
                 glViewport(0, 0, width, height);
 
-                //std::cerr << "FPS: " << std::to_string(fps) << " - " << std::to_string(gpu->frames) << "\n";
+                std::cerr << "FPS: " << std::to_string(fps) << " - " << std::to_string(gpu->frames) << "\n";
 
                 gpu->frames = 0;
             }

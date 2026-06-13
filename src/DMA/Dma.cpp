@@ -50,37 +50,23 @@ uint32_t Dma::interrupt() {
 }
 
 void Dma::setInterrupt(uint32_t val) {
-    //std::printf("[Dma::setInterrupt] Called with val = 0x%08X\n", val);
-    
-    auto prevIrq = irq();
-    
     // Unknown what bts [14:0] do
     irqDummy = static_cast<uint8_t>(val & 0x7FFF);
     
-    forceIrq = ((val >> 15) & 1) != 0;
+    forceIrq = (val >> 15) & 1;
     
-    channelIrqEn = static_cast<uint8_t>(((val >> 16) & 0x7F));
+    channelIrqEn = (val >> 16) & 0x7F;
     
-    irqEn = ((val >> 23) & 1) != 0;
-    
+    irqEn = (val >> 23) & 1;
+
     // Writing 1 to a flag rests it
-    uint8_t ack = ((val >> 24) & 0x3F);
-    channelIrqFlags &= ~ack;
-    
-    irqFlag = irq();
-    
-    if(!prevIrq && irq()) {
-        //std::printf("[Dma::setInterrupt] IRQ triggered!\n");
-        IRQ::trigger(IRQ::Interrupt::Dma);
-    }
-    
-    //std::cerr << "";
+    channelIrqFlags &= ~((val >> 24) & 0x7f);
+
+    updateInterruptPending();
 }
 
 bool Dma::irq() {
-    auto channelIrq = this->channelIrqFlags & this->channelIrqEn;
-    
-    return forceIrq || (this->irqEn && (channelIrq != 0));
+    return forceIrq || (this->irqEn && (this->channelIrqFlags != 0));
 }
 
 void Dma::setControl(uint32_t val) {

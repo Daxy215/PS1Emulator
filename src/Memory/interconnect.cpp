@@ -61,7 +61,7 @@ uint32_t Interconnect::dmaReg(uint32_t offset) {
             
             switch (minor) {
                 case 0:
-                    return channel.base >> (align * 8);
+                    return channel.base >> (align * 8); // MADR
                 case 4:
                     return channel.blockControl() >> (align * 8);
                 case 8:
@@ -93,26 +93,35 @@ void Interconnect::doDma(Port port) {
     // DMA transfer has been started, for now let's
     // process everything in one pass (i.e. no
     // chopping or priority handling)
+    if (!_dma.channelEnabled(port)) {
+        return;
+    }
     
-    if(_dma.getChannel(port).sync == LinkedList) {
+    Channel& channel = _dma.getChannel(port);
+
+    if (channel.sync == LinkedList) {
         dmaLinkedList(port);
     } else {
         dmaBlock(port);
     }
-    
-    _dma.getChannel(port).done(_dma, port);
+
+    channel.done(_dma, port);
 }
 
 void Interconnect::dmaBlock(Port port) {
     Channel& channel = _dma.getChannel(port);
-    
+
     int32_t increment = (channel.step == Increment) ? 4 : -4;
-    int32_t addr = channel.base;
+    uint32_t addr = channel.base & /*0x00ffffff*/0x00fffffc;
     
     // Transfer size in words
     std::optional<uint32_t> remsz = channel.transferSize();
-    
-    while(remsz.value() > 0) {
+
+    if (!remsz.has_value()) {
+        return;
+    }
+
+    while (remsz.value() > 0) {
         // Not sure what happens if the address is bogus,
         // Mednafen just makes addr this way, maybe that's,
         // how the hardware behaves (i.e. the RAM address,
@@ -214,6 +223,12 @@ void Interconnect::dmaBlock(Port port) {
         addr += increment;
         remsz.value() -= 1;
     }
+
+    channel.base = addr & 0x00ffffff;
+
+    if (channel.sync != LinkedList) {
+        channel.blockCount = 0;
+    }
     
     //channel.done(_dma, port);
 }
@@ -221,7 +236,7 @@ void Interconnect::dmaBlock(Port port) {
 void Interconnect::dmaLinkedList(Port port) {
     Channel& channel = _dma.getChannel(port);
     
-    uint32_t addr = channel.base & 0x1FFFFC;
+    uint32_t addr = channel.base & /*0x1FFFFC*/0x00FFFFFF;
     
     if(channel.direction == ToRam) {
         throw std::runtime_error("Invalid DMA direction for linked list mode");
@@ -232,12 +247,42 @@ void Interconnect::dmaLinkedList(Port port) {
     if(port != Gpu) {
         throw std::runtime_error("Attempted linked list DMA on port " + std::to_string(static_cast<uint8_t>(port)));
     }
-    
+
+    while (true) {
+        uint32_t headerAddr = addr & 0x1FFFFC;
+        uint32_t header = _ram.load<uint32_t>(headerAddr);
+
+        uint32_t count = header >> 24;
+        uint32_t next = header & 0x00FFFFFF;
+
+        uint32_t packetAddr = (addr + 4) & 0x00FFFFFF;
+
+        while (count > 0) {
+            uint32_t command = _ram.load<uint32_t>(packetAddr & 0x1FFFFC);
+            _gpu->gp0(command);
+
+            packetAddr = (packetAddr + 4) & 0x00FFFFFF;
+            count--;
+        }
+
+        channel.base = next;
+
+        if (next & 0x00800000) {
+            if (next != 0x00ffffff) {
+                _dma.forceIrq = true;
+            }
+            
+            break;
+        }
+
+        addr = next;
+    }
+
     // TODO; idk if this is correct but,
     // TODO; Tekken 3 is stuck in a loop here..
     // TODO; so... imma just
-    std::unordered_set<uint32_t> addrs;
-    while(true) {
+    //std::unordered_set<uint32_t> addrs;
+    /*while(true) {
         // In linked list mode, each entry,
         // starts with a "header" word.
         // The high byte contains the number
@@ -276,7 +321,7 @@ void Interconnect::dmaLinkedList(Port port) {
         addrs.insert(addr);
         
         addr = header & 0x1FFFFC;
-    }
+    }*/
 }
 
 void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
@@ -296,7 +341,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
             
             switch (minor) {
                 case 0:
-                    channel.setBase(val);
+                    channel.setBase(val); // MADR
                     break;
                 case 4:
                     channel.setBlockControl(val);
@@ -330,7 +375,7 @@ void Interconnect::setDmaReg(uint32_t offset, uint32_t val) {
     default:
         throw std::runtime_error("Unhandled DMA write " + std::to_string(offset) + " : " + std::to_string(val));
     }
-    
+
     if(activePort.has_value()) {
         doDma(activePort.value());
     }

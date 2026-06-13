@@ -245,6 +245,7 @@ class CPU {
         std::string getFunctionLabel(uint32_t addr);
         
         bool handleInterrupts(Instruction& instruction);
+        bool checkDataWriteBreakpoint(uint32_t addr);
         
         // Instructions
         // TODO; Please move those in a different class future me!
@@ -471,8 +472,8 @@ class CPU {
         
         void opgte(Instruction& instruction);
         
-        void exception(Exception cause);
-        
+        void exception(Exception cause, uint32_t handlerOverride = 0);
+
         int opSyscall(Instruction& instruction);
         
         int opbreak(Instruction& instruction);

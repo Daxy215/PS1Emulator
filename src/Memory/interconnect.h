@@ -65,8 +65,8 @@ public:
         _ram = Ram();
         
         // TODO;
-        _bios = Bios("../BIOS/ps-22a.bin");
-        //_bios = Bios("../BIOS/openbios.bin");
+        _bios = Bios("../../BIOS/ps-22a.bin");
+        //_bios = Bios("../../BIOS/openbios.bin");
         //_bios = Bios("../BIOS/openbios2.bin");
         //_bios = Bios("../BIOS/openbios-fastboot.bin");
         //_bios = Bios("../BIOS/openbios-unirom.bin");
@@ -161,7 +161,21 @@ public:
         uint32_t offset = 0;
         
         if (map::RAM.contains(abs_addr, offset)) {
-            return _ram.load<T>(offset);
+            T value = _ram.load<T>(offset);
+
+            // For psx-redux
+            if constexpr (sizeof(T) == 4) {
+                uint32_t biu = _cacheControl.val;
+
+                bool dsOnly = (biu & (1u << 7)) && !(biu & (1u << 3));
+                bool cached = addr < 0xa0000000;
+
+                if (dsOnly && cached) {
+                    _scratchPad.store<uint32_t>(((addr >> 2) & 0xff) * 4, static_cast<uint32_t>(value));
+                }
+            }
+
+            return value;
         }
         
         if (map::SCRATCHPAD.contains(abs_addr, offset)) {
@@ -253,8 +267,9 @@ public:
             // https://github.com/psx-spx/psx-spx.github.io/blob/master/docs/soundprocessingunitspu.md
             //std::cerr << "SPU load register; " << to_hex(addr) << "\n";
             //static int h = 0;
-            //uint16_t v = _spu->read(offset) | _spu->read(offset + 1) << 8;
-            if constexpr (sizeof(T) == 1) {
+            uint16_t v = _spu->read(offset) | _spu->read(offset + 1) << 8;
+
+            /*if constexpr (sizeof(T) == 1) {
                 uint32_t regAddr = abs_addr & ~1u;
                 uint16_t reg = static_cast<uint16_t>(spu.load(regAddr));
                 return static_cast<T>((reg >> ((abs_addr & 1u) * 8)) & 0xFF);
@@ -264,9 +279,9 @@ public:
                 uint32_t lo = spu.load(abs_addr & ~1u);
                 uint32_t hi = spu.load((abs_addr & ~1u) + 2);
                 return static_cast<T>(lo | (hi << 16));
-            }
+            }*/
             
-            auto f = spu.load(addr);
+            //auto f = spu.load(addr);
             //h++;
 
             //if (f != v) {
@@ -275,7 +290,8 @@ public:
                 //printf("AYO %x != %x\n", v, f);
             //}
 
-            return f;
+            //return f;
+            return v;
 
             //return spu.load(addr);
         }
@@ -443,9 +459,10 @@ public:
         if (map::SPU.contains(abs_addr, offset)) {
             //throw std::runtime_error(": 0x" + to_hex(offset) + " <- 0x" + to_hex(val));
 
-            //_spu->write(offset, (val) & 0xFF);
-            //_spu->write(offset + 1, (val >> 8) & 0xFF);
-            if constexpr (sizeof(T) == 1) {
+            _spu->write(offset, (val) & 0xFF);
+            _spu->write(offset + 1, (val >> 8) & 0xFF);
+
+            /*if constexpr (sizeof(T) == 1) {
                 uint32_t regAddr = abs_addr & ~1u;
                 uint16_t reg = static_cast<uint16_t>(spu.load(regAddr));
                 uint16_t byteVal = static_cast<uint8_t>(val);
@@ -462,7 +479,7 @@ public:
             } else if constexpr (sizeof(T) == 4) {
                 spu.store(abs_addr & ~1u, static_cast<uint16_t>(val & 0xFFFF));
                 spu.store((abs_addr & ~1u) + 2, static_cast<uint16_t>((val >> 16) & 0xFFFF));
-            }
+            }*/
             
             return;
         }
@@ -541,6 +558,24 @@ public:
         
         throw std::runtime_error("Unhandled store into address 0x");
         return;
+    }
+
+    bool dcacheFillEnabled() const {
+        uint32_t biu = _cacheControl.val;
+
+        return (biu & (1u << 7)) && !(biu & (1u << 3));
+    }
+
+   void dcacheFill(uint32_t addr, uint32_t value) {
+        if (!dcacheFillEnabled()) {
+            return;
+        }
+
+        if (addr < 0x80000000 || addr >= 0xa0000000) {
+            return;
+        }
+
+        _scratchPad.store<uint32_t>(((addr >> 2) & 0xff) * 4, value);
     }
     
     // DMA register read

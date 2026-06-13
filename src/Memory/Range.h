@@ -37,7 +37,6 @@ namespace map {
     static const Range GPU  = {0x1f801810, 8};
     
     static const Range MEMCONTROL = { 0x1f801000, 36}; // 0x1f801000
-    //static const Range SYSCONTROL = {0x1f801000, 36};
     static const Range CACHECONTROL = {0xfffe0130, 4}; // 0xfffe0130
     
     // Gamepad and memory card controller

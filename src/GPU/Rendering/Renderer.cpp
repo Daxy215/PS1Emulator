@@ -6,6 +6,7 @@
 #include <iostream>
 #include <regex>
 #include <sstream>
+#include <thread>
 #include <vector>
 
 #include <GLFW/glfw3.h>
@@ -467,51 +468,103 @@ void Emulator::Renderer::flushDrawCommands() {
         return;
     }
     
-    glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO[curTex]);
-    glViewport(0, 0, WIDTH, HEIGHT);
-    draw();
-    nVertices = 0;
+    //glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO[curTex]);
+    //glViewport(0, 0, WIDTH, HEIGHT);
+    //draw();
+    //nVertices = 0;
 }
 
 void Emulator::Renderer::readbackToVram(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
-    flushDrawCommands();
+    if (width == 0 || height == 0) {
+        return;
+    }
 
-    const auto readRegion = [&](uint32_t regionX, uint32_t regionY, uint32_t regionWidth, uint32_t regionHeight) {
-        std::vector<uint16_t> pixels(regionWidth * regionHeight);
+    x %= WIDTH;
+    y %= HEIGHT;
 
-        glGetTextureSubImage(
-            sceneTex[curTex], 0, regionX, HEIGHT - regionY - regionHeight, 0,
-            regionWidth, regionHeight, 1, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV,
-            static_cast<GLsizei>(pixels.size() * sizeof(uint16_t)), pixels.data()
-        );
+    const uint16_t maskBit = static_cast<uint16_t>((gpu.forceSetMaskBit & 1) << 15);
+    auto* const vram = gpu.vram->gpu15;
 
-        for (uint32_t row = 0; row < regionHeight; row++) {
-            const uint32_t glY = HEIGHT - regionY - row - 1;
-            const size_t sourceRow = regionHeight - row - 1;
+    const uint32_t threadCount = std::max(1u, std::thread::hardware_concurrency());
 
-            for (uint32_t column = 0; column < regionWidth; column++) {
-                gpu.vram->gpu15[glY * WIDTH + regionX + column] =
-                    (pixels[sourceRow * regionWidth + column] & 0x7FFF) |
-                    (gpu.forceSetMaskBit << 15);
-            }
+    const auto copyRowsThreaded = [&](const std::vector<uint16_t>& pixels,
+                                      uint32_t regionX,
+                                      uint32_t regionY,
+                                      uint32_t regionWidth,
+                                      uint32_t regionHeight) {
+        const uint32_t workers = std::min(threadCount, regionHeight);
+        std::vector<std::thread> threads;
+        threads.reserve(workers);
+
+        for (uint32_t worker = 0; worker < workers; worker++) {
+            const uint32_t startRow = (regionHeight * worker) / workers;
+            const uint32_t endRow = (regionHeight * (worker + 1)) / workers;
+
+            threads.emplace_back([&, startRow, endRow]() {
+                for (uint32_t row = startRow; row < endRow; row++) {
+                    const uint32_t dstY = regionY + row;
+                    const uint32_t srcRow = regionHeight - row - 1;
+
+                    uint16_t* dst = vram + dstY * WIDTH + regionX;
+                    const uint16_t* src = pixels.data() + srcRow * regionWidth;
+
+                    for (uint32_t column = 0; column < regionWidth; column++) {
+                        dst[column] = (src[column] & 0x7FFF) | maskBit;
+                    }
+                }
+            });
+        }
+
+        for (auto& thread : threads) {
+            thread.join();
         }
     };
 
-    const uint32_t firstWidth = std::min<uint32_t>(width, WIDTH - x);
-    const uint32_t firstHeight = std::min<uint32_t>(height, HEIGHT - y);
-
-    readRegion(x, y, firstWidth, firstHeight);
-
-    if (width > firstWidth) {
-        readRegion(0, y, width - firstWidth, firstHeight);
-    }
-
-    if (height > firstHeight) {
-        readRegion(x, 0, firstWidth, height - firstHeight);
-
-        if (width > firstWidth) {
-            readRegion(0, 0, width - firstWidth, height - firstHeight);
+    const auto readRegion = [&](uint32_t regionX, uint32_t regionY, uint32_t regionWidth, uint32_t regionHeight) {
+        if (regionWidth == 0 || regionHeight == 0) {
+            return;
         }
+
+        std::vector<uint16_t> pixels(regionWidth * regionHeight);
+
+        glGetTextureSubImage(
+            sceneTex[curTex],
+            0,
+            regionX,
+            HEIGHT - regionY - regionHeight,
+            0,
+            regionWidth,
+            regionHeight,
+            1,
+            GL_RGBA,
+            GL_UNSIGNED_SHORT_1_5_5_5_REV,
+            static_cast<GLsizei>(pixels.size() * sizeof(uint16_t)),
+            pixels.data()
+        );
+
+        copyRowsThreaded(pixels, regionX, regionY, regionWidth, regionHeight);
+    };
+
+    uint32_t remainingHeight = height;
+    uint32_t currentY = y;
+
+    while (remainingHeight > 0) {
+        const uint32_t chunkHeight = std::min<uint32_t>(remainingHeight, HEIGHT - currentY);
+
+        uint32_t remainingWidth = width;
+        uint32_t currentX = x;
+
+        while (remainingWidth > 0) {
+            const uint32_t chunkWidth = std::min<uint32_t>(remainingWidth, WIDTH - currentX);
+
+            readRegion(currentX, currentY, chunkWidth, chunkHeight);
+
+            remainingWidth -= chunkWidth;
+            currentX = 0;
+        }
+
+        remainingHeight -= chunkHeight;
+        currentY = 0;
     }
 }
 

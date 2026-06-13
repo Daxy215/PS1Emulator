@@ -59,7 +59,7 @@ public:
     uint16_t blockCount = 0;
     
     // DMA start address
-    int32_t base = 0;
+    uint32_t base = 0;
     
     Direction direction = ToRam;
     Step step = Increment;

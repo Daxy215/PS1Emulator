@@ -219,7 +219,7 @@ void Emulator::IO::Timer::finishTick(uint32_t ticks) {
         //counter = (counter + 1) & 0xffff;
         counter++;
 
-        if (counter == target) {
+        if (counter >= target) {
             mode.reachedTarget = true;
 
             if (mode.interruptTarget)
@@ -234,12 +234,12 @@ void Emulator::IO::Timer::finishTick(uint32_t ticks) {
 
         if (counter > 0xffff) {
             mode.hasWrapped = true;
-            counter = 0;
-            
+
             if (mode.interruptWrap)
                 requestIRQ();
 
             if (!mode.resetType) {
+                counter = 0;
                 resetPending = false;
             }
         }
@@ -256,7 +256,7 @@ void Emulator::IO::Timer::requestIRQ() {
 		if (mode.interruptToggleMode)
 			mode.interrupt = !mode.interrupt;
 		else
-			mode.interrupt = false;
+			mode.interrupt = true; // had this as false.. ;-;
 	}
 	
 	switch (type) {

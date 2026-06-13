@@ -183,8 +183,9 @@ int CPU::memoryAccessCycles(uint32_t addr, uint8_t size, bool write) const {
 
     // Making ps1-test/timer be 2 cycles too long,
     // making this return 0 seems to fix it
+    // Ok apparently duckstation gets 1013 and not 1011
     if (map::TIMERS.contains(absAddr, offset))
-        return 0;
+        return 2;
 
     if (map::CDROM.contains(absAddr, offset))
         return 2;
@@ -742,6 +743,30 @@ bool CPU::handleInterrupts(Instruction& instruction) {
     return false;
 }
 
+bool CPU::checkDataWriteBreakpoint(uint32_t addr) {
+    const uint32_t dcic = _cop0.dcic;
+
+    const bool masterEnabled = (dcic & (1u << 31)) && (dcic & (1u << 30));
+    const bool dataEnabled = dcic & (1u << 25);
+    const bool writeEnabled = dcic & (1u << 27);
+
+    if (!masterEnabled || !dataEnabled || !writeEnabled) {
+        return false;
+    }
+
+    if (((addr ^ _cop0.bda) & _cop0.bdam) != 0) {
+        return false;
+    }
+
+    _cop0.dcic |= (1u << 0); // any break
+    _cop0.dcic |= (1u << 2); // BDA data break
+    _cop0.dcic |= (1u << 4); // BDA data-write break
+
+    exception(Exception::Break, 0x80000040);
+
+    return true;
+}
+
 int CPU::opsll(Instruction& instruction) {
     uint32_t i = instruction.shamt;
     uint32_t t = instruction.rt;
@@ -961,6 +986,7 @@ int CPU::opsw(Instruction& instruction) {
         uint32_t v    = reg(t);
 
         store32(addr, v);
+        checkDataWriteBreakpoint(addr);
     } else {
         _cop0.badVaddr = addr;
         exception(StoreAddressError);
@@ -1061,6 +1087,7 @@ int CPU::opsh(Instruction& instruction) {
         uint32_t v = reg(t);
 
         store16(addr, v);
+        checkDataWriteBreakpoint(addr);
     } else {
         _cop0.badVaddr = addr;
        exception(StoreAddressError);
@@ -1084,6 +1111,8 @@ int CPU::opsb(Instruction& instruction) {
     uint32_t v    = reg(t);
 
     store8(addr, static_cast<uint8_t>(v));
+
+    checkDataWriteBreakpoint(addr);
 
     return 1;
 }
@@ -1655,55 +1684,55 @@ void CPU::opmtc0(Instruction& instruction) {
      */
 
     switch (copr) {
-    //Breakpoints registers for the future
-    case 3:
-        _cop0.bpc = v;
-        break;
-    case 5:
-        _cop0.bda = v;
-        break;
-    case 6:
-        break;
-    case 7:
-        _cop0.dcic = v;
-        break;
-    case 9:
-        _cop0.bdam = v;
-        break;
-    case 11:
-        _cop0.bpcm = v;
-        break;
-    case 12: {
-        _cop0.sr = v;
-        //IRQ::step();
+        //Breakpoints registers for the future
+        case 3:
+            _cop0.bpc = v;
+            break;
+        case 5:
+            _cop0.bda = v;
+            break;
+        case 6:
+            break;
+        case 7:
+            _cop0.dcic = v;
+            break;
+        case 9:
+            _cop0.bdam = v;
+            break;
+        case 11:
+            _cop0.bpcm = v;
+            break;
+        case 12: {
+            _cop0.sr = v;
+            //IRQ::step();
 
-        /*bool shouldInterrupt = (_cop0.sr & 0x1) == 1;
-        bool cur = (v & 0x1) == 1;
+            /*bool shouldInterrupt = (_cop0.sr & 0x1) == 1;
+            bool cur = (v & 0x1) == 1;
 
-        _cop0.sr = v;
+            _cop0.sr = v;
 
-        uint32_t IM = (v >> 8) & 0x3;
-        uint32_t IP = (_cop0.cause >> 8) & 0x3;
+            uint32_t IM = (v >> 8) & 0x3;
+            uint32_t IP = (_cop0.cause >> 8) & 0x3;
 
-        if(!shouldInterrupt && cur && (IM & IP) > 0) {
-            pc = nextpc;
-            currentpc = pc;
-            //nextpc += 4;
+            if(!shouldInterrupt && cur && (IM & IP) > 0) {
+                pc = nextpc;
+                currentpc = pc;
+                //nextpc += 4;
 
-            exception(Exception::Interrupt);
-        }*/
+                exception(Exception::Interrupt);
+            }*/
 
-        break;
-    }
-    case 13: {
-        _cop0.cause &= ~0x300;
-        _cop0.cause |= v & 0x300;
+            break;
+        }
+        case 13: {
+            _cop0.cause &= ~0x300;
+            _cop0.cause |= v & 0x300;
 
-        break;
-    }
-    default:
-        std::cout << "Unhandled cop0 register " << copr << "\n";
-        throw std::runtime_error("Unhandled cop0 register " + std::to_string(copr));
+            break;
+        }
+        default:
+            std::cout << "Unhandled cop0 register " << copr << "\n";
+            throw std::runtime_error("Unhandled cop0 register " + std::to_string(copr));
     }
 }
 
@@ -1852,7 +1881,7 @@ void CPU::opgte(Instruction& instruction) {
     throw std::runtime_error("Unhandled GTE operator\n");
 }
 
-void CPU::exception(const Exception exception) {
+void CPU::exception(const Exception exception, uint32_t handlerOverride) {
     // Only 0x4h and 0x5h updates BadVaddr
     // Bruh..Shouldn't point to 'currentpc'
     // but the addr it'll jump to?
@@ -1904,7 +1933,9 @@ void CPU::exception(const Exception exception) {
     }
 
     // Determine the exception handler address based on the 'BEV' bit
-    uint32_t handler = (_cop0.sr & (1 << 22)) != 0 ? 0xbfc00180 : 0x80000080;
+    uint32_t handler = handlerOverride
+        ? handlerOverride
+        : ((_cop0.sr & (1 << 22)) ? 0xbfc00180 : 0x80000080);
 
     // Exceptions don’t have a branch delay, we jump directly into the handler
     pc = handler;

@@ -113,10 +113,16 @@ void Channel::done(Dma& dma, Port port) {
 	enable = false;
 	trigger = false;
 	
-	if (dma.channelIrqEn & (1 << static_cast<size_t>(port))) {
+	/*if (dma.channelIrqEn & (1 << static_cast<size_t>(port))) {
 		dma.channelIrqFlags |= (1 << static_cast<size_t>(port));
 		dma.interruptPending = true;
-	}
+	}*/
+
+    if (dma.channelIrqEn & (1u << static_cast<size_t>(port))) {
+        dma.channelIrqFlags |= 1u << static_cast<size_t>(port);
+    }
+
+    dma.updateInterruptPending();
 	
 	interruptPending = true;
 }

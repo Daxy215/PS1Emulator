@@ -277,13 +277,15 @@ namespace Emulator {
                 float u = 0, v = 0;
                 float dataX, dataY;
             };
-            
+
             /**
-             * TODO; Make this use uint32_t,
+             * Make this use uint32_t,
              * and pass the "offset" variables, as well as the,
              * textureDepth to fix the flickering issue(I hope so)
-             * 
+             *
              * huh?
+             *
+             * Fixed: Just had bad rendering timings..
              */
             enum TextureMode : uint8_t {
                 ColorOnly    = 0,
@@ -396,15 +398,24 @@ namespace Emulator {
                 //    timers.addTicks(0, after - before);
             }
 
-            bool calcHBlank() const {
-                uint32_t start = std::min<uint32_t>(displayHorizStart, htotal());
-                uint32_t end   = std::min<uint32_t>(displayHorizEnd,   htotal());
+            /**
+             * Duckstation uses those
+             * can't find where from..
+             */
+            uint32_t hblankStart() const {
+                return vmode == VMode::Pal ? 3300 : 3288;
+            }
 
-                if (start <= end) {
-                    return _hpos < start || _hpos >= end;
-                } else {
-                    return _hpos >= end && _hpos < start;
-                }
+            /**
+             * Duckstation uses those
+             * can't find where from..
+             */
+            uint32_t hblankEnd() const {
+                return 488;
+            }
+
+            bool calcHBlank() const {
+                return _hpos < hblankEnd() || _hpos >= hblankStart();
             }
 
             bool calcVBlank() const {
@@ -699,7 +710,9 @@ namespace Emulator {
             uint64_t _gpuFrac = 0;
             uint32_t _hpos = 0;
             uint32_t frames = 0;
-		    
+            uint32_t cyclesPerPixel = 0;
+            uint32_t displayedPixels = 0;
+
         public:
             bool isInHBlank = false;
             bool isInVBlank = false;
